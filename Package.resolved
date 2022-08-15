@@ -1,0 +1,16 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "TestableCombinePublishers",
+        "repositoryURL": "https://github.com/albertbori/TestableCombinePublishers.git",
+        "state": {
+          "branch": null,
+          "revision": "c4581c15e3960af0b8e946193fc260a8deb128a3",
+          "version": "1.0.4"
+        }
+      }
+    ]
+  },
+  "version": 1
+}
