@@ -58,7 +58,7 @@ protocol LoadedBlogModeling {
 }
 ```
 
-You'll notice that each of the Actions above ***returns a new State*** (or a future State publisher). This is the essence of the VSM design pattern. Every Action should emit a new State to update the View, and move the user along the "State Journey". 
+You'll notice that each of the Actions above ***returns a new State*** (or a future State publisher). This is the essence of the VSM design pattern. Every Action should emit a new State to update the View, and move the user along the "State Journey".
 
 Next, we will define the concrete behavior for each of these Models.
 
@@ -100,18 +100,16 @@ Detailed explanations can be found below this guide which cover complex topics s
 
 First, build your SwiftUI `View` (or UIKit `UIViewController`/`UIView`) and conform it to the `ViewStateRendering` protocol. This will require that you define a `StateContainer` property with your feature's State/ViewState type.
 
-**SwiftUI**
-
 ```swift
+// SwiftUI
 struct BlogView: View, ViewStateRendering {
     @StateObject var container: StateContainer<BlogViewState>
     ...
 }
 ```
 
-**UIKit**
-
 ```swift
+// UIKit
 class BlogViewController: UIViewController, ViewStateRendering {
     var container: StateContainer<BlogViewState>
     var cancellable: AnyCancellable?
@@ -129,9 +127,8 @@ class BlogViewController: UIViewController, ViewStateRendering {
 
 Next, you'll want to add code that draws the State on screen when it updates/loads.
 
-**SwiftUI**
-
 ```swift
+// SwiftUI
 ...
 var body: some View {
     VStack {
@@ -149,9 +146,8 @@ var body: some View {
 ...
 ```
 
-**UIKit**
-
 ```swift
+// UIKit
 ...
 func render(state: BlogViewState) {
     switch state {
@@ -173,9 +169,8 @@ Now that your View is drawing each State, you'll want to add behaviors to your V
 
 To do this, you call the Action functions found on each State. **Be sure to _OBSERVE_ each Action using `container.observe(...)` or the State progression will fail.** (Don't worry, the compiler will warn you if you forget.)
 
-**SwiftUI**
-
 ```swift
+// SwiftUI
 ...
 var body: some View {
     VStack {
@@ -199,9 +194,8 @@ var body: some View {
 ...
 ```
 
-**UIKit**
-
 ```swift
+// UIKit
 ...
 override func viewDidLoad() {
     super.viewDidLoad()
@@ -230,23 +224,20 @@ func render(state: BlogViewState) {
 
 Now we are ready to use the Blog feature that we built using the VSM pattern. Here is one example of how to instantiate a `ViewStateRendering` view:
 
-**SwiftUI**
-
 ```swift
+// SwiftUI
 BlogView(stateContainer: .init(state: .initialized(BlogLoaderModel(blogId: 1))))
 ```
 
-**UIKit**
-
 ```swift
+// UIKit
 BlogViewController(state: .initialized(BlogLoaderModel(blogId: 1)))
 ```
 
 Initialization of a `ViewStateRendering` view is very flexible. You can customize how it is instantiated and what parameters are required. A good example is to add a convenience initializer that accepts the dependencies and other parameters without expecting outside callers to know about the internal States of the `ViewStateRendering` view. For example:
 
-**SwiftUI**
-
 ```swift
+// SwiftUI
 struct BlogView: View, ViewStateRendering {
     ...
     init(urlSession: UrlSession, blogId: Int) {
@@ -260,9 +251,8 @@ struct BlogView: View, ViewStateRendering {
 BlogView(urlSession: .shared, blogId: 1)
 ```
 
-**UIKit**
-
 ```swift
+// UIKit
 class BlogViewController: UIViewController, ViewStateRendering {
     ...
     init(urlSession: UrlSession, blogId: Int) {
@@ -352,6 +342,7 @@ let blogLoaderModel = BlogLoaderModel(..., loadedBlogModelBuilder: {
 
 BlogView(container: .init(state: .initialized(blogLoaderModel)))
 ```
+
 As you can see, the Model constructors are unresolvable if the States can loop.
 
 In order to break the cycle, a tie-breaker is needed. A single "Model Builder" type can be injected into each Model to offload the process of building other Models. For example:
@@ -415,7 +406,7 @@ XCTAssertEqual(output.first, BlogViewState.loading, "reload Action failed to pro
 
 Sometimes you don't need the full power (and overhead) of Combine `Publisher`s to manage the flow of State in your feature. There are two other options you can use to manage how an Action leads to a new State:
 
-**Async/Await**
+#### Async/Await
 
 You can utilize Swift's async/await behavior to progress from one State to another by conforming your Action to the async/await requirements, like so:
 
@@ -432,7 +423,7 @@ The main limitation of using async/await is that you can only emit one new State
 container.observe({ await loadedBlogModel.delete() })
 ```
 
-**Synchronous State Progression**
+#### Synchronous State Progression
 
 If you are _synchronously_ moving from one State to another you can simply return a new State from any Action, like so:
 
@@ -449,7 +440,7 @@ The two limitations of this approach are that you can only emit one State and it
 container.observe(loadedBlogModel.delete())
 ```
 
-**No State Progression**
+#### No State Progression
 
 In some scenarios, an Action may not need to emit a new State for the current View. Instead, these Actions kick off some external, ancillary, or silent process. For these cases, your Model's Action can return `Void`. For example:
 
@@ -475,13 +466,17 @@ var body: some View {
 ## Project Information
 
 ### Credits
+
 VSM for iOS is owned and [maintained](MAINTAINERS.md) by [Wayfair](https://www.wayfair.com/).
 
 ### Contributing
+
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### Security
+
 See [SECURITY.md](SECURITY.md).
 
 ### License
+
 VSM for iOS is released under the MIT license. See [LICENSE](LICENSE) for details.
