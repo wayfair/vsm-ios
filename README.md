@@ -100,18 +100,16 @@ Detailed explanations can be found below this guide which cover complex topics s
 
 First, build your SwiftUI `View` (or UIKit `UIViewController`/`UIView`) and conform it to the `ViewStateRendering` protocol. This will require that you define a `StateContainer` property with your feature's State/ViewState type.
 
-#### SwiftUI
-
 ```swift
+// SwiftUI
 struct BlogView: View, ViewStateRendering {
     @StateObject var container: StateContainer<BlogViewState>
     ...
 }
 ```
 
-#### UIKit
-
 ```swift
+// UIKit
 class BlogViewController: UIViewController, ViewStateRendering {
     var container: StateContainer<BlogViewState>
     var cancellable: AnyCancellable?
@@ -129,9 +127,8 @@ class BlogViewController: UIViewController, ViewStateRendering {
 
 Next, you'll want to add code that draws the State on screen when it updates/loads.
 
-#### SwiftUI
-
 ```swift
+// SwiftUI
 ...
 var body: some View {
     VStack {
@@ -149,9 +146,8 @@ var body: some View {
 ...
 ```
 
-#### UIKit
-
 ```swift
+// UIKit
 ...
 func render(state: BlogViewState) {
     switch state {
@@ -173,9 +169,8 @@ Now that your View is drawing each State, you'll want to add behaviors to your V
 
 To do this, you call the Action functions found on each State. **Be sure to _OBSERVE_ each Action using `container.observe(...)` or the State progression will fail.** (Don't worry, the compiler will warn you if you forget.)
 
-#### SwiftUI#### 
-
 ```swift
+// SwiftUI
 ...
 var body: some View {
     VStack {
@@ -199,9 +194,8 @@ var body: some View {
 ...
 ```
 
-#### UIKit
-
 ```swift
+// UIKit
 ...
 override func viewDidLoad() {
     super.viewDidLoad()
@@ -230,23 +224,20 @@ func render(state: BlogViewState) {
 
 Now we are ready to use the Blog feature that we built using the VSM pattern. Here is one example of how to instantiate a `ViewStateRendering` view:
 
-#### SwiftUI
-
 ```swift
+// SwiftUI
 BlogView(stateContainer: .init(state: .initialized(BlogLoaderModel(blogId: 1))))
 ```
 
-#### UIKit
-
 ```swift
+// UIKit
 BlogViewController(state: .initialized(BlogLoaderModel(blogId: 1)))
 ```
 
 Initialization of a `ViewStateRendering` view is very flexible. You can customize how it is instantiated and what parameters are required. A good example is to add a convenience initializer that accepts the dependencies and other parameters without expecting outside callers to know about the internal States of the `ViewStateRendering` view. For example:
 
-#### SwiftUI
-
 ```swift
+// SwiftUI
 struct BlogView: View, ViewStateRendering {
     ...
     init(urlSession: UrlSession, blogId: Int) {
@@ -260,9 +251,8 @@ struct BlogView: View, ViewStateRendering {
 BlogView(urlSession: .shared, blogId: 1)
 ```
 
-#### UIKit
-
 ```swift
+// UIKit
 class BlogViewController: UIViewController, ViewStateRendering {
     ...
     init(urlSession: UrlSession, blogId: Int) {
