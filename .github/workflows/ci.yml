@@ -25,7 +25,7 @@ jobs:
       with:
         spm-package: ./
         scheme: VSM
-        destination: platform=iOS Simulator,OS=15.6,name=iPhone 13
+        destination: platform:iOS Simulator, id:05565EDB-5643-45DB-91D6-79D1F81C7213, OS:15.2, name:iPhone 13
         action: test
     
     - name: Build and Test Demo App
@@ -33,5 +33,5 @@ jobs:
       with:
         project: ./Demos/Shopping/Shopping.xcodeproj
         scheme: Shopping
-        destination: platform=iOS Simulator,OS=15.6,name=iPhone 13
+        destination: platform:iOS Simulator, id:05565EDB-5643-45DB-91D6-79D1F81C7213, OS:15.2, name:iPhone 13
         action: test
