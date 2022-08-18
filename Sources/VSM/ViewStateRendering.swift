@@ -1,12 +1,84 @@
 import Combine
 
-/// Convenience protocol for encouraging the core VSM pattern
+/// Conforms a SwiftUI or UIKit view to the VSM pattern.
+///
+/// Conforming a SwiftUI `View`, `UIView`, or `UIViewController` to ``ViewStateRendering`` aids in adoption of the VSM pattern.
+/// This will provide the view with its own ``StateContainer`` by way of the ``container`` property.
+/// Conformance also grants access to convenient State and Actions helpers, such as ``state``, ``bind(_:to:)-p7pn``, and ``observe(_:)-7vht3``.
+///
+/// SwiftUI Example
+/// ```swift
+/// struct UserProfileView: View, ViewStateRendering {
+///     var container = StateContainer<UserProfileViewState>(state: .initialized(LoaderModel()))
+///     var body: some View {
+///         switch state {
+///         case .initialized, .loading:
+///             ProgressView()
+///                 .onAppear {
+///                     if case .initialized(let loaderModel) = state {
+///                         observe(loaderModel.load())
+///                     }
+///                 }
+///         case .loaded(let loadedModel):
+///             Text(loadedModel.username)
+///             Button("Reload") {
+///                 observe(loadedModel.reload())
+///             }
+///         }
+///     }
+/// }
+/// ```
+///
+/// UIKit Example
+/// ```swift
+/// class UserProfileViewController: UIViewController, ViewStateRendering {
+///     var container = StateContainer<UserProfileViewState>(state: .initialized(LoaderModel()))
+///     var stateSubscription: AnyCancellable?
+///
+///     lazy var loadingView: UIProgressView = UIProgressView()
+///     lazy var usernameLabel: UILabel = UILabel()
+///     lazy var reloadButton: UIButton = UIButton(primaryAction: .init(title: "Save", handler: { [weak self] _ in
+///         if case .loaded(let loadedModel) = self?.state {
+///             self?.observe(loadedModel.reload())
+///         }
+///     }))
+///
+///     override func viewDidLoad() {
+///         super.viewDidLoad()
+///         // < configure views here >
+///         stateSubscription = container.$state.sink { [weak self] in self?.render(state: $0) }
+///     }
+///
+///     override func viewDidAppear(_ animated: Bool) {
+///         super.viewDidAppear(animated)
+///         if case .initialized(let loaderModel) = state {
+///             observe(loaderModel.load())
+///         }
+///     }
+///
+///     func render(state: ViewState) {
+///         switch state {
+///         case .initialized, .loading:
+///             loadingView.isHidden.toggle()
+///         case .loaded(let loadedModel):
+///             usernameLabel.text = loadedModel.username
+///             reloadButton.isHidden.toggle()
+///         }
+///     }
+/// }
+/// ```
+///
+///
 public protocol ViewStateRendering {
     
-    /// The type that represents your View's state. Usually an enum with associated values of type `StateModel` for complex views.
+    /// The type that represents your View's state.
+    ///
+    /// This type is usually an enum with associated `Model` values for complex views.
+    /// For simpler views, this can be a `struct` or any value type.
+    /// `class`es (including `ObservableObject`s are supported, but not recommended.
     associatedtype ViewState
     
-    /// Contains the actual `State` value for converting to something displayable
+    /// Contains the current `ViewState` value for rendering in the `View`.
     var container: StateContainer<ViewState> { get }
 }
 

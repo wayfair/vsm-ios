@@ -7,8 +7,17 @@
 
 import Foundation
 
-/// Emits multiple states as an `AsyncSequence`
-/// Example usage: `StateSequence({ .foo }, { await getBar() })`
+/// Emits multiple `State`s as an `AsyncSequence`
+///
+/// Usable with ``StateContainer/observe(_:)-4pebt`` (found in ``StateContainer`` or ``ViewStateRendering``)
+///
+/// Example Usage
+///
+/// ```swift
+/// func load() -> StateSequence
+///     StateSequence({ .loading }, { await .loaded(getData()) })
+/// }
+/// ```
 public struct StateSequence<State>: AsyncSequence, AsyncIteratorProtocol {
     public typealias Element = State
     
