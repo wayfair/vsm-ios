@@ -22,8 +22,6 @@ This guide jumps directly into the VSM code by helping the reader apply VSM conc
 
 In the following steps, we will walk through building a feature that loads a blog post from an API. Once loaded, the user will see the blog text and a delete button. The delete button will send a "delete" message to the API and then show a completion screen.
 
-### Bleep bloop
-
 ### 1. Define your States and Models
 
 Once you have read and internalized the feature requirements, you will convert these requirements into a "State Journey" which will be defined in a series of swift types (usually enums and structs).
@@ -88,7 +86,7 @@ Detailed explanations can be found below this guide which cover complex topics s
 
 ### 2. Define your View
 
-First, build your SwiftUI `View` (or UIKit `UIViewController`/`UIView`) and conform it to the `ViewStateRendering` protocol. This will require that you define a `StateContainer` property with your feature's State/ViewState type.
+First, build your SwiftUI `View` (or UIKit `UIViewController`/`UIView`) and conform it to the ``ViewStateRendering`` protocol. This will require that you define a ``StateContainer`` property with your feature's State/ViewState type.
 
 ```swift
 // SwiftUI
@@ -212,7 +210,7 @@ func render(state: BlogViewState) {
 
 ### 5. Using your View
 
-Now we are ready to use the Blog feature that we built using the VSM pattern. Here is one example of how to instantiate a `ViewStateRendering` view:
+Now we are ready to use the Blog feature that we built using the VSM pattern. Here is one example of how to instantiate a ``ViewStateRendering`` view:
 
 ```swift
 // SwiftUI
@@ -224,7 +222,7 @@ BlogView(stateContainer: .init(state: .initialized(BlogLoaderModel(blogId: 1))))
 BlogViewController(state: .initialized(BlogLoaderModel(blogId: 1)))
 ```
 
-Initialization of a `ViewStateRendering` view is very flexible. You can customize how it is instantiated and what parameters are required. A good example is to add a convenience initializer that accepts the dependencies and other parameters without expecting outside callers to know about the internal States of the `ViewStateRendering` view. For example:
+Initialization of a ``ViewStateRendering`` view is very flexible. You can customize how it is instantiated and what parameters are required. A good example is to add a convenience initializer that accepts the dependencies and other parameters without expecting outside callers to know about the internal States of the ``ViewStateRendering`` view. For example:
 
 ```swift
 // SwiftUI

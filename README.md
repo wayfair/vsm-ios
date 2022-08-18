@@ -8,19 +8,17 @@
 
 VSM is a unidirectional, type-safe, behavior-driven, clean architecture. This repository hosts an open-source swift package framework for easily building features in VSM on iOS.
 
-Open the [Demo App](Demos/Shopping) to see in-depth examples of how to build features using the VSM pattern.
-
 ## Overview
 
-VSM stands for ***V***iew ***S***tate ***M***odel. The **View** observes and renders the **State**. Each **State** may provide a **Model**. Each **Model** contains the **Data** and **Action**s available in the given **State**. Each **Action** in a **Model** returns a new **State**. **State** changes cause the **View** to update.
+VSM stands for View State Model. The View observes and renders the State. Each State may provide a Model. Each Model contains the Data and Actions available in the given State. Each Action in a Model returns one or more new States. State changes cause the View to update.
 
-![VSM Diagram](vsm-diagram.png)
+![VSM Architecture Diagram](Sources/VSM/Documentation.docc/Resources/vsm-diagram.png))
 
-In this module, the provided `StateContainer` type encapsulates and observes the State. A `ViewStateRendering` view (SwiftUI or UIKit) can observe the `container.state` value for rendering the States as they change.
+There are several options to help you get started
 
-## Documentation
-
-Documentation and guides for learning the VSM architecture and accompanying iOS framework can be found [here](/Sources/VSM/Documentation.docc/Documentation.md).
+- Jump into the [Quickstart Guide](https://wayfair-incubator.github.io/vsm-ios/documentation/vsm/quickstartguide)
+- Visit the [VSM Documentation](https://wayfair-incubator.github.io/vsm-ios/documentation/vsm/) for a complete framework reference and links to other learning resources
+- Open the [Demo App](Demos/Shopping) to see many different working examples of how to build features using the VSM pattern
 
 ## Project Information
 
