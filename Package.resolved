@@ -1,16 +1,14 @@
 {
-  "object": {
-    "pins": [
-      {
-        "package": "TestableCombinePublishers",
-        "repositoryURL": "https://github.com/albertbori/TestableCombinePublishers.git",
-        "state": {
-          "branch": "swift-tools-v5.5",
-          "revision": "232590ebd01e4894c2c6601c9c73f21ff4aba5c7",
-          "version": null
-        }
+  "pins" : [
+    {
+      "identity" : "testablecombinepublishers",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/albertbori/TestableCombinePublishers.git",
+      "state" : {
+        "revision" : "c4581c15e3960af0b8e946193fc260a8deb128a3",
+        "version" : "1.0.4"
       }
-    ]
-  },
-  "version": 1
+    }
+  ],
+  "version" : 2
 }
