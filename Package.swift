@@ -15,6 +15,7 @@ let package = Package(
             targets: ["VSM"]),
     ],
     dependencies: [
+        .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
         .package(url: "https://github.com/albertbori/TestableCombinePublishers.git", from: "1.0.0")
     ],
     targets: [
