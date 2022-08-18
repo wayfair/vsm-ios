@@ -5,6 +5,7 @@ This guide jumps directly into the VSM code by helping the reader apply VSM conc
 ## Index
 
 <doc:QuickstartGuide#Getting-Started>
+
 1. [Define your States and Models](#1-define-your-states-and-models)
 1. [Define your View](#2-define-your-view)
 1. [Render the current State](#3-render-the-current-state)
@@ -12,6 +13,7 @@ This guide jumps directly into the VSM code by helping the reader apply VSM conc
 1. [Using your View](#5-using-your-view)
 
 <doc:QuickstartGuide#Additional-Learning>
+
 - [Improving Testability](#improving-testability)
 - [Breaking State Cycles with Builders](#breaking-state-cycles-with-builders)
 - [Options for Controlling State Flow](#options-for-controlling-state-flow)
