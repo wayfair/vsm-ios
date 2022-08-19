@@ -1,6 +1,7 @@
+# This script lives outside of its associated workflow so that it can be tested manually
 swift package --allow-writing-to-directory ./docs \
     generate-documentation --target VSM \
-    --output-path ./docs \
+    --output-path ./docs \ # This path is coordinated with /.github/workflows/pages.yml
     --hosting-base-path vsm-ios \
     --transform-for-static-hosting \
     --disable-indexing
