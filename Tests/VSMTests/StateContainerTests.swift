@@ -10,8 +10,10 @@ class StateContainerTests: XCTestCase {
     /// Asserts that observing state-emitting publisher actions will progress the state appropriately
     func testStatePublisherAction_MultipleStates_Immediate() throws {
         let mockAction: () -> AnyPublisher<MockState, Never> = {
-            [MockState.bar, MockState.baz].publisher
-                .eraseToAnyPublisher()
+            Deferred {
+                [MockState.bar, MockState.baz].publisher
+            }
+            .eraseToAnyPublisher()
         }
         let subject = StateContainer<MockState>(state: .foo)
         test(subject, expect: [.foo, .bar, .baz], when: { $0.observe(mockAction()) })
@@ -20,9 +22,11 @@ class StateContainerTests: XCTestCase {
     /// Asserts that observing state-emitting publisher actions will progress the state appropriately
     func testStatePublisherAction_MultipleStates_Background() throws {
         let mockAction: () -> AnyPublisher<MockState, Never> = {
-            [MockState.bar, MockState.baz].publisher
-                .subscribe(on: DispatchQueue.global(qos: .background))
-                .eraseToAnyPublisher()
+            Deferred {
+                [MockState.bar, MockState.baz].publisher
+                    .subscribe(on: DispatchQueue.global(qos: .background))
+            }
+            .eraseToAnyPublisher()
         }
         let subject = StateContainer<MockState>(state: .foo)
         test(subject, expect: [.foo, .bar, .baz], when: { $0.observe(mockAction()) })
@@ -31,9 +35,11 @@ class StateContainerTests: XCTestCase {
     /// Asserts that observing state-emitting publisher actions will progress the state appropriately
     func testStatePublisherAction_MultipleStates_Main() throws {
         let mockAction: () -> AnyPublisher<MockState, Never> = {
-            [MockState.bar, MockState.baz].publisher
-                .subscribe(on: DispatchQueue.main)
-                .eraseToAnyPublisher()
+            Deferred {
+                [MockState.bar, MockState.baz].publisher
+                    .subscribe(on: DispatchQueue.main)
+            }
+            .eraseToAnyPublisher()
         }
         let subject = StateContainer<MockState>(state: .foo)
         test(subject, expect: [.foo, .bar, .baz], when: { $0.observe(mockAction()) })
