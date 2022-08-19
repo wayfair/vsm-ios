@@ -20,7 +20,7 @@ extension XCTestCase {
             .expect({ _ in XCTAssert(Thread.isMainThread, "Observed published-state action should sink on main thread.", file: file, line: line) }, file: file, line: line)
             .expect(expected, file: file, line: line)
         action(subject)
-        test.waitForExpectations(timeout: 1)
+        test.waitForExpectations(timeout: 5)
     }
 }
 
