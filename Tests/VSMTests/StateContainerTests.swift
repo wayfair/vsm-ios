@@ -218,9 +218,11 @@ class StateContainerTests: XCTestCase {
     /// Asserts that different state observation types will progress one to another in this order: Publisher -> Async -> Sync -> Async -> Publisher.
     func testAllActionTypesProgression() throws {
         let mockPublishedAction: () -> AnyPublisher<MockState, Never> = {
-            return Just(MockState.bar)
-                .subscribe(on: DispatchQueue.global(qos: .background))
-                .eraseToAnyPublisher()
+            return Deferred {
+                Just(MockState.bar)
+                    .subscribe(on: DispatchQueue.global(qos: .background))
+            }
+            .eraseToAnyPublisher()
         }
         let mockAsyncAction: () async -> MockState = {
             do {
