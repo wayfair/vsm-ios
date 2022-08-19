@@ -4,7 +4,7 @@ name: Deploy static content to Pages
 on:
   # Runs on pushes targeting the default branch
   push:
-    branches: ["auto-publish"] # TODO: Switch this from the test branch to "main"
+    branches: ["main"]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -38,6 +38,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Build Documentation
+        run: 
         run: ./generate-docs.sh
 
       - name: Setup Pages
