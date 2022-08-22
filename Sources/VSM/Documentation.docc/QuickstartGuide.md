@@ -1,6 +1,6 @@
 # QuickStart Guide
 
-This guide jumps directly into the VSM code by helping the reader apply VSM concepts to build a simple feature
+Jump directly into the VSM code by simple feature using VSM
 
 ## Index
 
