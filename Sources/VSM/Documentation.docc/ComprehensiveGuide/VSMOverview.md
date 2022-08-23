@@ -38,8 +38,8 @@ As we combine the structure and flow of VSM, you can see how each of the VSM com
 
 To reiterate the important point above, these Models contain the Data and Actions that the View will use. Each Model should be scoped to a specific State and should be as narrowly scoped as possible. (Think: Single-purpose Models) You can have any number and combination of States and Models. Together, these represent the functionality of your feature requirements.
 
-In contrast, other architectures use a single ViewModel that contains the Data and Actions of _the entire feature_, often accessible in any State. This is a critically important distinction between VSM and other architectures. VSM provides additional safety by using the type-system to protect Data and Actions against unintended access. Attempting to read data where it shouldn't be read, or call functions where they shouldn't be called will result in a compiler error.
+In contrast, other architectures use a single ViewModel that contains the Data and Actions of _the entire feature_, often accessible in any State. This is a critically important distinction between VSM and other architectures. VSM provides additional safety by using the type-system to protect Data and Actions against unintended access. **Attempting to read data or call functions from the wrong state will result in a compiler error instead of a runtime error.**
 
 ### Up Next
 
-Now that you understand how VSM generally works, you can begin implementing features using VSM in the next article: <doc:FeatureRequirements>.
+Now that you understand how VSM generally works, you can learn how to implement features using VSM in <doc:FeatureRequirements>.
