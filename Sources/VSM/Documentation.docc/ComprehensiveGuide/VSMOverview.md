@@ -11,8 +11,8 @@ VSM stands for both "View State Model" and "Viewable State Machine". The first d
 In VSM, the various responsibilities of a feature are divided into 3 concepts:
 
 1. **View** - Displays the current State and invokes Actions
-1. **State** - Defines what states a given view can have (ie. loading, loaded, error, editing, validating, saving, etc.)
-1. **Model(s)** - Declare what Data and Actions are available in a given State and provides an implementation for the Actions
+1. **State** - Defines the states that a given view can have (ie. loading, loaded, error, editing, validating, saving, etc.)
+1. **Model(s)** - Provide the Data and Actions available in a given State
 
 The structure of your code should follow the above pattern, with a View code file, a ViewState code file, and a file for each Model's implementation.
 
@@ -42,4 +42,4 @@ In contrast, other architectures use a single ViewModel that contains the Data a
 
 ### Up Next
 
-Now that you understand how the VSM generally works, take a look at how to start implementing features using VSM in <doc:FeatureRequirements>.
+Now that you understand how VSM generally works, you can begin implementing features using VSM in the next article: <doc:FeatureRequirements>.
