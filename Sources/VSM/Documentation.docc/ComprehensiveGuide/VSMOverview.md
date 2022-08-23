@@ -40,6 +40,25 @@ To reiterate the important point above, these Models contain the Data and Action
 
 In contrast, other architectures use a single ViewModel that contains the Data and Actions of _the entire feature_, often accessible in any State. This is a critically important distinction between VSM and other architectures. VSM provides additional safety by using the type-system to protect Data and Actions against unintended access. **Attempting to read data or call functions from the wrong state will result in a compiler error instead of a runtime error.**
 
+## Why VSM
+
+There are many reasons why the VSM architecture is a strong choice for building native mobile apps. Here is a brief list of Pros and Cons that will be covered in more detail throughout the guide.
+
+|Pros|Cons|
+|-|-|
+|• Unidirectional data flow prevents unintentional state and data bugs|• Only a small supporting community (so far 😉)|
+|• Fewer lines of code than most other architectures|• It is not yet fully battle-tested (but is currently being tested)|
+|• High type-safety|• Like most other architectures, it has a small chance of hanging execution paths|
+|• Execution paths are highly deterministic|• Defining States, Models, and Actions can be challenging|
+|• Data and Actions are protected from access in wrong States in both the View and the Models|• Requires some data type translation for consumption by SwiftUI views|
+|• Encourages smaller, single-purpose, least-knowledge Models||
+|• Encourages engineers to split up complex functionality between multiple nested Views, resulting in simpler feature code||
+|• No shared, mutable data or state||
+|• Encourages exhaustive error handling||
+|• State & Model definitions are a simple and clear description of the feature requirements (for ease of maintenance)||
+|• Implementation code is easy to read||
+|• Passively encourages "Shifting Left" via Behavior-Driven Development||
+
 ### Up Next
 
 Now that you understand how VSM generally works, you can learn how to implement features using VSM in <doc:FeatureRequirements>.
