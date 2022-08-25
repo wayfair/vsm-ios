@@ -4,7 +4,7 @@ An in-depth guide to the VSM architecture, framework, and resulting patterns
 
 ## Overview
 
-After a deep dive into the VSM architecture theory, this guide takes the reader through the familiar journey of gathering requirements for a new feature, assessing and internalizing the requirements, developing a technical design, implementing the feature, and validating that the feature behaves according to the requirements.
+This guide gives a detailed overview of the VSM architecture for iOS and takes the reader through the familiar journey of interpreting requirements for a new feature, developing a technical design, implementing the feature, and validating that the feature behaves according to the requirements.
 
 ## Table of Contents
 
