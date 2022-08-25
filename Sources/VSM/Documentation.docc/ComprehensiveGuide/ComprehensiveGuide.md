@@ -10,8 +10,11 @@ After a deep dive into the VSM architecture theory, this guide takes the reader 
 
 1. <doc:VSMOverview>
 1. <doc:FeatureRequirements>
-1. <doc:FeatureDefinition>
 1. <doc:ViewDefinition>
 1. <doc:ModelDefinition>
 1. <doc:ObservableRepositories>
 1. <doc:UnitTesting>
+
+#### Support this Project
+
+If you find anything wrong with this guide, or have suggestions on how to improve it, feel free to [create an issue in our GitHub repo](https://github.com/wayfair-incubator/vsm-ios/issues/new/choose).

@@ -67,6 +67,10 @@ There are many reasons why the VSM architecture is a strong choice for building 
 
 ## Up Next
 
-### Understanding Feature Requirements
+### Interpreting Feature Requirements
 
 Now that you understand how VSM generally works, you can learn how to implement features using VSM in <doc:FeatureRequirements>.
+
+#### Support this Project
+
+If you find anything wrong with this guide, or have suggestions on how to improve it, feel free to [create an issue in our GitHub repo](https://github.com/wayfair-incubator/vsm-ios/issues/new/choose).
