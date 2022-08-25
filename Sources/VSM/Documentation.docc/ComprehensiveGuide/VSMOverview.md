@@ -10,35 +10,35 @@ VSM stands for both "View State Model" and "Viewable State Machine". The first d
 
 In VSM, the various responsibilities of a feature are divided into 3 concepts:
 
-1. **View** - Displays the current State and invokes Actions
+1. **View** - Displays the current state and invokes actions
 1. **State** - Defines the states that a given view can have (ie. loading, loaded, error, editing, validating, saving, etc.)
-1. **Model(s)** - Provides the Data and Actions available in a given State
+1. **Model(s)** - Provides the data and actions available in a given state
 
-The structure of your code should follow the above pattern, with a View code file, a ViewState code file, and a file for each Model's implementation.
+The structure of your code should follow the above pattern, with a view code file, a view state code file, and a file for each model's implementation.
 
-Optionally, due to the reactive nature of VSM, Observable Repositories are an excellent companion to VSM Models in performing data operations (such as loading, saving, etc.) whose results can be forwarded to the View.
+Optionally, due to the reactive nature of VSM, Observable Repositories are an excellent companion to VSM models in performing data operations (such as loading, saving, etc.) whose results can be forwarded to the view. These repositories can be shared between views for a powerful, yet safe approach to synchronizing the state of various views and data in the app.
 
 ![VSM Feature Structure Diagram](vsm-structure.jpg)
 
 ### Flow
 
-In VSM, the View simply observes and renders the current State of a State Machine. The Actions are invoked by the View and emit at least one new State.
+In VSM, the view simply observes and renders the current state of a state machine. The actions are invoked by the view and emit at least one new state.
 
 ![VSM Feature Flow Diagram](vsm-flow.jpg)
 
-Similar to other Elm-based architectures, VSM operates by a "Unidirectional Data Flow" pattern, which means that the View cannot write directly to the State or the Data. It can only affect the Data and State by invoking the Actions which are made available to the View. This is congruent with other modern architectures, such as React, MVI, The Composable Architecture, Redux, and so on.
+Similar to other reactive architectures, VSM operates by a "Unidirectional Data Flow" pattern, which means that the view cannot write directly to the state or the data. It can only affect the data and state by invoking the actions which are made available to the view. This is congruent with other modern architectures, such as Elm, React, MVI, The Composable Architecture, Redux, Source, and so on.
 
 ### Structure and Flow Combined
 
-As we combine the structure and flow of VSM, you can see how each of the VSM components work together to facilitate the behaviors and flow of information. The ``StateContainer``, which is a crucial part of the VSM iOS framework, manages the relationship between the View and the States and Models.
+As we combine the structure and flow of VSM, you can see how each of the VSM components work together to facilitate the behaviors and flow of information. The ``StateContainer``, which is a crucial part of the VSM iOS framework, manages the relationship between the view and the states and models.
 
 ![VSM Overview Diagram](vsm-diagram.png)
 
-> Important: _The **View** renders the **State**. Each **State** may provide a **Model**. Each Model contains the Data and Actions available in the given State. Each Action in a Model returns one or more new States. State changes update the View._
+> Important: _The **view** renders the **state**. Each **state** may provide a **model**. Each model contains the data and actions available in a given state. Each action in a model returns one or more new states. Any changes to state will update the view._
 
-To reiterate the important point above, these Models contain the Data and Actions that the View will use. Each Model should be scoped to a specific State and should be as narrowly scoped as possible. (Think: Single-purpose Models) You can have any number and combination of States and Models. Together, these represent the functionality of your feature requirements.
+To reiterate the important point above, these models contain the data and actions that the view will use. Each model should be scoped to a specific state and should be as narrowly scoped as possible. (Think: Single-purpose models) You can have any number and combination of states and models. Together, these represent the functionality of your feature requirements.
 
-In contrast, other architectures use a single ViewModel that contains the Data and Actions of _the entire feature_, often accessible in any State. This is a critically important distinction between VSM and other architectures. VSM provides additional safety by using the type-system to protect Data and Actions against unintended access. **Attempting to read data or call functions from the wrong state will result in a compiler error instead of a runtime error.**
+In contrast, other architectures use a single "ViewModel" that contains the data and actions of _the entire feature_, often accessible in any state. This is a critically important distinction between VSM and other architectures. VSM provides additional safety by using the type-system to protect data and actions against unintended access. **Attempting to read data or call functions from the wrong state will result in a compiler error instead of a runtime error.**
 
 ## Why VSM
 
@@ -51,18 +51,18 @@ There are many reasons why the VSM architecture is a strong choice for building 
 - Unidirectional data flow prevents unintentional state and data bugs
 - No shared, mutable data or state
 - Execution paths are highly deterministic
-- Data and Actions are protected from access in wrong States in both the View and the Models
-- Encourages smaller, single-purpose, least-knowledge Models
-- Encourages engineers to split up complex functionality between multiple nested Views, resulting in simpler feature code
+- Data and actions are protected from access in wrong states in both the view and the models
+- Encourages smaller, single-purpose, least-knowledge models
+- Encourages engineers to split up complex functionality between multiple nested views, resulting in simpler feature code
 - Encourages exhaustive error handling
-- State & Model definitions are a simple and clear description of the feature requirements (for ease of maintenance)
+- State & model definitions are a simple and clear description of the feature requirements (for ease of maintenance)
 - Implementation code is easy to read
 - Passively encourages "Shifting Left" via Behavior-Driven Development
 
 ### Cons
 
-- Defining States, Models, and Actions from feature requirements can be challenging
-- Like most other architectures, hanging execution paths within Actions are possible
+- Inferring states, models, data, and actions from feature requirements can be challenging
+- Like most other architectures, hanging execution paths within actions are possible
 - Requires some data type translation for consumption by SwiftUI views
 
 ## Up Next
