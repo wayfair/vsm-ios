@@ -1,4 +1,4 @@
-# Interpreting Feature Requirements
+# Building the State in VSM
 
 A guide to translating feature requirements into VSM code
 
