@@ -12,7 +12,7 @@ In VSM, the various responsibilities of a feature are divided into 3 concepts:
 
 1. **View** - Displays the current State and invokes Actions
 1. **State** - Defines the states that a given view can have (ie. loading, loaded, error, editing, validating, saving, etc.)
-1. **Model(s)** - Provide the Data and Actions available in a given State
+1. **Model(s)** - Provides the Data and Actions available in a given State
 
 The structure of your code should follow the above pattern, with a View code file, a ViewState code file, and a file for each Model's implementation.
 
