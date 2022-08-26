@@ -148,11 +148,10 @@ enum UserProfileViewState {
 
 #### Defining the Models
 
-Now that we have our states, we can define the models for each state with their associated data and actions. As you can see from the above chart, the `initialized` state will need a User Id property and a `load()` action, so we will define our module with a simple `struct` like so:
+Now that we have our states, we can define the models for each state with their associated data and actions. As you can see from the above chart, the `initialized` state will need a `load()` action, so we will define our module with a simple `struct` like so:
 
 ```swift
 struct LoaderModel {
-  let userId: Int
   let load: () -> AnyPublisher<UserProfileViewState, Never>
 }
 ```
@@ -170,13 +169,13 @@ Next, we'll define the model for the `editing` state. As per the diagram, this w
 ```swift
 struct EditingModel {
   var data: UserData
-  let saveDisplayName: (String) -> AnyPublisher<UserProfileViewState, Never>
+  let saveUsername: (String) -> AnyPublisher<UserProfileViewState, Never>
 }
 ```
 
-The unique thing about this model from the previous example is that the `saveDisplayName` function expects a String parameter that represents the new username. The view will be responsible for passing the User Name textbox value to this function when it is called.
+The unique thing about this model from the previous example is that the `saveUsername` function expects a String parameter that represents the new username. The view will be responsible for passing the User Name textbox value to this function when it is called.
 
-Finally, we'll use the same approach to build error models for the `loadingError` and `savingError` states. These models will need to provide an error message String and a `retry()` action for the user to press in case of error. For the `savingError`, an additional `UserData` property is needed so that the view can display it along with the error.
+Finally, we'll use the same approach to build error models for the `loadingError` and `savingError` states. These models will need to provide an error message String and a `retry()` action for the user to press in case of error. For the `savingError`, an additional `UserData` property is needed for the view to display along with the error. The `savingError` model will also have a `cancel()` action that will allow the user to go back to editing.
 
 ```swift
 struct LoadingErrorModel {
@@ -188,6 +187,7 @@ struct SavingErrorModel {
   let data: UserData
   let message: String
   let retry: () -> AnyPublisher<UserProfileViewState, Never>
+  let cancel: () -> AnyPublisher<UserProfileViewState, Never>
 }
 ```
 
@@ -220,9 +220,8 @@ enum UserProfileViewState {
   case saving(UserData)
   case savingError(SavingErrorModel)
 
-  struct EditingModel {
-    var data: UserData
-    let saveDisplayName: (String) -> AnyPublisher<UserProfileViewState, Never>
+  struct LoaderModel {
+    let load: () -> AnyPublisher<UserProfileViewState, Never>
   }
 
   struct LoadingErrorModel {
@@ -230,10 +229,16 @@ enum UserProfileViewState {
     let retry: () -> AnyPublisher<UserProfileViewState, Never>
   }
 
+  struct EditingModel {
+    var data: UserData
+    let saveUsername: (String) -> AnyPublisher<UserProfileViewState, Never>
+  }
+  
   struct SavingErrorModel {
     let data: UserData
     let message: String
     let retry: () -> AnyPublisher<UserProfileViewState, Never>
+    let cancel: () -> AnyPublisher<UserProfileViewState, Never>
   }
 }
 ```
@@ -250,9 +255,9 @@ You have absolute creative freedom in how the feature requirements are modeled i
 
 #### Simple Feature Shapes
 
-While the above feature shape is a good design, it is a fairly complex example for VSM. There is an opportunity here to simplify further by separating some concerns across multiple smaller VSM components. To do this, look for a way to cleanly break the state into smaller, less complex type graphs.
+While the above feature shape is a good design, it is a fairly complex example for VSM. There is an opportunity here to simplify further by separating some concerns across multiple smaller VSM components. To do this, look for a way to cleanly break the state into smaller, less complex type graphs. It also helps to consider how this feature shape will be interpreted by the view, then optimize for efficiency without sacrificing safety where possible.
 
-Considering that loading the `UserData` only happens once for the entire lifecycle of this feature. The `initialized`, `loading`, and `loadingError` states can be split off to a parent view. Once loaded, the parent view can show the Editing View as its child, passing the `UserData` to it upon construction. If we follow this approach, we end up with two separate, but related VSM components, each with its own states, data, and actions.
+The loading of `UserData` only happens once for the entire lifecycle of this feature. Therefore, the `initialized`, `loading`, and `loadingError` states can be split off to a parent view. Once loaded, the parent view can show the Editing View as its child, passing the `UserData` to it upon construction. If we follow this approach, we end up with two separate, but related VSM components, each with its own states, data, and actions.
 
 As described above, the parent VSM component will have the following view state definition:
 
@@ -264,7 +269,6 @@ enum LoadUserProfileViewState {
   case loaded(UserData)
 
   struct LoaderModel {
-    let userId: Int
     let load: () -> AnyPublisher<LoadUserProfileViewState, Never>
   }
 
@@ -275,12 +279,12 @@ enum LoadUserProfileViewState {
 }
 ```
 
-In the above example, the `loading` and `loadingError` concepts are separated from the editing functionality. Instead of providing a model for the `loaded` state, we provide only the raw `UserData` value that can be used by the Loader View to hydrate the Editing View, as defined below:
+In the above example, the `UserData` loading states are extracted into their own view state. Instead of providing a model for the `loaded` state, we provide only the raw `UserData` value that can be used by the Loader View to hydrate the Editing View, as defined below:
 
 ```swift
 struct EditUserProfileViewState {
   var data: UserData
-  var state: EditingState
+  var editingState: EditingState
 
   enum EditingState {
     case editing(EditingModel)
@@ -294,12 +298,13 @@ struct EditUserProfileViewState {
 
   struct ErrorModel {
     let message: String
-    let retry: () -> AnyPublisher<LoadUserProfileViewState, Never>
+    let retry: () -> AnyPublisher<EditUserProfileViewState, Never>
+    let cancel: () -> AnyPublisher<EditUserProfileViewState, Never>
   }
 }
 ```
 
-The above view state is shaped a little differently than the examples found earlier in this article. We chose a `struct` as the primary Swift type for our view state because `UserData` should exist in _every_ state of the Editing View. We then have an inner `EditingState` that describes various Editing view states.
+Next, the editing functionality is moved into its own view state. This view state is shaped a little differently than the examples found earlier in this article. We chose a `struct` as the primary Swift type for our view state because `UserData` should be available to the Editing View in _every_ state. The view state also has an inner `EditingState` which describes various editing view states for the view.
 
 This is a great example of how flexible the VSM states can be to help you solve problems, and how you don't always have to use an `enum` for your view state.
 
