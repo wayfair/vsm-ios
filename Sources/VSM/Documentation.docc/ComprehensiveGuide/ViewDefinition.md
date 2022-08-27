@@ -31,16 +31,12 @@ In SwiftUI, the `view` property is evaluated and the view is redrawn _every time
 > Note: In SwiftUI, a view's initializer is called every time its parent view is updated and redrawn.
 > 
 > The `@StateObject` property wrapper is the safest choice for declaring your `StateContainer` property. A `StateObject`'s current value is maintained by SwiftUI between redraws of the parent view. In contrast, `@ObservedObject`'s value is not maintained between redraws of the parent view, so it should only be used in scenarios where the view state can be safely recovered every time the parent view is redrawn.
->
-> todo: Move this to wiring up actions section: Regardless of which property wrapper you use, SwiftUI calls your view's initializer many times during your view's lifetime. Therefore, _no data or resource impacting actions should be called within the initializer_ of a SwiftUI view to avoid excessive, duplicate data operations.
 
 ## Displaying the State
 
 The ``ViewStateRendering`` protocol provides a few properties and functions that help with displaying the current state, accessing the state data, and invoking actions.
 
 The first of these members is the ``ViewStateRendering/state`` property, which is always set to the current state.
-
-> todo: Move this to <doc:ModelDefinition> : Note: ``ViewStateRendering/state`` is guaranteed by the state container to be updated on the main thread. No thread dispatching is required in either framework.
 
 As a refresher, the following flow chart expresses the requirements that we wish to draw in the view.
 
@@ -194,8 +190,238 @@ extension EditUserProfileViewState {
 
 ## Calling the Actions
 
-Now that we have our state rendering correctly, we need to wire up the various actions in our views so that they are appropriately and safely invoked by the environment or the user.
+Now that we have our view states rendering correctly, we need to wire up the various actions in our views so that they are appropriately and safely invoked by the environment or the user.
+
+VSM's ``ViewStateRendering`` protocol provides a critically important function called ``ViewStateRendering/observe(_:)-7vht3``. This function updates the current state with any and all view states emitted by the action parameter, as they are emitted in real-time.
+
+It is called like so:
+
+```swift
+observe(someState.someAction())
+// or
+observe(someState.someAction)
+```
+
+The only way to update the current view state is to use the `observe(_:)` function.
+
+When `observe(_:)` is called, it cancels any existing Combine publisher subscriptions or Swift Concurrency tasks and ignores view state updates from any previously called actions. This prevents future view state corruption from previous actions and frees up device resources.
+
+Actions that do not need to update the current state do not need to be called with the `observe(_:)` function. However, if you attempt to call an action that should update the current state without using `observe(_:)`, the compiler will give you the following warning:
+
+**_Result of call to function returning 'AnyPublisher<LoadUserProfileViewState, Never>' is unused_**
+
+This is a helpful reminder in case you forget to wrap an action call with `observe(_:)`.
+
+> Note: The `observe(_:)` function has many overloads that provide support for several action shapes, including synchronous actions, Swift Concurrency actions, and Combine Publisher actions. For more information, see <doc:ModelActions>.
 
 ### Loading View Actions
 
+There are two actions that we want to configure in the `LoadUserProfileView`. The `load()` action in the `initialized` view state and the `retry()` action for the `loadingError` view state. We want the `load()` call to only happen once for the view's lifetime, so we'll attach it to the `onAppear` event handler on one of the subviews. The `retry()` action will be nestled in the view that uses the unwrapped `errorModel`.
+
+```swift
+var body: some View {
+    HStack {
+        switch state {
+        case .initialized, .loading:
+            ProgressView()
+        case .loaded(let userData):
+            EditUserProfileView(userData: userData)
+        case .loadingError(let errorModel):
+            Text(errorModel.message)
+            Button("Retry") {
+                observe(errorModel.retry())
+            }
+        }
+    }
+    .onAppear {
+        if case .initialized(let loaderModel) = state {
+            observe(loaderModel.load())
+        }
+    }
+}
+```
+
+> Note: SwiftUI calls your view's initializer many times during your view's lifetime. **_Do not call actions that impact data, network, memory, or significant CPU resources within the initializer of a SwiftUI view_**. Failing to comply may cause excessive operation calls, tie up precious resources, or result in data-corruption issues.
+>
+> To coordinate data load actions with your view's loading event, use SwiftUI's `onAppear` event handler.
+
 ### Editing View Actions
+
+In the editing view, there are three actions that we need to call: The `editing` view state's `saveUsername()` action and the `savingError` view state's `retry()` and `cancel()` actions. We'll place these appropriately scoped where we have access to their corresponding view states.
+
+```swift
+var body: some View {
+    ZStack {
+        VStack {
+            Text("User profile")
+                .font(.headline)
+            TextField("Username", text: $username)
+                .textFieldStyle(.roundedBorder)
+            Button("Save") {
+                if case .editing(let editingModel) = state.editingState {
+                    observe(editingModel.saveUsername(username))
+                }
+            }
+        }
+        .disabled(state.isSaving)
+        .padding()
+        if state.isSaving {
+            ProgressView()
+        }
+        if case .savingError(let errorModel) = state.editingState {
+            VStack {
+                Text(errorModel.message)
+                HStack {
+                    Button("Retry") {
+                        observe(errorModel.retry())
+                    }
+                    Button("Cancel") {
+                        observe(errorModel.cancel())
+                    }
+                }
+            }
+            .background(.white)
+            .padding()
+        }
+    }
+}
+```
+
+You can see that based on the type-system constraints, _these actions can never be called from the wrong state_, and the feature code indicates this very clearly.
+
+## Synchronize View Logic
+
+All business logic belongs in VSM models and associated repositories. However, there are cases where some logic, pertaining exclusively to view matters, is appropriately placed within the view, managed by the view, and coordinated with the view state. The few areas where this practice is acceptable are:
+
+- Navigating between views (See <doc:Navigation>)
+- Receiving/streaming user input
+- Animating the view
+
+You will most often see these types of data expressed as properties on a SwiftUI view with the `@State` or `@Binding` property wrappers. There are a handful of approaches in which VSM can synchronize between these view properties and the current view state. The two most common approaches are by using custom `Binding<T>` objects, or by imperatively manipulating view properties and calling VSM actions via the view event handlers.
+
+### Logic Coordination for the Editing View
+
+In the above `EditUserProfileView` code, you may have noticed that we are not coordinating the view's `username` with the `EditUserProfileViewState.data.username` property. There are a few simple ways to coordinate a view's properties with the view state.
+
+#### SwiftUI View Events
+
+The fastest way to solve the problem is to set the view's `username` property to the view state's `data.username` property when the view loads.
+
+```swift
+@State var username: String = ""
+
+var body: some View {
+    ZStack {
+        // ...
+    }
+    .onAppear {
+        username = state.data.username
+    }
+}
+```
+
+This approach assumes that the repository does not need to always update the view's `data.username` property. Only if the `onAppear` event is called.
+
+However, if the view's `username` property did need to be kept in sync with the data source, or some other window's editor, etc., then adding an `onReceive` event handler would solve that, but have the potential to overwrite the user's unsaved changes.
+
+```swift
+@State var username: String = ""
+
+var body: some View {
+    ZStack {
+        // ...
+    }
+    .onReceive(container.$state) { newState in 
+        username = newState.data.username
+    }
+}
+```
+
+We have to use the `ViewStateRendering`'s ``ViewStateRendering/container`` property because it gives us access to the underlying `StateContainer`'s observable `@Published` ``StateContainer/state`` property which can be observed by `onReceive`.
+
+#### Custom Two-Way Bindings
+
+If we wanted to ditch the `Save` button in favor of having the view input call `saveUsername()` as the user is typing, SwiftUI's `Binding<T>` type behaves much like a property on an object by providing a two-way getter and a setter for a wrapped value. We can utilize this to trick the `TextField` view into thinking it has read/write access to the view state's `username` property.
+
+A custom `Binding<T>` can be created as a view state extension property, as a `@Binding` property on the view, or on the fly right within the view's code, like so:
+
+```swift
+var body: some View {
+    let usernameBinding = Binding(
+        get: { state.data.username },
+        set: { newValue in
+            if case .editing(let editingModel) = state.editingState {
+                observe(editingModel.saveUsername(newValue),
+                    debounced: .seconds(1))
+            }
+        }
+    )
+    TextField("Username", text: usernameBinding)
+        .textFieldStyle(.roundedBorder)
+}
+```
+
+Notice how our call to ``ViewStateRendering/observe(_:debounced:file:line:)-7ihyy`` includes a `debounced` property. This allows us to prevent thrashing the `saveUsername()` call if the user is typing quickly. It will only call the action a maximum of once per second (or whatever time delay is desired).
+
+## View Construction
+
+What's the best way to construct a VSM component? Through the SwiftUI view's initializer. As passively enforced by the SwiftUI API, every feature's true API access point is the initializer of the feature's view. This is where required dependencies and data are passed to initiate the feature's behavior.
+
+A VSM view's initializer can take either of two approaches (or both, if desired):
+
+- Subservient: The parent is responsible for passing in the view's initial view state (and its associated model)
+- Encapsulated: The view encapsulates its view state kickoff point (and associated model), only requiring that the parent provide dependencies needed by the view or the models.
+
+The subservient initializer has one upside and one downside when compared to the encapsulated approach. The upside is that the initializer is convenient for use in SwiftUI Previews and automated UI tests. The downside is that it requires any parent view to have some knowledge of the inner workings of the view in question.
+
+### Loading View Initializers
+
+The initializers for the `LoadUserProfileView` are as follows:
+
+```swift
+// Subservient
+init(state: LoadUserProfileViewState) {
+    _container = .init(state: state)
+}
+
+// Encapsulated
+init() {
+    let loaderModel = LoadUserProfileViewState.LoaderModel(userId: 1)
+    _container = .init(state: .initialized(loaderModel))
+}
+```
+
+
+### Editing View Initializers
+
+The initializers for the `EditUserProfileView` are as follows:
+
+```swift
+// Subservient
+init(state: EditUserProfileViewState) {
+    _container = .init(state: state)
+}
+
+// Encapsulated
+init(userData: UserData) {
+    let editingModel = EditUserProfileViewState.EditingModel(userData: userData)
+    let state = EditUserProfileViewState(data: userData, editingState: .editing(editingModel))
+    _container = .init(state: state)
+}
+```
+
+## Iterative View Development
+
+The best approach to building features in VSM is to start with defining the view state, then move straight to building the view. Rely on SwiftUI previews where possible to visualize each state. Postpone implementing the feature's business logic for as long as possible until you are confident that you have the right feature shape and view code.
+
+The reason for recommending this approach to VSM development is that VSM implementations are tightly coupled with and enforced by the feature shape (via the type system and compiler). By defining the view state and view code, it gives you time to explore the edge cases of the feature without having to significantly refactor the models and business logic.
+
+## Up Next
+
+### Building the Models
+
+Now that we have discovered how to build views, and we have built each view, and previewed all the states using SwiftUI previews, we can start implementing the business logic in the models in <doc:ModelDefinition>.
+
+#### Support this Project
+
+If you find anything wrong with this guide or have suggestions on how to improve it, feel free to [create an issue in our GitHub repo](https://github.com/wayfair-incubator/vsm-ios/issues/new/choose).
