@@ -24,7 +24,7 @@ struct LoadUserProfileView: View, ViewStateRendering {
 }
 ```
 
-We are required by the ``ViewStateRendering`` protocol to define a ``StateContainer`` property and specify what the view state's type will be. In these examples, we will use the `LoadUserProfileViewState` and `EditUserProfileViewState` types from <doc:FeatureRequirements> to build two related VSM views.
+We are required by the ``ViewStateRendering`` protocol to define a ``StateContainer`` property and specify what the view state's type will be. In these examples, we will use the `LoadUserProfileViewState` and `EditUserProfileViewState` types from <doc:StateDefinition> to build two related VSM views.
 
 In SwiftUI, the `view` property is evaluated and the view is redrawn _every time the state changes_. In addition, any time a dynamic property changes, the `view` property will be reevaluated and redrawn. This includes properties wrapped with `@StateObject`, `@State`, `@ObservedObject`, and `@Binding`.
 

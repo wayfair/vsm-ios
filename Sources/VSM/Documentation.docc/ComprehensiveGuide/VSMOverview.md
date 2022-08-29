@@ -69,7 +69,7 @@ There are many reasons why the VSM architecture is a strong choice for building 
 
 ### Interpreting Feature Requirements
 
-Now that you understand how VSM generally works, you can learn how to implement features using VSM in <doc:FeatureRequirements>.
+Now that you understand how VSM generally works, you can learn how to implement features using VSM in <doc:StateDefinition>.
 
 #### Support this Project
 

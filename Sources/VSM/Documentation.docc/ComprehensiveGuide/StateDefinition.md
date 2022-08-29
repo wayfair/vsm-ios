@@ -312,7 +312,7 @@ This is a great example of how flexible the VSM states can be to help you solve 
 
 ### Building the View
 
-Now that we have covered how to describe the feature requirements in the view state, we can start assembling the view in <doc:ViewDefinition>.
+Now that we have covered how to describe the feature requirements in the view state, we can start assembling the view in <doc:ViewDefinition-SwiftUI> or <doc:ViewDefinition-UIKit>.
 
 #### Support this Project
 
