@@ -6,7 +6,7 @@ A guide to building a VSM view in SwiftUI or UIKit
 
 VSM is a reactive architecture and as such is a natural fit for SwiftUI, but it also works very well with UIKit with some minor differences. This guide is written for SwiftUI. The UIKit guide can be found here: <doc:ViewDefinition-UIKit>
 
-The purpose of the "View" in VSM is to render the current view state, and provide the user access to the data and actions available in that state.
+The purpose of the "View" in VSM is to render the current view state and provide the user access to the data and actions available in that state.
 
 ## View Construction
 
@@ -64,7 +64,9 @@ enum LoadUserProfileViewState {
 }
 ```
 
-In SwiftUI, we simply write a switch statement within the `view` property to evaluate the current state and return the most appropriate view(s) for it. Note that if you avoid using a `default` case in your switch statement, the compiler will enforce any future changes to the shape of your feature. This is good because it will help you avoid bugs when maintaining the feature.
+In SwiftUI, we simply write a switch statement within the `view` property to evaluate the current state and return the most appropriate view(s) for it.
+
+Note that if you avoid using a `default` case in your switch statement, the compiler will enforce any future changes to the shape of your feature. This is good because it will help you avoid bugs when maintaining the feature.
 
 The resulting `view` property implementation takes this shape:
 
@@ -192,7 +194,7 @@ extension EditUserProfileViewState {
 
 Now that we have our view states rendering correctly, we need to wire up the various actions in our views so that they are appropriately and safely invoked by the environment or the user.
 
-VSM's ``ViewStateRendering`` protocol provides a critically important function called ``ViewStateRendering/observe(_:)-7vht3``. This function updates the current state with any and all view states emitted by the action parameter, as they are emitted in real-time.
+VSM's ``ViewStateRendering`` protocol provides a critically important function called ``ViewStateRendering/observe(_:)-7vht3``. This function updates the current state with all view states emitted by the action parameter, as they are emitted in real-time.
 
 It is called like so:
 
@@ -361,11 +363,11 @@ var body: some View {
 }
 ```
 
-Notice how our call to ``ViewStateRendering/observe(_:debounced:file:line:)-7ihyy`` includes a `debounced` property. This allows us to prevent thrashing the `saveUsername()` call if the user is typing quickly. It will only call the action a maximum of once per second (or whatever time delay is desired).
+Notice how our call to ``ViewStateRendering/observe(_:debounced:file:line:)-7ihyy`` includes a `debounced` property. This allows us to prevent thrashing the `saveUsername()` call if the user is typing quickly. It will only call the action a maximum of once per second (or whatever time delay is given).
 
 ## View Construction
 
-What's the best way to construct a VSM component? Through the SwiftUI view's initializer. As passively enforced by the SwiftUI API, every feature's true API access point is the initializer of the feature's view. This is where required dependencies and data are passed to initiate the feature's behavior.
+What's the best way to construct a VSM component? Through the SwiftUI view's initializer. As passively enforced by the SwiftUI API, every feature's true API access point is the initializer of the feature's view. Required dependencies and data are passed to the initializer to initiate the feature's behavior.
 
 A VSM view's initializer can take either of two approaches (or both, if desired):
 
@@ -385,12 +387,12 @@ init(state: LoadUserProfileViewState) {
 }
 
 // Encapsulated
-init() {
-    let loaderModel = LoadUserProfileViewState.LoaderModel(userId: 1)
-    _container = .init(state: .initialized(loaderModel))
+init(userId: Int) {
+    let loaderModel = LoadUserProfileViewState.LoaderModel(userId: userId)
+    let state = .initialized(loaderModel)
+    _container = .init(state: state)
 }
 ```
-
 
 ### Editing View Initializers
 
@@ -420,7 +422,7 @@ The reason for recommending this approach to VSM development is that VSM impleme
 
 ### Building the Models
 
-Now that we have discovered how to build views, and we have built each view, and previewed all the states using SwiftUI previews, we can start implementing the business logic in the models in <doc:ModelDefinition>.
+Now that we have discovered how to build views, and we have built each view and previewed all the states using SwiftUI previews, we can start implementing the business logic in the models in <doc:ModelDefinition>.
 
 #### Support this Project
 
