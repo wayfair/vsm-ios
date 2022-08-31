@@ -385,7 +385,7 @@ Managing subscriptions of various publishers is less effective in VSM because it
 
 ### Working with Data Repositories
 
-Now that we have covered how to build models in VSM, we can learn the power of shared, observable data repositories to hydrate our features and eliminate view and data synchronization bugs in <doc:ObservableRepositories>.
+Now that we have covered how to build models in VSM, we can learn the power of shared, observable data repositories to hydrate our features and eliminate view and data synchronization bugs in <doc:DataDefinition>.
 
 #### Support this Project
 

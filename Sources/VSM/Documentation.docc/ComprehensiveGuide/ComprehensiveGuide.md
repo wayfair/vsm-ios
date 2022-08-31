@@ -14,7 +14,7 @@ This guide assumes that the reader is familiar with [SwiftUI](https://developer.
 1. <doc:StateDefinition>
 1. <doc:ViewDefinition-SwiftUI> or <doc:ViewDefinition-UIKit>
 1. <doc:ModelDefinition>
-1. <doc:ObservableRepositories>
+1. <doc:DataDefinition>
 1. <doc:UnitTesting>
 
 #### Support this Project
