@@ -36,9 +36,11 @@ As we combine the structure and flow of VSM, you can see how each of the VSM com
 
 > Important: _The **view** renders the **state**. Each **state** may provide a **model**. Each model contains the data and actions available in a given state. Each action in a model returns one or more new states. Any changes to state will update the view._
 
-To reiterate the important point above, these models contain the data and actions that the view will use. Each model should be scoped to a specific state and should be as narrowly scoped as possible. (Think: Single-purpose models) You can have any number and combination of states and models. Together, these represent the functionality of your feature requirements.
+To reiterate the important point above, these models contain the data and actions that the view will use. Each model should be scoped to a specific state and should be as narrowly scoped as possible. (Think: Single-purpose models) If a VSM feature has only one state, then a single model can act as the state for that feature. You can have any number and combination of states and models. Together, these represent the functionality of your feature requirements.
 
 In contrast, other architectures use a single "ViewModel" that contains the data and actions of _the entire feature_, often accessible in any state. This is a critically important distinction between VSM and other architectures. VSM provides additional safety by using the type-system to protect data and actions against unintended access. **Attempting to read data or call functions from the wrong state will result in a compiler error instead of a runtime error.**
+
+> Tip: A view does not need to follow the VSM pattern if it has only one static state and contains no actions, observations, or other behavior. A simple view with accompanying static data model can be used without incurring the boilerplate of the VSM framework.
 
 ## Why VSM
 
