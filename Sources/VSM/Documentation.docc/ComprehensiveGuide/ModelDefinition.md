@@ -172,7 +172,7 @@ You may have noticed that we don't subscribe or receive on the main queue anywhe
 
 > Tip: In VSM, you never have to worry about syncing your view states with the main thread.
 
-You may also have noticed that we don't use `[weak self]` in any of our closures. This is mainly because we don't reference `self` anywhere. But even if we did (ie, via the <doc:ModelPatterns#EncapsulatedProtocol> pattern), there are virtually no scenarios where you need to weakly reference `self` because we are exclusively using structs instead of classes. Structs are copied in memory from scope to scope which prevents strong reference cycles.
+You may also have noticed that we don't use `[weak self]` in any of our closures. This is mainly because we don't reference `self` anywhere. But even if we did (ie, via the encapsulated pattern in <doc:ModelPatterns>), there are virtually no scenarios where you need to weakly reference `self` because we are exclusively using structs instead of classes. Structs are copied in memory from scope to scope which prevents strong reference cycles.
 
 > Tip: Avoid using classes for your models. This removes the need for capturing `[weak self]` within closures.
 
