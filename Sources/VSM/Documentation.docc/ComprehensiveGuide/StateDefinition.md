@@ -6,7 +6,7 @@ A guide to translating feature requirements into VSM code
 
 The normal layered-pass approach to translating feature requirements into code is responsible for many bugs. The VSM architecture encourages a more careful examination of requirements upfront.
 
-### The Status Quo
+## The Status Quo
 
 It is very common for engineers to do the following when implementing a new feature:
 
@@ -17,7 +17,7 @@ It is very common for engineers to do the following when implementing a new feat
 
 With this approach, the overall technical design of the feature's implementation suffers due to the lack of forethought that goes into translating the feature requirements as a whole into a good implementation in code. More importantly, this approach is responsible for many bugs that result from not understanding the entirety of the requirements before coding the feature. A good manual QA process may help shorten this gap, but gaining a better understanding of requirements before building the feature is the safest bet.
 
-### Behavior-Driven Architecture
+## Behavior-Driven Architecture
 
 VSM aims to break the above tradition by encouraging engineers to define a representation of the feature requirements before any implementation (view or model) is developed. Of course, this can't be done without the engineer carefully studying the requirements and asking questions that clarify any ambiguity in the requirements themselves.
 
@@ -31,14 +31,14 @@ enum UserProfileViewState {
  case saving(SavingModel)
 
  struct LoadedModel {
-  let username: String
-  let saveUsername: (String) -> AnyPublisher<UserProfileViewState, Never>
+    let username: String
+    let saveUsername: (String) -> AnyPublisher<UserProfileViewState, Never>
  }
 
  struct SavingModel {
-  let originalUsername: String
-  let newUsername: String
-  let cancel: () -> UserProfileViewState
+    let originalUsername: String
+    let newUsername: String
+    let cancel: () -> UserProfileViewState
  }
 }
 ```
@@ -118,15 +118,17 @@ With the above diagram, it becomes much easier to infer which states, data, and 
 States usually match up 1:1 with variations in the view. So, we can safely assume that we will need the following states: `loading`, `loadingError`, `editing`, `saving`, and `savingError`.
 
 > Note: We will need to add an extra state called `initialized` to kick off the `load()` action when the view appears. `load()` will immediately return the `loading` state. This protects the `load()` action from accidentally being called from the wrong state.
-> 
+>
 > For example, in iOS, a view's `onAppear` handler can be called multiple times during a view's lifetime. By using the `initialized` state, we don't have to worry about the `load()` function being called multiple times even if `onAppear` is called multiple times before the data is finished loading.
+>
 > ```swift
 > someView.onAppear {
->   if case .initialized(let loadingModel) = state {
->     observe(loadingModel.load())
->   }
+>     if case .initialized(let loadingModel) = state {
+>         observe(loadingModel.load())
+>     }
 > }
 > ```
+>
 > **This approach to protecting actions by state will guarantee that scenarios like these will never produce unexpected results.**
 
 The resulting state flow diagram may look something like this:
@@ -137,12 +139,12 @@ If we translate the states from the above flow chart, our resulting view state `
 
 ```swift
 enum UserProfileViewState {
-  case initialized  // This is our default state when constructing the view
-  case loading      // Represents the Loading View
-  case loadingError // Represents the Loading Error View
-  case editing      // Represents the Editing View
-  case saving       // Represents the Saving View
-  case savingError  // Represents the Saving Error View
+    case initialized  // This is our default state when constructing the view
+    case loading      // Represents the Loading View
+    case loadingError // Represents the Loading Error View
+    case editing      // Represents the Editing View
+    case saving       // Represents the Saving View
+    case savingError  // Represents the Saving Error View
 }
 ```
 
@@ -152,7 +154,7 @@ Now that we have our states, we can define the models for each state with their 
 
 ```swift
 struct LoaderModel {
-  let load: () -> AnyPublisher<UserProfileViewState, Never>
+    let load: () -> AnyPublisher<UserProfileViewState, Never>
 }
 ```
 
@@ -168,8 +170,8 @@ Next, we'll define the model for the `editing` state. As per the diagram, this w
 
 ```swift
 struct EditingModel {
-  var data: UserData
-  let saveUsername: (String) -> AnyPublisher<UserProfileViewState, Never>
+    var data: UserData
+    let saveUsername: (String) -> AnyPublisher<UserProfileViewState, Never>
 }
 ```
 
@@ -179,15 +181,15 @@ Finally, we'll use the same approach to build error models for the `loadingError
 
 ```swift
 struct LoadingErrorModel {
-  let message: String
-  let retry: () -> AnyPublisher<UserProfileViewState, Never>
+    let message: String
+    let retry: () -> AnyPublisher<UserProfileViewState, Never>
 }
 
 struct SavingErrorModel {
-  let data: UserData
-  let message: String
-  let retry: () -> AnyPublisher<UserProfileViewState, Never>
-  let cancel: () -> AnyPublisher<UserProfileViewState, Never>
+    let data: UserData
+    let message: String
+    let retry: () -> AnyPublisher<UserProfileViewState, Never>
+    let cancel: () -> AnyPublisher<UserProfileViewState, Never>
 }
 ```
 
@@ -195,51 +197,51 @@ struct SavingErrorModel {
 
 Some states do not require models.
 
-For example, the `loading` state has no data to show, nor any actions to call. We will not provide a model for that state, as it will be managed by the `LoaderModel`. 
+For example, the `loading` state has no data to show, nor any actions to call. We will not provide a model for that state, as it will be managed by the `LoaderModel`.
 
 ```swift
-  case loading
+case loading
 ```
 
 The `saving` state _does_ have some associated data, but no actions. Instead of creating a custom model for it, we can just use the currently loaded `UserData`. The `EditingModel`'s `saveDisplayName()` action can manage the flow of the `saving` state.
 
 ```swift
-  case saving(UserData)
+case saving(UserData)
 ```
 
-#### The "Shape" of the Feature
+## The "Shape" of the Feature
 
 If we put all of this together, the resulting VSM feature definition is as follows. This can be referred to as the "Shape of the Feature".
 
 ```swift
 enum UserProfileViewState {
-  case initialized(LoaderModel)
-  case loading
-  case loadingError(LoadingErrorModel)
-  case editing(EditingModel)
-  case saving(UserData)
-  case savingError(SavingErrorModel)
+    case initialized(LoaderModel)
+    case loading
+    case loadingError(LoadingErrorModel)
+    case editing(EditingModel)
+    case saving(UserData)
+    case savingError(SavingErrorModel)
 
-  struct LoaderModel {
-    let load: () -> AnyPublisher<UserProfileViewState, Never>
-  }
+    struct LoaderModel {
+        let load: () -> AnyPublisher<UserProfileViewState, Never>
+    }
 
-  struct LoadingErrorModel {
-    let message: String
-    let retry: () -> AnyPublisher<UserProfileViewState, Never>
-  }
+    struct LoadingErrorModel {
+        let message: String
+        let retry: () -> AnyPublisher<UserProfileViewState, Never>
+    }
 
-  struct EditingModel {
-    var data: UserData
-    let saveUsername: (String) -> AnyPublisher<UserProfileViewState, Never>
-  }
-  
-  struct SavingErrorModel {
-    let data: UserData
-    let message: String
-    let retry: () -> AnyPublisher<UserProfileViewState, Never>
-    let cancel: () -> AnyPublisher<UserProfileViewState, Never>
-  }
+    struct EditingModel {
+        var data: UserData
+        let saveUsername: (String) -> AnyPublisher<UserProfileViewState, Never>
+    }
+    
+    struct SavingErrorModel {
+        let data: UserData
+        let message: String
+        let retry: () -> AnyPublisher<UserProfileViewState, Never>
+        let cancel: () -> AnyPublisher<UserProfileViewState, Never>
+    }
 }
 ```
 
@@ -253,7 +255,7 @@ You have absolute creative freedom in how the feature requirements are modeled i
 1. All actions that update the view _must_ return one or more of these `ViewState` values
 1. Data and actions are not accessible outside of their intended states
 
-#### Simple Feature Shapes
+### Simple Feature Shapes
 
 While the above feature shape is a good design, it is a fairly complex example for VSM. There is an opportunity here to simplify further by separating some concerns across multiple smaller VSM components. To do this, look for a way to cleanly break the state into smaller, less complex type graphs. It also helps to consider how this feature shape will be interpreted by the view, then optimize for efficiency without sacrificing safety where possible.
 
@@ -263,19 +265,19 @@ As described above, the parent VSM component will have the following view state 
 
 ```swift
 enum LoadUserProfileViewState {
-  case initialized(LoaderModel)
-  case loading
-  case loadingError(ErrorModel)
-  case loaded(UserData)
+    case initialized(LoaderModel)
+    case loading
+    case loadingError(ErrorModel)
+    case loaded(UserData)
 
-  struct LoaderModel {
-    let load: () -> AnyPublisher<LoadUserProfileViewState, Never>
-  }
+    struct LoaderModel {
+        let load: () -> AnyPublisher<LoadUserProfileViewState, Never>
+    }
 
-  struct ErrorModel {
-    let message: String
-    let retry: () -> AnyPublisher<LoadUserProfileViewState, Never>
-  }
+    struct ErrorModel {
+        let message: String
+        let retry: () -> AnyPublisher<LoadUserProfileViewState, Never>
+    }
 }
 ```
 
@@ -283,24 +285,24 @@ In the above example, the `UserData` loading states are extracted into their own
 
 ```swift
 struct EditUserProfileViewState {
-  var data: UserData
-  var editingState: EditingState
+    var data: UserData
+    var editingState: EditingState
 
-  enum EditingState {
-    case editing(EditingModel)
-    case saving
-    case savingError(ErrorModel)
-  }
+    enum EditingState {
+        case editing(EditingModel)
+        case saving
+        case savingError(ErrorModel)
+    }
 
-  struct EditingModel {
-    let saveDisplayName: (String) -> AnyPublisher<EditUserProfileViewState, Never>
-  }
+    struct EditingModel {
+        let saveDisplayName: (String) -> AnyPublisher<EditUserProfileViewState, Never>
+    }
 
-  struct ErrorModel {
-    let message: String
-    let retry: () -> AnyPublisher<EditUserProfileViewState, Never>
-    let cancel: () -> AnyPublisher<EditUserProfileViewState, Never>
-  }
+    struct ErrorModel {
+        let message: String
+        let retry: () -> AnyPublisher<EditUserProfileViewState, Never>
+        let cancel: () -> AnyPublisher<EditUserProfileViewState, Never>
+    }
 }
 ```
 

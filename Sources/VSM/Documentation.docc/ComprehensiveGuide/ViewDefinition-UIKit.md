@@ -8,7 +8,7 @@ VSM is a reactive architecture and as such is a natural fit for SwiftUI, but it 
 
 The purpose of the "View" in VSM is to render the current view state and provide the user access to the data and actions available in that state.
 
-## View Construction
+## View Structure
 
 The basic structure of a UIKit VSM view is as follows:
 

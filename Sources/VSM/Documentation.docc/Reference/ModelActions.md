@@ -25,4 +25,3 @@ Actions are responsible for progressing the "State Journey" of the feature. They
 ### No State
 
 - todo: description and examples
-

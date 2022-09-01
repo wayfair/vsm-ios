@@ -8,7 +8,7 @@ VSM is a reactive architecture and as such is a natural fit for SwiftUI, but it 
 
 The purpose of the "View" in VSM is to render the current view state and provide the user access to the data and actions available in that state.
 
-## View Construction
+## View Structure
 
 The basic structure of a SwiftUI VSM view is as follows:
 
@@ -29,7 +29,7 @@ We are required by the ``ViewStateRendering`` protocol to define a ``StateContai
 In SwiftUI, the `view` property is evaluated and the view is redrawn _every time the state changes_. In addition, any time a dynamic property changes, the `view` property will be reevaluated and redrawn. This includes properties wrapped with `@StateObject`, `@State`, `@ObservedObject`, and `@Binding`.
 
 > Note: In SwiftUI, a view's initializer is called every time its parent view is updated and redrawn.
-> 
+>
 > The `@StateObject` property wrapper is the safest choice for declaring your `StateContainer` property. A `StateObject`'s current value is maintained by SwiftUI between redraws of the parent view. In contrast, `@ObservedObject`'s value is not maintained between redraws of the parent view, so it should only be used in scenarios where the view state can be safely recovered every time the parent view is redrawn.
 
 ## Displaying the State
@@ -179,6 +179,7 @@ extension EditUserProfileViewState {
 ```
 
 > Tip: Avoid creating view state extensions that circumvent or obfuscate the type-safety and intentionality of the feature shape. For example, a view state extension that returns an optional action, like so, will undermine the intentionality of the feature shape and create an opportunity for bugs:
+>
 > ```swift
 > extension EditUserProfileViewState {
 >     func saveUsername(_ username: String) -> AnyPublisher<EditUserProfileViewState, Never> {

@@ -162,6 +162,7 @@ func testUserProfileLoad() throws {
 > Tip: It is possible, using protocol-oriented programming and reflection, to write a protocol that provides a default `Equatable` implementation that can be applied to any type via Swift type extensions. This may be worth while to develop for yourself if you find it tedious to implement equatable on all of the view state types in your app.
 >
 > The approach would look something like:
+>
 > ```swift
 > public protocol UnitTestEquatable: Equatable { }
 >
@@ -218,6 +219,6 @@ Use the above exercise as a way to discover any gaps or discrepancies in the req
 
 This concludes the <doc:ComprehensiveGuide>. For further reading, feel free to browse the VSM Reference articles or API documentation found in the <doc:VSM> document directory.
 
-#### Support this Project
+### Support this Project
 
 If you find anything wrong with this guide, or have suggestions on how to improve it, feel free to [create an issue in our GitHub repo](https://github.com/wayfair-incubator/vsm-ios/issues/new/choose).

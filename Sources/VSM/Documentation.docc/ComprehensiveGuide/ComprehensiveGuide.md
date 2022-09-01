@@ -17,6 +17,6 @@ This guide assumes that the reader is familiar with [SwiftUI](https://developer.
 1. <doc:DataDefinition>
 1. <doc:UnitTesting>
 
-#### Support this Project
+### Support this Project
 
 If you find anything wrong with this guide, or have suggestions on how to improve it, feel free to [create an issue in our GitHub repo](https://github.com/wayfair-incubator/vsm-ios/issues/new/choose).

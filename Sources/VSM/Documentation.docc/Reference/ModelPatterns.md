@@ -1,4 +1,4 @@
-#  Model Patterns - VSM Reference
+# Model Patterns - VSM Reference
 
 - todo: Cover the "encapsulated (protocols)" and the "builder (structs)" approach to implementing VSM Models.
 
@@ -8,4 +8,3 @@
 - builder
     a. model extensions
     a. model builder
-
