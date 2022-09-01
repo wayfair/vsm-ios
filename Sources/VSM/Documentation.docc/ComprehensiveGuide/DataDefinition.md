@@ -227,7 +227,6 @@ struct VSMDocsExampleApp: App {
         }
     }
 }
-
 ```
 
 The `RootView.Dependencies` type is the combination of its child view dependency types, and each child dependency type is the combination of that child's children's dependency types, and so on. As a result, the `RootView.Dependencies` type contains all of the dependency requirements for the entire app in a single parameter.
