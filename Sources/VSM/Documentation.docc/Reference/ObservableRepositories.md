@@ -1,2 +1,1 @@
 # Observable Repositories - VSM Reference
-
