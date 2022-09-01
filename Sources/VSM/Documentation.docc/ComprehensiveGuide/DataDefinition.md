@@ -6,7 +6,7 @@ A guide for building reactive data repositories with Combine for VSM
 
 VSM is a reactive architecture. Views observe and render a stream of view states. The source of these view states are streams of observable data which are weaved and formed into the desired view states within the VSM models.
 
-If these observable repositories are shared between VSM views, then they will automatically update as the state of data changes. This helps significantly reduce the volume of code required to keep data in sync between views, and communicate changes in data state between views.
+If these observable repositories are shared between VSM views, then they will automatically update as the state of data changes. This helps significantly reduce the volume of code required to keep data in sync between views and communicate changes in data state between views.
 
 These reactive data sources can use Combine Publishers to communicate changes in the state of data to any observer. Repositories can adapt in shape and behavior to best suit the type of data being shared and the behaviors associated with managing that data.
 
@@ -54,7 +54,7 @@ struct UserDataRepository: UserDataProviding {
 
 We choose to manage the user data by way of the `CurrentValueSubject` publisher which always emits the current value to new subscribers and will emit any future changes to the subject's value property (or `.send(_:)` function). We also make sure to set the error type to `Never` because this specific publisher is only meant to keep track of the most recent stable value.
 
-We expose the current value by using a type-erased publisher property, as dictated by the `UserDataProviding` protocol. We make sure to `share()` this publisher so that all subscribers receive the exact same state updates.
+We expose the current value by using a type-erased publisher property, as dictated by the `UserDataProviding` protocol. We make sure to `share()` this publisher so that all subscribers receive the same state updates.
 
 Now, how do we keep this shared value up to date? As we implement the actions that manipulate the data, as you would expect from any repository, we'll make sure those actions appropriately update the state of the data.
 
@@ -89,13 +89,13 @@ func save(userData: UserData) -> AnyPublisher<UserData, Error> {
 }
 ```
 
-Above, you can see that we use a `map` operation in the publisher chain that sets the current user data value on the repository subject. We chose this because any subscription cancellations to that request will also cancel any updates to the shared repository data. Alternatively, you can use the `sink` operation while managing the subscriptions within the repository, if desired.
+Above, you can see that we use a `map` operation in the publisher chain that sets the current user data value on the repository subject. We chose this because any subscription cancellations to that request will also cancel any updates to the shared repository data. Alternatively, you can use the `sink` operation while managing the subscriptions within the repository.
 
 ## Using Observable Repositories in VSM
 
-Now, any VSM module can declare `UserDataProviding` as a dependency by requiring it via the view's initializer and the the model's initializer. A single repository can be initialized at a higher level and then passed into multiple views, guaranteeing that their underlying data will be synchronized as desired.
+Now that we have the `UserDataProviding` protocol, any VSM feature can use it as a dependency. The concrete `UserDataRepository` type can be initialized at a higher level in the app and then be passed into whichever VSM views need it. This guarantees that the underlying data will be synchronized across all views. The repository is passed around by including it in the initializers for the view and the corresponding models.
 
-For example, let's say in addition to having the User Profile Editor VSM feature, we have a User Bio VSM feature, which displays the user's username and photo. The feature shape of the User Bio can look something like this:
+For example, we have the User Profile Editor VSM feature, but we want to add a User Bio VSM feature, which will display the user's username and photo. The feature shape of the User Bio can look something like this:
 
 ```swift
 enum UserBioViewState {
@@ -163,11 +163,11 @@ extension UserBioViewState.ErrorModel {
 
 The loader model above triggers the user data to load and then merges the persistent user data stream into a single view state publisher. The error model allows the load to be retried in case of failure. This approach is durable and safe for use across the entire app.
 
-With the above models, the User Bio feature is guaranteed to always have the most up to date version of the user data. It will update the very instant that any changes occur within in the User Profile Editor feature, even if that feature is launched from a distant location within the app view hierarchy.
+With the above models, the User Bio feature is guaranteed to always have the most up-to-date version of the user data. It will update the very instant that any changes occur within the User Profile Editor feature, even if that feature is launched from a distant location within the app view hierarchy.
 
 ## Composed Protocol Dependency Injection
 
-When considering how to share these repositories across your app, there are many viable approaches to dependency injection. A recommended approach which is type safe, follows the least-knowledge architectural principle, and has 0% chance of runtime crashes is the Composed Protocol Dependency Injection approach, or CPDI for short.
+When considering how to share these repositories across your app, there are many viable approaches to dependency injection. A recommended approach that is type-safe, follows the least-knowledge architectural principle, and has a 0% chance of runtime crashes is the Composed Protocol Dependency Injection approach or CPDI for short.
 
 The above dependency can be shared easily via CPDI by adding the following protocol:
 
@@ -210,7 +210,7 @@ extension UserBioViewState.LoaderModel {
 }
 ```
 
-CPDI reduces the frustration of dependency-hot-potato by reducing the number of disparate dependency values that must be passed from initializer to initializer throughout the view hierarchy of your app. It does this by implicitly aggregating all of your disparate dependencies into a single dependency variable which preserves the correct scope-limitations at every level of your app. This dependency only needs to be satisfied once at the root of your app.
+CPDI reduces the frustration of dependency-hot-potato by reducing the number of disparate dependency values that must be passed from initializer to initializer throughout the view hierarchy of your app. It does this by implicitly aggregating all of your disparate dependencies into a single dependency variable which preserves the correct scope limitations at every level of your app. This dependency only needs to be satisfied once at the root of your app.
 
 ```swift
 struct AppDependencies: RootView.Dependencies {
@@ -231,7 +231,7 @@ struct VSMDocsExampleApp: App {
 
 The `RootView.Dependencies` type is the combination of its child view dependency types, and each child dependency type is the combination of that child's children's dependency types, and so on. As a result, the `RootView.Dependencies` type contains all of the dependency requirements for the entire app in a single parameter.
 
-Depending on your app's requirements there may be some hurtles to overcome when using this approach, especially with respect to app startup speed, memory use, and asynchronously loaded dependencies. However, none of these issues are insurmountable. All in all, the CPDI approach to dependency injection is a proven solution that does not require any third-party dependency injection libraries. It is a great option when considering how to share your observable repositories across your app.
+Depending on your app's requirements there may be some hurdles to overcome when using this approach, especially concerning app startup speed, memory use, and asynchronously loaded dependencies. However, none of these issues are insurmountable. All in all, the CPDI approach to dependency injection is a proven solution that does not require any third-party dependency injection libraries. It is a great option when considering how to share your observable repositories across your app.
 
 ## Up Next
 

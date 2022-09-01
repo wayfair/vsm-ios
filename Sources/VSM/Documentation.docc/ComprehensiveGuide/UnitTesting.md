@@ -10,7 +10,7 @@ Unit tests provide additional peace of mind that the engineer implemented the fe
 
 ## Mocking the Data Repositories
 
-Your observable data repositories should be designed in such a way that they can be mocked for testing. Mocking is the act of substituting a fake version of a piece of code which can be injected into a test subject to support testing the test subject.
+Your observable data repositories should be designed in such a way that they can be mocked for testing. Mocking is the act of substituting a fake version of a piece of code that can be injected into a test subject to support testing the test subject.
 
 Mocks generally allow the code within the unit test to provide a fake implementation that supports the unit test subject and prevents the unit test from accessing any ancillary resources that are not pertinent to the test. There are three common ways to design your data repositories to be mockable: protocols, structs with injectable implementations, or "stubs" that let you override certain aspects of the repository's behavior.
 
@@ -105,7 +105,7 @@ func testUserProfileLoad() throws {
 
 The above test calls the `LoadUserProfileViewState.LoaderModel`'s load function and asserts that the loading view state and the loaded state are emitted before the publisher finishes.
 
-To consider the feature "fully tested", a test should be written for every model and action to validate that every possible view state output (including error states) is correctly emitted when called, and that the appropriate data is associated with the view states.
+To consider the feature "fully tested", a test should be written for every model and action to validate that every possible view state output (including error states) is correctly emitted when called and that the appropriate data is associated with the view states.
 
 ## Easier Unit Testing
 
@@ -113,7 +113,7 @@ The above example is quite verbose. Fortunately, there are a few techniques that
 
 ### Equatable View States
 
-In order to more easily test a VSM feature, it is recommended that you conform your view state type to the `Equatable` protocol, even if just within your unit test target. This will allow you to compare states by simply using the XCTest APIs, such as `XCTAssertEqual`.
+To more easily test a VSM feature, it is recommended that you conform your view state type to the `Equatable` protocol, even if just within your unit test target. This will allow you to compare states by simply using the XCTest APIs, such as `XCTAssertEqual`.
 
 An example view state implementation of equatable will look something like this:
 
