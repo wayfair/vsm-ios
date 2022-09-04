@@ -15,7 +15,7 @@ Note that by _not_ including a description, you are asking reviewers to do extra
 
 ## Checklist
 
-- [ ] I have read the [contributing guidelines](https://github.com/wayfair-incubator/vsm-ios/blob/main/CONTRIBUTING.md)
+- [ ] I have read the [contributing guidelines](https://github.com/wayfair/vsm-ios/blob/main/CONTRIBUTING.md)
 - [ ] Existing issues have been referenced (where applicable)
 - [ ] I have verified this change is not present in other open pull requests
 - [ ] Functionality is documented
