@@ -1,6 +1,6 @@
 # QuickStart Guide
 
-Jump directly into the VSM code by simple feature using VSM
+Jump directly into learning VSM concepts and features by building a simple feature using the architecture
 
 ## Index
 

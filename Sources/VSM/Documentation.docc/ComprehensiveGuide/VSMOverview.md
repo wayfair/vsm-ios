@@ -26,7 +26,7 @@ In VSM, the view simply observes and renders the current state of a state machin
 
 ![VSM Feature Flow Diagram](vsm-flow.jpg)
 
-Similar to other reactive architectures, VSM operates by a "Unidirectional Data Flow" pattern, which means that the view cannot write directly to the state or the data. It can only affect the data and state by invoking the actions which are made available to the view. This is congruent with other modern architectures, such as Elm, React, MVI, The Composable Architecture, Redux, Source, and so on.
+Similar to other reactive architectures, VSM employs a "Unidirectional Data Flow" pattern, which means that the view cannot write directly to the state or the data. It can only affect the data and state by invoking the actions which are made available to the view. This is congruent with other modern architectures, such as Elm, React, MVI, The Composable Architecture, Redux, Source, and so on.
 
 ### Structure and Flow Combined
 

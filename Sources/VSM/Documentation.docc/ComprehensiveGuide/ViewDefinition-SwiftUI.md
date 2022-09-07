@@ -1,6 +1,6 @@
 # Building the View in VSM - SwiftUI
 
-A guide to building a VSM view in SwiftUI or UIKit
+A guide to building a VSM view in SwiftUI
 
 ## Overview
 
@@ -219,7 +219,7 @@ This is a helpful reminder in case you forget to wrap an action call with `obser
 
 ### Loading View Actions
 
-There are two actions that we want to configure in the `LoadUserProfileView`. The `load()` action in the `initialized` view state and the `retry()` action for the `loadingError` view state. We want the `load()` call to only happen once for the view's lifetime, so we'll attach it to the `onAppear` event handler on one of the subviews. The `retry()` action will be nestled in the view that uses the unwrapped `errorModel`.
+There are two actions that we want to configure in the `LoadUserProfileView`. The `load()` action in the `initialized` view state and the `retry()` action for the `loadingError` view state. We want `load()` to be called only once in the view's lifetime, so we'll attach it to the `onAppear` event handler on one of the subviews. The `retry()` action will be nestled in the view that uses the unwrapped `errorModel`.
 
 ```swift
 var body: some View {

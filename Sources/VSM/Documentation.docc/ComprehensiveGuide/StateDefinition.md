@@ -150,7 +150,7 @@ enum UserProfileViewState {
 
 #### Defining the Models
 
-Now that we have our states, we can define the models for each state with their associated data and actions. As you can see from the above chart, the `initialized` state will need a `load()` action, so we will define our module with a simple `struct` like so:
+Now that we have our states, we can define the models for each state with their associated data and actions. As you can see from the above chart, the `initialized` state will need a `load()` action, so we will define our model with a simple `struct` like so:
 
 ```swift
 struct LoaderModel {
@@ -245,7 +245,7 @@ enum UserProfileViewState {
 }
 ```
 
-As you can see from the above code, we now have a clear and simple picture of how the feature works and what view will be able to see and do in any given state.
+As you can see from the above code, we now have a clear and simple picture of how the feature works and what the view will be able to see and do in any given state.
 
 In contrast, many other architectures will tell you to put all of X in "this" bucket, and all of Y in "that" bucket. However, with VSM, the "Shape of the Feature" is entirely up to you and provides unprecedented type-safety for the entire feature. You'll find that as you implement features in VSM, the compiler will protect the business logic based on the above definition.
 
