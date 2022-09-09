@@ -1,6 +1,6 @@
 # Building the View in VSM - UIKit
 
-A guide to building a VSM view in SwiftUI or UIKit
+A guide to building a VSM view in UIKit
 
 ## Overview
 

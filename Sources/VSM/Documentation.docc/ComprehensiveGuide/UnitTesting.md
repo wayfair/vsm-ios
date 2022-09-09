@@ -28,7 +28,7 @@ protocol UserDataProviding {
 }
 
 struct MockUserDataProviding: UserDataProviding {
-    var loadResult: AnyPublisher<UserData, Error>
+    var loadResult: AnyPublisher<UserData, Error>?
     func load() -> AnyPublisher<UserData, Error> {
         return loadResult ?? Empty()
     }

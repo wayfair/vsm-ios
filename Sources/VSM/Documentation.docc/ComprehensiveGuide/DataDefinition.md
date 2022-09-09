@@ -162,7 +162,7 @@ With the above models, the User Bio feature is guaranteed to always have the mos
 
 ## Composed Protocol Dependency Injection
 
-When considering how to share these repositories across your app, there are many viable approaches to dependency injection. A recommended approach that is type-safe, follows the least-knowledge architectural principle, and has a 0% chance of runtime crashes is the Composed Protocol Dependency Injection approach or CPDI for short.
+When considering how to share these repositories across your app, there are many viable approaches to dependency injection. We recommend _Composed Protocol Dependency Injection_, or CPDI for short. CPDI is type-safe, follows the least-knowledge architectural principle, and has a 0% chance of runtime crashes.
 
 The above dependency can be shared easily via CPDI by adding the following protocol:
 
