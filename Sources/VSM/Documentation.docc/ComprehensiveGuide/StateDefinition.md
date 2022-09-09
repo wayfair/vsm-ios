@@ -27,19 +27,19 @@ The following example defines the view state for a VSM feature that allows a use
 
 ```swift
 enum UserProfileViewState {
- case loaded(LoadedModel)
- case saving(SavingModel)
+    case loaded(LoadedModel)
+    case saving(SavingModel)
 
- struct LoadedModel {
-    let username: String
-    let saveUsername: (String) -> AnyPublisher<UserProfileViewState, Never>
- }
+    struct LoadedModel {
+        let username: String
+        let saveUsername: (String) -> AnyPublisher<UserProfileViewState, Never>
+    }
 
- struct SavingModel {
-    let originalUsername: String
-    let newUsername: String
-    let cancel: () -> UserProfileViewState
- }
+    struct SavingModel {
+        let originalUsername: String
+        let newUsername: String
+        let cancel: () -> UserProfileViewState
+    }
 }
 ```
 

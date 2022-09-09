@@ -43,11 +43,11 @@ struct UserDataRepository: UserDataProviding {
     }
 
     func load() -> AnyPublisher<UserData, Error> {
-        // TODO: Implement
+        ...
     }
 
     func save(userData: UserData) -> AnyPublisher<UserData, Error> {
-        // TODO: Implement
+        ...
     }
 }
 ```
@@ -79,17 +79,12 @@ func save(userData: UserData) -> AnyPublisher<UserData, Error> {
         return Fail(error: error).eraseToAnyPublisher()
     }
     return URLSession.shared.dataTaskPublisher(for: request)
-        .tryMap(\.data)
-        .decode(type: UserData.self, decoder: JSONDecoder())
-        .map { userData -> UserData in
-            userDataSubject.value = .loaded(userData)
-            return userData
-        }
+        .tryMap { _ in userData }
         .eraseToAnyPublisher()
 }
 ```
 
-Above, you can see that we use a `map` operation in the publisher chain that sets the current user data value on the repository subject. We chose this because any subscription cancellations to that request will also cancel any updates to the shared repository data. Alternatively, you can use the `sink` operation while managing the subscriptions within the repository.
+The save function sends the changes to the API. Assuming the save API returns an empty "success" response, we then use the map function to replace the empty result with the updated user data object. Depending on your situation, you can manipulate a published stream of data by using any of Combine's in-line publisher manipulation functions, such as `map`, `flatMap`, `catch`, etc. Alternatively, you could use the `sink` operation while managing the subscriptions within the repository.
 
 ## Using Observable Repositories in VSM
 
@@ -204,7 +199,7 @@ extension UserBioViewState.LoaderModel {
     init(dependencies: Dependencies) {
         load = {
             dependencies.userDataRepository.load()
-            // ...
+            ...
         }
     }
 }
@@ -215,7 +210,7 @@ CPDI reduces the frustration of dependency-hot-potato by reducing the number of 
 ```swift
 struct AppDependencies: RootView.Dependencies {
     init() {
-        // TODO: spin up all dependencies or provide closures for spinning up dependencies on-demand
+        // Spin up all dependencies or provide closures for spinning up dependencies on-demand
     }
 }
 

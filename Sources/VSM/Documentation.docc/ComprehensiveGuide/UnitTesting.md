@@ -75,25 +75,33 @@ func testUserProfileLoad() throws {
     let subject = LoadUserProfileViewState.LoaderModel(repository: mockRepository)
     let output = subject.load()
     let testExpectation = XCTestExpectation(description: "Load Publisher")
-    testExpectation.expectedFulfillmentCount = 3
     var results: [LoadUserProfileViewState] = []
     output.sink { result in
         testExpectation.fulfill()
     } receiveValue: { value in
         results.append(value)
-        testExpectation.fulfill()
     }
     .store(in: &subscriptions)
 
-    let firstViewState = try XCTUnwrap(results.first)
+    guard results.count > 0 else {
+        XCTFail("Missing first state")
+        return
+    }
+
+    let firstViewState = results[0]
     switch firstViewState {
     case .loading:
         break
     default:
         XCTFail("Expected loading state but got \(firstViewState)")
     }
-    
-    let secondViewState = try XCTUnwrap(results.last)
+
+    guard results.count > 1 else {
+        XCTFail("Missing second state")
+        return
+    }
+
+    let secondViewState = results[1]
     switch secondViewState {
     case .loaded(let userData):
         XCTAssertEqual(userData, expectedUserData)
@@ -168,7 +176,7 @@ func testUserProfileLoad() throws {
 >
 > public extension UnitTestEquatable {
 >     static func == (lhs: Self, rhs: Self) -> Bool {
->         // TODO: reflect the type and properties to compare their values recursively
+>         // Reflect the type and properties to compare their values recursively
 >     }
 > }
 > 
@@ -202,9 +210,11 @@ func testUserProfileLoad() throws {
 
 ## Behavior-driven Development
 
-[Behavior-driven Development](https://en.wikipedia.org/wiki/Behavior-driven_development) (BDD) is an approach where writing intentionally-failing unit tests is part of requirements gathering process. VSM development shares some concepts with BDD in that you have to have a deep understanding of the requirements to build the shape of the feature before you can start implementing the view or the models. While BDD is not explicitly required for VSM, it may be a good option to consider adding to your process.
+[Behavior-driven Development](https://en.wikipedia.org/wiki/Behavior-driven_development) (BDD) and [Test-driven Development](https://en.wikipedia.org/wiki/Test-driven_development) (TDD) are techniques that begin feature development by writing intentionally-failing unit tests as part of the development process. For BDD, the tests are written using a language like [Gherkin](https://en.wikipedia.org/wiki/Cucumber_(software)) which is then automatically interpreted into test script actions.
 
-If you decide to use BDD, the following is a good process to follow:
+VSM development shares some concepts with BDD in that you should deeply understand the requirements and convert those requirements into Swift types (ie, the "shape of the feature") before you can start implementing the view or the models. While BDD and TDD are not required by VSM, these techniques may be good options to consider.
+
+If you decide to use BDD or TDD with VSM, these steps can help you get started:
 
 1. Build the shape of the feature states (see <doc:StateDefinition>)
 1. Build and mock the protocols for the data repositories that the feature requires
@@ -213,7 +223,9 @@ If you decide to use BDD, the following is a good process to follow:
 
 Use the above exercise as a way to discover any gaps or discrepancies in the requirements.
 
-> Note: Building features with BDD does have one major drawback: You are starting with tech debt. Your tests will likely be incorrect and need to be changed as you refine the requirements, view, and implementation details. It is up to your team to decide if this up-front cost is worth the investment.
+> Note: Building features with BDD and TDD has a non-trivial tradeoff that's worth consideration: You are starting with technical debt. Your tests will likely be incorrect and need to be changed as you refine the requirements, UI, and implementation details. It is up to your team to decide if this up-front cost is worth the investment.
+>
+> As you develop features in VSM, you may find the process of defining and refining the "shape of the feature" to be an acceptable alternative to fully adopting BDD or TDD.
 
 ## Conclusion
 

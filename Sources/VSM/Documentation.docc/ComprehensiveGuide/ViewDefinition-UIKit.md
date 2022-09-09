@@ -37,7 +37,7 @@ class UserProfileViewController: UIViewController, ViewStateRendering {
         super.viewDidLoad()
     }
 
-    func render(state: VSMBasicExampleViewState) {
+    func render(state: LoadUserProfileViewState) {
         // View configuration goes here
     }
 }
@@ -245,9 +245,9 @@ There are two actions that we want to configure in the `LoadUserProfileView`. Th
 
 ```swift
 override func viewDidLoad() {
-    // ...   
+    ...  
     setUpViews()
-    // ...
+    ...
 }
 
 override func viewDidAppear(_ animated: Bool) {
@@ -332,25 +332,25 @@ What's the best way to construct a VSM component? Through the UIKit view or view
 
 A VSM view's initializer can take either of two approaches (or both, if desired):
 
-- Subservient: The parent is responsible for passing in the view's initial view state (and its associated model)
+- Dependent: The parent is responsible for passing in the view's initial view state (and its associated model)
 - Encapsulated: The view encapsulates its view state kickoff point (and associated model), only requiring that the parent provide dependencies needed by the view or the models.
 
-The subservient initializer has one downside when compared to the encapsulated approach, in that it requires any parent view to have some knowledge of the inner workings of the view in question.
+The dependent initializer has one downside when compared to the encapsulated approach, in that it requires any parent view to have some knowledge of the inner workings of the view in question.
 
 ### Loading View Initializers
 
 The initializers for the `LoadUserProfileViewController` are as follows:
 
 ```swift
-// Subservient
+// Dependent
 required init?(state: LoadUserProfileViewState, coder: NSCoder) {
     container = .init(state: state)
     super.init(coder: coder)
 }
 
 // Encapsulated
-required init?(state: LoadUserProfileViewState, coder: NSCoder) {
-    let loaderModel = LoadUserProfileViewState.LoaderModel(userId: 1)
+required init?(userId: Int, coder: NSCoder) {
+    let loaderModel = LoadUserProfileViewState.LoaderModel(userId: userId)
     let state = .initialized(loaderModel)
     container = .init(state: state)
     super.init(coder: coder)
@@ -362,7 +362,7 @@ required init?(state: LoadUserProfileViewState, coder: NSCoder) {
 The initializers for the `EditUserProfileViewController` are as follows:
 
 ```swift
-// Subservient
+// Dependent
 init?(state: EditUserProfileViewState, coder: NSCoder) {
     container = .init(state: state)
     super.init(coder: coder)

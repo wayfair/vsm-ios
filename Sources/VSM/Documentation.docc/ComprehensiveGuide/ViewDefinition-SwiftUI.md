@@ -18,7 +18,7 @@ import VSM
 struct LoadUserProfileView: View, ViewStateRendering {
     @StateObject var container: StateContainer<LoadUserProfileViewState>
 
-    var view: some View {
+    var body: some View {
         // View definitions go here
     }
 }
@@ -81,7 +81,7 @@ var body: some View {
         case .loadingError(let errorModel):
             Text(errorModel.message)
             Button("Retry") {
-                // TODO: implement this action
+                ...
             }
         }
     }
@@ -120,38 +120,47 @@ struct EditUserProfileViewState {
 To render this editing form, we require an extra property be added to the SwiftUI view to keep track of what the user types for the "Username" field.
 
 ```swift
-@State var username: String = ""
+struct EditUserProfileView: View, ViewStateRendering {
+    @StateObject var container: StateContainer<EditUserProfileViewState>
+    @State var username: String = ""
+    
+    init(userData: UserData) {
+        let editingModel = EditUserProfileViewState.EditingModel(userData: userData)
+        let state = EditUserProfileViewState(data: userData, editingState: .editing(editingModel))
+        _container = .init(state: state)
+    }
 
-var body: some View {
-    ZStack {
-        VStack {
-            Text("User profile")
-                .font(.headline)
-            TextField("Username", text: $username)
-                .textFieldStyle(.roundedBorder)
-            Button("Save") {
-                // TODO: implement this action
-            }
-        }
-        .disabled(state.isSaving)
-        .padding()
-        if state.isSaving {
-            ProgressView()
-        }
-        if case .savingError(let errorModel) = state.editingState {
+    var body: some View {
+        ZStack {
             VStack {
-                Text(errorModel.message)
-                HStack {
-                    Button("Retry") {
-                        // TODO: implement this action
-                    }
-                    Button("Cancel") {
-                        // TODO: implement this action
-                    }
+                Text("User profile")
+                    .font(.headline)
+                TextField("Username", text: $username)
+                    .textFieldStyle(.roundedBorder)
+                Button("Save") {
+                    ...
                 }
             }
-            .background(.white)
+            .disabled(state.isSaving)
             .padding()
+            if state.isSaving {
+                ProgressView()
+            }
+            if case .savingError(let errorModel) = state.editingState {
+                VStack {
+                    Text(errorModel.message)
+                    HStack {
+                        Button("Retry") {
+                            ...
+                        }
+                        Button("Cancel") {
+                            ...
+                        }
+                    }
+                }
+                .background(.white)
+                .padding()
+            }
         }
     }
 }
@@ -315,7 +324,7 @@ The fastest way to solve the problem is to set the view's `username` property to
 
 var body: some View {
     ZStack {
-        // ...
+        ...
     }
     .onAppear {
         username = state.data.username
@@ -332,7 +341,7 @@ However, if the view's `username` property did need to be kept in sync with the 
 
 var body: some View {
     ZStack {
-        // ...
+        ...
     }
     .onReceive(container.$state) { newState in 
         username = newState.data.username
@@ -372,17 +381,17 @@ What's the best way to construct a VSM component? Through the SwiftUI view's ini
 
 A VSM view's initializer can take either of two approaches (or both, if desired):
 
-- Subservient: The parent is responsible for passing in the view's initial view state (and its associated model)
+- Dependent: The parent is responsible for passing in the view's initial view state (and its associated model)
 - Encapsulated: The view encapsulates its view state kickoff point (and associated model), only requiring that the parent provide dependencies needed by the view or the models.
 
-The subservient initializer has one upside and one downside when compared to the encapsulated approach. The upside is that the initializer is convenient for use in SwiftUI Previews and automated UI tests. The downside is that it requires any parent view to have some knowledge of the inner workings of the view in question.
+The dependent initializer has one upside and one downside when compared to the encapsulated approach. The upside is that the initializer is convenient for use in SwiftUI Previews and automated UI tests. The downside is that it requires any parent view to have some knowledge of the inner workings of the view in question.
 
 ### Loading View Initializers
 
 The initializers for the `LoadUserProfileView` are as follows:
 
 ```swift
-// Subservient
+// Dependent
 init(state: LoadUserProfileViewState) {
     _container = .init(state: state)
 }
@@ -400,7 +409,7 @@ init(userId: Int) {
 The initializers for the `EditUserProfileView` are as follows:
 
 ```swift
-// Subservient
+// Dependent
 init(state: EditUserProfileViewState) {
     _container = .init(state: state)
 }

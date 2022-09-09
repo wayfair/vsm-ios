@@ -53,19 +53,21 @@ There are many reasons why the VSM architecture is a strong choice for building 
 - Unidirectional data flow prevents unintentional state and data bugs
 - No shared, mutable data or state
 - Execution paths are highly deterministic
-- Data and actions are protected from access in wrong states in both the view and the models
+- Data and actions are protected from access in wrong states
 - Encourages smaller, single-purpose, least-knowledge models
 - Encourages engineers to split up complex functionality between multiple nested views, resulting in simpler feature code
 - Encourages exhaustive error handling
 - State & model definitions are a simple and clear description of the feature requirements (for ease of maintenance)
 - Implementation code is easy to read
-- Passively encourages "Shifting Left" via Behavior-Driven Development
+- Passively encourages "Shifting Left" via Behavior-driven Development principles
 
 ### Cons
 
 - Inferring states, models, data, and actions from feature requirements can be challenging
 - Like most other architectures, hanging execution paths within actions are possible
 - Requires some data type translation for consumption by SwiftUI views
+
+While VSM protects the developer at every step, like all architectures and patterns, discipline in adhering to the VSM best practices will ensure the best experience.
 
 ## Up Next
 

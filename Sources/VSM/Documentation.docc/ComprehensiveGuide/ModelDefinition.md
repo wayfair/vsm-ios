@@ -42,7 +42,7 @@ After we have a good idea of how the states and data should flow, we can begin i
 
 ```swift
 extension LoadUserProfileViewState.LoaderModel {
-    // ...
+    ...
 }
 ```
 
@@ -52,7 +52,7 @@ Next, we'll create an initializer that defines the behavior of the `load()` acti
 extension LoadUserProfileViewState.LoaderModel {
     init(userId: Int) {
         load = {
-            // TODO: Implement
+            ...
         }
     }
 }
@@ -78,14 +78,14 @@ extension LoadUserProfileViewState.LoaderModel {
                 LoadUserProfileViewState.loaded(userData)
             }
             .catch { error in
-                // TODO: Handle error
+                ...
             }
             .eraseToAnyPublisher()
     }
 }
 ```
 
-The above code instantiates a dependency that can load the user data and return it as a publisher type of `AnyPublisher<UserData, Error>`. It immediately returns a new "saving" state to the view. Then, it invokes the data request, which contacts a web API or local database, returns the result, or completes with an error. (We will cover proper dependency injection in <doc:ObservableRepositories>.)
+The above code instantiates a dependency that can load the user data and return it as a publisher type of `AnyPublisher<UserData, Error>`. The `load()` function immediately returns a new "loading" state to the view. Then, it invokes the data request, which contacts a web API or local database, returns the result, or completes with an error. (We will cover proper dependency injection in <doc:ObservableRepositories>.)
 
 The code then maps the user data result type from the data source publisher to the desired view state: `LoadUserProfileViewState.loaded(UserData)`. Since the function cannot return a publisher that can emit errors, we are required by the compiler to convert the error into a view state within the `catch()` function.
 
@@ -377,7 +377,7 @@ None of these practices are appropriate for use in a VSM feature. If any of thes
 
 To address the above points, it is generally less effective to use class types for models in VSM. Classes would merely introduce the risk of memory leaks due to accidental strong-self captures within closures. Because states in VSM are largely ephemeral and have short lifespans, classes increase the cost of state transitions. They also don't come with the benefit of implicit initializers like structs do.
 
-Single "mega-view-model" types violate several SOLID architecture principles and introduce the potential for bugs via shared mutable data and unprotected functions. This applies as well to models that manage state via `@Published` properties. They tend to be hotbeds for bugs caused by unintended states, side effects, and regressions.
+Single "mega-view-model" types tend to violate several [SOLID](https://en.wikipedia.org/wiki/SOLID) architecture principles and introduce the potential for bugs via shared mutable data and unprotected functions. This applies as well to models that manage state via `@Published` properties. They tend to be hotbeds for bugs caused by unintended states, side effects, and regressions.
 
 Managing subscriptions of various publishers is less effective in VSM because it's much easier (and requires much less code) to let the state container manage the subscriptions for you. You can do this within your actions by combining and translating various data publishers into one view state publisher via Combine functions such as merge, zip, combineLatest, map, flatMap, etc. You then return this single view state publisher from the appropriate action. This also eliminates the need to make any round-trips to the view to trigger actions that observe future updates.
 
