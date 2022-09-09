@@ -1,8 +1,8 @@
 import Combine
 import Foundation
 
-/// Wraps a state to be observed by a ViewStateRendering view or other interested observer.
-/// Provides `observe` functions for forwarding new states to this container.
+/// Assists views by managing the current view state.
+/// Observes the output of actions called by the view.
 final public class StateContainer<State>: ObservableObject {
     
     @Published public private(set) var state: State

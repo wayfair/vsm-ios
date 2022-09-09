@@ -67,8 +67,6 @@ import Combine
 ///     }
 /// }
 /// ```
-///
-///
 public protocol ViewStateRendering {
     
     /// The type that represents your View's state.
