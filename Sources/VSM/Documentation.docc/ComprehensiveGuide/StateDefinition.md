@@ -4,7 +4,7 @@ A guide to translating feature requirements into VSM code
 
 ## Overview
 
-The normal layered-pass approach to translating feature requirements into code is responsible for many bugs. The VSM architecture encourages a more careful examination of requirements upfront.
+Often, engineers begin developing features without fully understanding the feature requirements. This approach is responsible for many bugs. The VSM architecture encourages a more careful examination of requirements before implementing them.
 
 ## The Status Quo
 
@@ -19,11 +19,11 @@ With this approach, the overall technical design of the feature's implementation
 
 ## Behavior-Driven Architecture
 
-VSM aims to break the above tradition by encouraging engineers to define a representation of the feature requirements before any implementation (view or model) is developed. Of course, this can't be done without the engineer carefully studying the requirements and asking questions that clarify any ambiguity in the requirements themselves.
+VSM aims to break the above tradition by encouraging engineers to describe the feature's requirements in code before writing any implementation code (view or model). Of course, the engineer can't do this without carefully studying the feature's requirements and asking questions that clarify any ambiguity.
 
-VSM encourages **Behavior-Driven Development** by requiring that every feature declare a view state type before implementing the view or business logic code. This view state describes all of the states that the view can have, and the data and actions associated with each state. This is done by using a mix of core Swift types (`enums` and `structs`) to describe the states, data, and actions.
+VSM encourages **Behavior-driven Development** by requiring that every feature declare a View State type before implementing the view or business logic code. This View State describes all the states the view can have and the data and actions associated with each state. We accomplish this by using a mix of core Swift types (enums and structs) to describe the requirements.
 
-The following example defines the view state for a VSM feature that allows a user to view, change, and save their username.
+The following example defines the view state for a VSM feature that allows users to view, change, and save their usernames.
 
 ```swift
 enum UserProfileViewState {
@@ -45,15 +45,11 @@ enum UserProfileViewState {
 
 In VSM, the view can only see and draw the current view state.
 
-For example, if the current state is `UserProfileViewState.loaded`, then the view can only access the `LoadedModel`'s `username` property and will only be able to call the `saveUsername()` function.
-
-When `saveUsername()` is called, the action should output the `UserProfileViewState.saving` state to the view. At that time, `saveUsername()` will no longer be accessible to the view. Instead, only the `SavingModel`'s properties and `cancel()` function are available to the view.
-
-If `cancel()` is called, the action should return the `loaded` state. If `cancel()` is not called, then the previous `saveUsername()` call is free to finish by emitting a final `.loaded` state after the username has been saved to the data source.
+In the code above, the compiler prohibits the view from calling the cancel function if the user is in the `loaded` state. Conversely, the compiler prohibits the view from reaching the `saveUsername` function if the user is in the `saving` state. The same goes for the properties. For example, the view will not be able to access the `newUsername` property if the user is in the `loaded` state.
 
 To reiterate:
 
-> Important: The **`loaded(LoadedModel)`** and **`saving(SavingModel)`** states have separate models and those models have separate data and actions. This protects the functionality so that the view cannot call **`cancel()`** while in the **`loaded`** state, nor call **`save(username)`** while already in the **`saving`** state. The data between these models is also different because some data may need to be unique for each state.
+> Important: The "loaded" and "saving" states have separate models with unique data and actions each. The view can only access the model of the current state
 
 ## Defining States and Models
 

@@ -6,7 +6,7 @@ An overview of the VSM architecture, framework, and pattern
 
 VSM stands for both "View State Model" and "Viewable State Machine". The first definition describes how a feature in VSM is structured, the second definition illustrates how information and actions flow.
 
-### Structure
+## Structure
 
 In VSM, the various responsibilities of a feature are divided into 3 concepts:
 
@@ -20,7 +20,7 @@ Optionally, due to the reactive nature of VSM, Observable Repositories are an ex
 
 ![VSM Feature Structure Diagram](vsm-structure.jpg)
 
-### Flow
+## Flow
 
 In VSM, the view simply observes and renders the current state of a state machine. The actions are invoked by the view and emit at least one new state.
 
@@ -28,7 +28,7 @@ In VSM, the view simply observes and renders the current state of a state machin
 
 Similar to other reactive architectures, VSM employs a "Unidirectional Data Flow" pattern, which means that the view cannot write directly to the state or the data. It can only affect the data and state by invoking the actions which are made available to the view. This is congruent with other modern architectures, such as Elm, React, MVI, The Composable Architecture, Redux, Source, and so on.
 
-### Structure and Flow Combined
+## Structure and Flow Combined
 
 As we combine the structure and flow of VSM, you can see how each of the VSM components work together to facilitate the behaviors and flow of information. The ``StateContainer``, which is a crucial part of the VSM iOS framework, manages the relationship between the view and the states and models.
 
@@ -56,7 +56,7 @@ There are many reasons why the VSM architecture is a strong choice for building 
 - Data and actions are protected from access in wrong states
 - Encourages smaller, single-purpose, least-knowledge models
 - Encourages engineers to split up complex functionality between multiple nested views, resulting in simpler feature code
-- Encourages exhaustive error handling
+- Intuitively encourages exhaustive error handling
 - State & model definitions are a simple and clear description of the feature requirements (for ease of maintenance)
 - Implementation code is easy to read
 - Passively encourages "Shifting Left" via Behavior-driven Development principles

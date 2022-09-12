@@ -85,7 +85,7 @@ extension LoadUserProfileViewState.LoaderModel {
 }
 ```
 
-The above code instantiates a dependency that can load the user data and return it as a publisher type of `AnyPublisher<UserData, Error>`. The `load()` function immediately returns a new "loading" state to the view. Then, it invokes the data request, which contacts a web API or local database, returns the result, or completes with an error. (We will cover proper dependency injection in <doc:ObservableRepositories>.)
+The above code instantiates a dependency that can load the user data and return it as a publisher type of `AnyPublisher<UserData, Error>`. The `load()` function immediately returns a new "loading" state to the view. Then, it invokes the data request, which contacts a web API or local database, returns the result, or completes with an error. (We will cover proper dependency injection in <doc:DataDefinition>.)
 
 The code then maps the user data result type from the data source publisher to the desired view state: `LoadUserProfileViewState.loaded(UserData)`. Since the function cannot return a publisher that can emit errors, we are required by the compiler to convert the error into a view state within the `catch()` function.
 
