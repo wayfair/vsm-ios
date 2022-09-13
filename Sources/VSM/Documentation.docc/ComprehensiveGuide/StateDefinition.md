@@ -4,7 +4,7 @@ A guide to translating feature requirements into VSM code
 
 ## Overview
 
-The normal layered-pass approach to translating feature requirements into code is responsible for many bugs. The VSM architecture encourages a more careful examination of requirements upfront.
+Often, engineers begin developing features without fully understanding the feature requirements. This approach is responsible for many bugs. The VSM architecture encourages a more careful examination of requirements before implementing them.
 
 ## The Status Quo
 
@@ -19,11 +19,11 @@ With this approach, the overall technical design of the feature's implementation
 
 ## Behavior-Driven Architecture
 
-VSM aims to break the above tradition by encouraging engineers to define a representation of the feature requirements before any implementation (view or model) is developed. Of course, this can't be done without the engineer carefully studying the requirements and asking questions that clarify any ambiguity in the requirements themselves.
+VSM aims to break the above tradition by encouraging engineers to describe the feature's requirements in code before writing any implementation code (view or model). Of course, the engineer can't do this without carefully studying the feature's requirements and asking questions that clarify any ambiguity.
 
-VSM encourages **Behavior-Driven Development** by requiring that every feature declare a view state type before implementing the view or business logic code. This view state describes all of the states that the view can have, and the data and actions associated with each state. This is done by using a mix of core Swift types (`enums` and `structs`) to describe the states, data, and actions.
+VSM encourages **Behavior-driven Development** by requiring that every feature declare a View State type before implementing the view or business logic code. This View State describes all the states the view can have and the data and actions associated with each state. We accomplish this by using a mix of core Swift types (enums and structs) to describe the requirements.
 
-The following example defines the view state for a VSM feature that allows a user to view, change, and save their username.
+The following example defines the view state for a VSM feature that allows users to view, change, and save their usernames.
 
 ```swift
 enum UserProfileViewState {
@@ -38,22 +38,18 @@ enum UserProfileViewState {
     struct SavingModel {
         let originalUsername: String
         let newUsername: String
-        let cancel: () -> UserProfileViewState
+        let cancel: () -> AnyPublisher<UserProfileViewState, Never>
     }
 }
 ```
 
 In VSM, the view can only see and draw the current view state.
 
-For example, if the current state is `UserProfileViewState.loaded`, then the view can only access the `LoadedModel`'s `username` property and will only be able to call the `saveUsername()` function.
-
-When `saveUsername()` is called, the action should output the `UserProfileViewState.saving` state to the view. At that time, `saveUsername()` will no longer be accessible to the view. Instead, only the `SavingModel`'s properties and `cancel()` function are available to the view.
-
-If `cancel()` is called, the action should return the `loaded` state. If `cancel()` is not called, then the previous `saveUsername()` call is free to finish by emitting a final `.loaded` state after the username has been saved to the data source.
+In the code above, the compiler prohibits the view from calling the cancel function if the user is in the `loaded` state. Conversely, the compiler prohibits the view from reaching the `saveUsername` function if the user is in the `saving` state. The same goes for the properties. For example, the view will not be able to access the `newUsername` property if the user is in the `loaded` state.
 
 To reiterate:
 
-> Important: The **`loaded(LoadedModel)`** and **`saving(SavingModel)`** states have separate models and those models have separate data and actions. This protects the functionality so that the view cannot call **`cancel()`** while in the **`loaded`** state, nor call **`save(username)`** while already in the **`saving`** state. The data between these models is also different because some data may need to be unique for each state.
+> Important: The "loaded" and "saving" states have separate models with unique data and actions each. The view can only access the model of the current state
 
 ## Defining States and Models
 
@@ -115,11 +111,11 @@ With the above diagram, it becomes much easier to infer which states, data, and 
 
 #### Determining the States
 
-States usually match up 1:1 with variations in the view. So, we can safely assume that we will need the following states: `loading`, `loadingError`, `editing`, `saving`, and `savingError`.
+States usually match up 1:1 with variations in the view. So, we can safely assume that we will need the following states: loading, loading-error, editing, saving, and saving-error.
 
-> Note: We will need to add an extra state called `initialized` to kick off the `load()` action when the view appears. `load()` will immediately return the `loading` state. This protects the `load()` action from accidentally being called from the wrong state.
+> Note: We will need to add an extra state called "initialized" to kick off the `load()` action when the view appears. `load()` will immediately return the `loading` state. This protects the `load()` action from accidentally being called from the wrong state.
 >
-> For example, in iOS, a view's `onAppear` handler can be called multiple times during a view's lifetime. By using the `initialized` state, we don't have to worry about the `load()` function being called multiple times even if `onAppear` is called multiple times before the data is finished loading.
+> For example, in SwiftUI, a view’s `onAppear` handler (`viewDidAppear` in UIKit) can be called multiple times during a view’s lifetime. The "initialized" state will prevent the `load()` function from being called multiple times even if `onAppear` is called numerous times even before the data finishes loading.
 >
 > ```swift
 > someView.onAppear {
@@ -135,7 +131,7 @@ The resulting state flow diagram may look something like this:
 
 ![VSM State Flow Diagram Example](vsm-state-flow-example.jpg)
 
-If we translate the states from the above flow chart, our resulting view state `enum` looks like this:
+If we translate the states from the above flow chart, our resulting view state enum looks like this:
 
 ```swift
 enum UserProfileViewState {
@@ -150,7 +146,7 @@ enum UserProfileViewState {
 
 #### Defining the Models
 
-Now that we have our states, we can define the models for each state with their associated data and actions. As you can see from the above chart, the `initialized` state will need a `load()` action, so we will define our model with a simple `struct` like so:
+Now that we have our states, we can define the models for each state with their associated data and actions. As you can see from the above chart, the "initialized" state will need a `load()` action. So, we will define our model with a simple struct like so.:
 
 ```swift
 struct LoaderModel {
@@ -158,11 +154,11 @@ struct LoaderModel {
 }
 ```
 
-We want the `load()` function to emit two states. First, the `loading` state while the `UserData` loads, then the `editing` state when the loading is complete. To allow for this, we use a Combine Publisher that can send multiple `UserProfileViewState` values to the view.
+We want the `load()` function to emit two states. First, the `loading` state while the `UserData` loads, then the `editing` state when the loading is complete. To allow this, we use a Combine Publisher that can send multiple `UserProfileViewState` values to the view.
 
-The `load()` action is declared as a property of the struct instead of a function so that the implementation can be declared elsewhere (covered in <doc:ModelDefinition>). This makes it easier to read the feature definition, as well as easier to mock the various models when unit testing or using SwiftUI Previews.
+The `load()` action is a closure instead of a function so that the implementation can be declared elsewhere (covered in <doc:ModelDefinition>). Using a closure property makes it easy to read the feature definition and mock the various models when unit testing or using SwiftUI Previews.
 
-The Publisher returned from `load()` uses the `Never` error type. This helps the compiler to enforce proper error handling by requiring the action to convert any Error type to a `UserProfileViewState`. For example, the code above infers that `load()` will convert any errors to the `loadingError` state.
+The Publisher returned from `load()` uses the `Never` error type. This error type helps the compiler enforce proper error handling by requiring that action converts any Error type to a `UserProfileViewState` type. For example, the code above infers that `load()` will return the `loadingError` state if it encounters any errors.
 
 To learn more about VSM's supported action types, see <doc:ModelActions>.
 
@@ -175,9 +171,9 @@ struct EditingModel {
 }
 ```
 
-The unique thing about this model from the previous example is that the `saveUsername` function expects a String parameter that represents the new username. The view will be responsible for passing the User Name textbox value to this function when it is called.
+The unique thing about this model from the previous example is that the `saveUsername` function expects a String parameter representing the new username. The view code will pass the Username textbox value to this function.
 
-Finally, we'll use the same approach to build error models for the `loadingError` and `savingError` states. These models will need to provide an error message String and a `retry()` action for the user to press in case of error. For the `savingError`, an additional `UserData` property is needed for the view to display along with the error. The `savingError` model will also have a `cancel()` action that will allow the user to go back to editing.
+Finally, we'll use the same approach to build error models for the `loadingError` and `savingError` states. These models will need to provide an error message String and a `retry()` action for the user to press in case of an error. For the `savingError`, an additional user data property is needed for the view to display along with the error. The `savingError` model will also have a `cancel()` action that will allow the user to go back to editing.
 
 ```swift
 struct LoadingErrorModel {
@@ -203,7 +199,7 @@ For example, the `loading` state has no data to show, nor any actions to call. W
 case loading
 ```
 
-The `saving` state _does_ have some associated data, but no actions. Instead of creating a custom model for it, we can just use the currently loaded `UserData`. The `EditingModel`'s `saveDisplayName()` action can manage the flow of the `saving` state.
+The saving state _does_ have some associated data, but no actions. Instead of creating a custom model for it, we can use the currently loaded user data. The `EditingModel`'s `saveDisplayName()` action can manage the flow of the saving state.
 
 ```swift
 case saving(UserData)
@@ -245,21 +241,21 @@ enum UserProfileViewState {
 }
 ```
 
-As you can see from the above code, we now have a clear and simple picture of how the feature works and what the view will be able to see and do in any given state.
+As you can see from the above code, we now have a clear and straightforward picture of how the feature works and what the View can see and do in any given state.
 
-In contrast, many other architectures will tell you to put all of X in "this" bucket, and all of Y in "that" bucket. However, with VSM, the "Shape of the Feature" is entirely up to you and provides unprecedented type-safety for the entire feature. You'll find that as you implement features in VSM, the compiler will protect the business logic based on the above definition.
+In contrast, many other architectures will tell you, "Put all of X in 'this' bucket, and all of Y in 'that' bucket." However, with VSM, the "Shape of the Feature" is entirely up to you and provides unprecedented type safety for the entire feature. You'll find that as you implement features in VSM, the compiler will protect the business logic based on the above definition.
 
 You have absolute creative freedom in how the feature requirements are modeled into Swift, as long as you follow some basic guidelines:
 
-1. Your feature shape is contained within a single `ViewState` type
-1. All actions that update the view _must_ return one or more of these `ViewState` values
+1. The ViewState contains your entire feature shape
+1. All actions that update the View must return one or more of these ViewState values
 1. Data and actions are not accessible outside of their intended states
 
 ### Simple Feature Shapes
 
-While the above feature shape is a good design, it is a fairly complex example for VSM. There is an opportunity here to simplify further by separating some concerns across multiple smaller VSM components. To do this, look for a way to cleanly break the state into smaller, less complex type graphs. It also helps to consider how this feature shape will be interpreted by the view, then optimize for efficiency without sacrificing safety where possible.
+While the above feature shape is a good design, it is a somewhat complex example for VSM. There is an opportunity to simplify it further by separating some concerns across multiple smaller VSM components. To do this, look for a way to cleanly break the state into smaller, less complex type graphs. It also helps to consider how the View will use this feature shape and optimize for efficiency without sacrificing safety where possible.
 
-The loading of `UserData` only happens once for the entire lifecycle of this feature. Therefore, the `initialized`, `loading`, and `loadingError` states can be split off to a parent view. Once loaded, the parent view can show the Editing View as its child, passing the `UserData` to it upon construction. If we follow this approach, we end up with two separate, but related VSM components, each with its own states, data, and actions.
+The loading of `UserData` only happens once for the entire lifecycle of this feature. Therefore, we can split off the `initialized`, `loading`, and `loadingError` states to a parent view. Once loaded, the parent view can show the Editing View as its child, passing the `UserData` to it upon construction. If we follow this approach, we end up with two separate but related VSM components, each with its states, data, and actions.
 
 As described above, the parent VSM component will have the following view state definition:
 
@@ -281,7 +277,7 @@ enum LoadUserProfileViewState {
 }
 ```
 
-In the above example, the `UserData` loading states are extracted into their own view state. Instead of providing a model for the `loaded` state, we provide only the raw `UserData` value that can be used by the Loader View to hydrate the Editing View, as defined below:
+In the above example, we extract the `UserData` loading states into a separate view state. Instead of providing a model for the `loaded` state, we provide only the raw `UserData` value that can be used by the Loader View to hydrate the Editing View, as defined below:
 
 ```swift
 struct EditUserProfileViewState {
@@ -306,9 +302,9 @@ struct EditUserProfileViewState {
 }
 ```
 
-Next, the editing functionality is moved into its own view state. This view state is shaped a little differently than the examples found earlier in this article. We chose a `struct` as the primary Swift type for our view state because `UserData` should be available to the Editing View in _every_ state. The view state also has an inner `EditingState` which describes various editing view states for the view.
+Here, we moved the editing functionality into a separate view state. The shape of this view state is different than the examples found earlier in this article. We chose a struct as the primary Swift type for our view state because the user data should be available to the Editing View in _every_ state. The view state also has an inner `EditingState` which describes various editing view states that the View will need.
 
-This is a great example of how flexible the VSM states can be to help you solve problems, and how you don't always have to use an `enum` for your view state.
+These differences in "Feature Shapes" are an excellent example of how the flexibility of VSM states can help you solve problems. You don't always have to use an enum for your view state. You can use whichever combination of enums and structs best describe the feature's requirements.
 
 ## Up Next
 

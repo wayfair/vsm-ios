@@ -17,6 +17,14 @@ This package provides helpful types for implementing VSM, such as the ``StateCon
 - <doc:ComprehensiveGuide>
 - <doc:QuickstartGuide>
 
+### Reference Articles
+
+- <doc:ViewCommunication>
+- <doc:ModelActions>
+- <doc:ModelPatterns>
+- <doc:Navigation>
+- <doc:ViewStateExtensions>
+
 ### Primary Types
 
 - ``ViewStateRendering``
