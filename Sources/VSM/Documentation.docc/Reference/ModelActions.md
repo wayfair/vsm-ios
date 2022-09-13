@@ -47,12 +47,16 @@ _Figure b._
 loadUser = {
     let stateSubject = CurrentValueSubject<UserViewState, Never>(.loading)
     
-    let dataLoadPublisher = UserRepository().loadUser()
-        .map { userData in UserViewState.loaded(userData) }
-        .catch { error in Just(UserViewState.loadingError(error)) }
+    UserRepository().loadUser(completion: { result in 
+        switch result {
+        case .success(let userData):
+            stateSubject.value = UserViewState.loaded(userData)
+        case .failure(let error):
+            stateSubject.value = UserViewState.loadingError(error)
+        }
+    })
 
     return stateSubject
-        .merge(with: dataLoadPublisher)
 }
 ```
 
