@@ -81,9 +81,9 @@ loadUser = {
 var loadUser: () -> StateSequence<UserViewState>
 ```
 
-This action type allows multiple states to be returned as an [AsyncSequence](https://developer.apple.com/documentation/swift/asyncsequence) protocol, which is part of the Swift Concurrency standard library. This is a solid alternative to the State Publisher action type because the code can read a little bit cleaner and it guarantees the order of states without any additional coding.
+This action type allows multiple states to be returned as an [AsyncSequence](https://developer.apple.com/documentation/swift/asyncsequence) protocol, which is part of the Swift Concurrency standard library. It is a solid alternative to the State Publisher action type because the code can read a little bit cleaner and guarantees the order of states without additional coding.
 
-However, since the `AsyncSequence` is a protocol that "has Self or associated type requirements", we cannot use that type directly. To solve this, the VSM iOS framework provides a custom type called ``StateSequence`` which is a concrete type that conforms to the `AsyncSequence` protocol. It can be used like so:
+However, since the `AsyncSequence` is a protocol that "has Self or associated type requirements," we cannot use that type directly. To solve this problem, the VSM iOS framework provides a custom type called ``StateSequence``, a concrete type that conforms to the `AsyncSequence` protocol. You can use it like so:
 
 ```swift
 loadUser = {
@@ -106,7 +106,7 @@ loadUser = {
 var cancel: () -> UserViewState
 ```
 
-This action shape can be used if your action will immediately return a single view state. For example, if your feature can cancel an operation and return to the previous state.
+You can use this action shape if your action immediately returns a single view state. For example, if you have a button that cancels an operation and returns to the previous state.
 
 ```swift
 cancel = {
@@ -114,7 +114,7 @@ cancel = {
 }
 ```
 
-Any errors that are thrown within this action will have to be handled within a `do { ... } catch { ... }` structure, returning a suitable view state to represent the caught error.
+Any errors thrown within this action must be handled within a `do { ... } catch { ... }` structure, returning an appropriate view state to represent the caught error.
 
 ## Asynchronous State
 
@@ -122,7 +122,7 @@ Any errors that are thrown within this action will have to be handled within a `
 var toggleFavorite: () async -> ProductViewState
 ```
 
-Like the Synchronous State, this action type returns only a single view state, but it does so asynchronously by using Swift Concurrency. This action type is rarely used because it is a best practice to return an interim state (ie, "loading") while the user waits for the asynchronous operation to complete. In some cases, the interim state may not be necessary, in which case, the following may be used:
+Like the Synchronous State, this action type returns only a single view state, but it does so asynchronously using Swift Concurrency. This action type is rarely used because it is a best practice to return an interim state (i.e., "loading") while the user waits for the asynchronous operation to complete. In some cases, the interim state may not be necessary, in which case, the following may be used:
 
 ```swift
 toggleFavorite = {
@@ -131,7 +131,7 @@ toggleFavorite = {
 }
 ```
 
-Any errors that are thrown within this action will have to be handled within a `do { ... } catch { ... }` structure, returning a suitable view state to represent the caught error. For example:
+Any errors thrown within this action must be handled within a `do { ... } catch { ... }` structure, returning an appropriate view state to represent the caught error. For example:
 
 ```swift
 toggleFavorite = {
@@ -150,12 +150,29 @@ toggleFavorite = {
 var toggleFavorite: () -> Void
 ```
 
-Sometimes you just need to kick off a process or call a function on a repository without needing a direct view state result. This action type is legal to use in a VSM feature in a situation where a direct state change is required. Do not use the `observe()` function to call this function from the view because the `observe()` function's only purpose is to track view state changes from action invocations.
-
-Normally this action is used in conjunction with an observable repository whose load "State Publisher" action is already being observed by the `StateContainer`. This action can cause the repositories published data to change, which would automatically update the view without having to return any state directly from this function.
+Sometimes you need to kick off a process or call a function on a repository without needing a direct view state result. This action type is usable in a VSM feature in situations where a direct view state change is _not_ required. You can't use the `observe()` function to call this function from the view because the `observe()` function's only purpose is to track view state changes from action invocations.
 
 ```swift
 toggleFavorite = {
     sharedFavoritesRepository.toggleFavorite(for: productId)
+}
+```
+
+Usually, this action type is used in conjunction with an observable repository. A `load()` action would map the data from the repository's data publisher into a view state for the view to render. The ``StateContainer`` will hold on to that view state subscription (and, consequently, the repository data subscription) indefinitely unless another action is observed. Any future changes to the data will translate instantly into a change in the view.
+
+For example, if you used the `load` action below, the view would always be updated when the data changes, even though the `toggleFavorite` action doesn't return any new view states.
+
+```swift
+load = {
+    sharedFavoritesRepository.favoritePublisher(for: productId)
+        .map { isFavorite in 
+            FavoriteButtonViewState.loaded(
+                isFavorite: isFavorite,
+                toggleFavorite: {
+                    sharedFavoritesRepository.toggleFavorite(for: productId)
+                }
+            )
+        }
+        .eraseToAnyPublisher()
 }
 ```
