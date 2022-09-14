@@ -153,7 +153,7 @@ struct LoadingErrorModel: LoadingErrorModeling {
 
     init(userId: Int, error: Error) {
         self.userId = userId
-        message = "\(error.localizedDescription)"
+        message = error.localizedDescription
     }
 
     func retry() -> AnyPublisher<LoadUserProfileViewState, Never> {
