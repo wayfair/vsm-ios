@@ -193,7 +193,7 @@ struct EditUserProfileViewState {
 }
 
 protocol EditingModeling {
-    func saveUsername(_ username: String) -> AnyPublisher<EditUserProfileViewState, Never>
+    func save(username: String) -> AnyPublisher<EditUserProfileViewState, Never>
 }
 
 protocol SavingErrorModeling {
@@ -213,7 +213,7 @@ struct EditingModel: EditingModeling {
         self.userData = userData
     }
 
-    func saveUsername(_ username: String) -> AnyPublisher<EditUserProfileViewState, Never> {
+    func save(username: String) -> AnyPublisher<EditUserProfileViewState, Never> {
         return Just(
             EditUserProfileViewState(
                 data: userData,
@@ -236,7 +236,7 @@ Next, we'll implement the `performSave()` function like so:
 struct EditingModel: EditingModeling {
     ...
     private func performSave(username: String) -> AnyPublisher<EditUserProfileViewState, Never> {
-        UserDataRepository().saveUsername(username)
+        UserDataRepository().save(username: username)
             .map { savedUserData in
                 EditUserProfileViewState(
                     data: savedUserData,
@@ -283,7 +283,7 @@ struct EditingModel: EditingModeling {
         self.userData = userData
     }
 
-    func saveUsername(_ username: String) -> AnyPublisher<EditUserProfileViewState, Never> {
+    func save(username: String) -> AnyPublisher<EditUserProfileViewState, Never> {
         return Just(
             EditUserProfileViewState(
                 data: userData,
@@ -295,7 +295,7 @@ struct EditingModel: EditingModeling {
     }
 
     private func performSave(username: String) -> AnyPublisher<EditUserProfileViewState, Never> {
-        UserDataRepository().saveUsername(username)
+        UserDataRepository().save(username: username)
             .map { savedUserData in
                 EditUserProfileViewState(
                     data: savedUserData,
@@ -340,7 +340,7 @@ struct SavingErrorModel: SavingErrorModeling {
     }
     
     func retry() -> AnyPublisher<EditUserProfileViewState, Never> {
-        EditingModel(userData: userData).saveUsername(username)
+        EditingModel(userData: userData).save(username: username)
     }
             
     func cancel() -> AnyPublisher<EditUserProfileViewState, Never> {

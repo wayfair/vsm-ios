@@ -33,7 +33,7 @@ enum UserProfileViewState {
 
 protocol LoadedModeling {
     let username: String
-    func saveUsername(_ username: String) -> AnyPublisher<UserProfileViewState, Never>
+    func save(username: String) -> AnyPublisher<UserProfileViewState, Never>
 }
 
 protocol SavingModeling {
@@ -45,7 +45,7 @@ protocol SavingModeling {
 
 In VSM, the view can only see and draw the current view state.
 
-In the code above, the compiler prohibits the view from calling the cancel function if the user is in the `loaded` state. Conversely, the compiler prohibits the view from reaching the `saveUsername` function if the user is in the `saving` state. The same goes for the properties. For example, the view will not be able to access the `newUsername` property if the user is in the `loaded` state.
+In the code above, the compiler prohibits the view from calling the cancel function if the user is in the `loaded` state. Conversely, the compiler prohibits the view from reaching the `save(username:)` function if the user is in the `saving` state. The same goes for the properties. For example, the view will not be able to access the `newUsername` property if the user is in the `loaded` state.
 
 To reiterate:
 
@@ -165,11 +165,11 @@ Next, we'll define the model for the "editing" state. As per the diagram, this s
 ```swift
 protocol EditingModeling {
     var data: UserData
-    func saveUsername(_ username: String) -> AnyPublisher<UserProfileViewState, Never>
+    func save(username: String) -> AnyPublisher<UserProfileViewState, Never>
 }
 ```
 
-The unique thing about this model from the previous example is that the `saveUsername` function expects a String parameter representing the new username. The view code will pass the text from the Username field to this function.
+The unique thing about this model from the previous example is that the `save(username:)` function expects a String parameter representing the new username. The view code will pass the text from the Username field to this function.
 
 Finally, we'll use the same approach to build error models for the `loadingError` and `savingError` states. These models will need to provide an error message String and a `retry()` action for the user to press in case of an error. For the `savingError`, an additional user data property is needed for the view to display along with the error. The `savingError` model will also have a `cancel()` action that will allow the user to go back to editing.
 
@@ -228,7 +228,7 @@ protocol LoadingErrorModeling {
 
 protocol EditingModeling {
     var data: UserData
-    func saveUsername(_ username: String) -> AnyPublisher<UserProfileViewState, Never>
+    func save(username: String) -> AnyPublisher<UserProfileViewState, Never>
 }
 
 protocol SavingErrorModeling {
@@ -290,7 +290,7 @@ struct EditUserProfileViewState {
 }
 
 protocol EditingModeling {
-    func saveUsername(_ username: String) -> AnyPublisher<EditUserProfileViewState, Never>
+    func save(username: String) -> AnyPublisher<EditUserProfileViewState, Never>
 }
 
 protocol SavingErrorModeling {

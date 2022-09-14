@@ -107,7 +107,7 @@ struct EditUserProfileViewState {
 }
 
 protocol EditingModeling {
-    func saveUsername(_ username: String) -> AnyPublisher<EditUserProfileViewState, Never>
+    func save(username: String) -> AnyPublisher<EditUserProfileViewState, Never>
 }
 
 protocol SavingErrorModeling {
@@ -191,9 +191,9 @@ extension EditUserProfileViewState {
 >
 > ```swift
 > extension EditUserProfileViewState {
->     func saveUsername(_ username: String) -> AnyPublisher<EditUserProfileViewState, Never> {
+>     func save(username: String) -> AnyPublisher<EditUserProfileViewState, Never> {
 >         if case .editing(let editingModel) = editingState {
->             return editingModel.saveUsername(username)
+>             return editingModel.save(username: username)
 >         }
 >         return Empty().eraseToAnyPublisher()
 >     }
@@ -259,7 +259,7 @@ var body: some View {
 
 ### Editing View Actions
 
-In the editing view, there are three actions that we need to call: The `editing` view state's `saveUsername()` action and the `savingError` view state's `retry()` and `cancel()` actions. We'll place these appropriately scoped where we have access to their corresponding view states.
+In the editing view, there are three actions that we need to call: The `editing` view state's `save(username:)` action and the `savingError` view state's `retry()` and `cancel()` actions. We'll place these appropriately scoped where we have access to their corresponding view states.
 
 ```swift
 var body: some View {
@@ -271,7 +271,7 @@ var body: some View {
                 .textFieldStyle(.roundedBorder)
             Button("Save") {
                 if case .editing(let editingModel) = state.editingState {
-                    observe(editingModel.saveUsername(username))
+                    observe(editingModel.save(username: username))
                 }
             }
         }
@@ -353,7 +353,7 @@ We have to use the `ViewStateRendering`'s ``ViewStateRendering/container`` prope
 
 #### Custom Two-Way Bindings
 
-If we wanted to ditch the `Save` button in favor of having the view input call `saveUsername()` as the user is typing, SwiftUI's `Binding<T>` type behaves much like a property on an object by providing a two-way getter and a setter for a wrapped value. We can utilize this to trick the `TextField` view into thinking it has read/write access to the view state's `username` property.
+If we wanted to ditch the `Save` button in favor of having the view input call `save(username:)` as the user is typing, SwiftUI's `Binding<T>` type behaves much like a property on an object by providing a two-way getter and a setter for a wrapped value. We can utilize this to trick the `TextField` view into thinking it has read/write access to the view state's `username` property.
 
 A custom `Binding<T>` can be created as a view state extension property, as a `@Binding` property on the view, or on the fly right within the view's code, like so:
 
@@ -363,7 +363,7 @@ var body: some View {
         get: { state.data.username },
         set: { newValue in
             if case .editing(let editingModel) = state.editingState {
-                observe(editingModel.saveUsername(newValue),
+                observe(editingModel.save(username: newValue),
                     debounced: .seconds(1))
             }
         }
@@ -373,7 +373,7 @@ var body: some View {
 }
 ```
 
-Notice how our call to ``ViewStateRendering/observe(_:debounced:file:line:)-7ihyy`` includes a `debounced` property. This allows us to prevent thrashing the `saveUsername()` call if the user is typing quickly. It will only call the action a maximum of once per second (or whatever time delay is given).
+Notice how our call to ``ViewStateRendering/observe(_:debounced:file:line:)-7ihyy`` includes a `debounced` property. This allows us to prevent thrashing the `save(username:)` call if the user is typing quickly. It will only call the action a maximum of once per second (or whatever time delay is given).
 
 ## View Construction
 

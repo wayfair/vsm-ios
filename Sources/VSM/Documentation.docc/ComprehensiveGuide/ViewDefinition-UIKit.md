@@ -172,7 +172,7 @@ struct EditUserProfileViewState {
 }
 
 protocol EditingModeling {
-    func saveUsername(_ username: String) -> AnyPublisher<EditUserProfileViewState, Never>
+    func save(username: String) -> AnyPublisher<EditUserProfileViewState, Never>
 }
 
 protocol SavingErrorModeling {
@@ -275,7 +275,7 @@ func setUpViews() {
 
 ### Editing View Actions
 
-In the editing view, there are three actions that we need to call: The `editing` view state's `saveUsername()` action and the `savingError` view state's `retry()` and `cancel()` actions. We'll place these in a `setUpViews()` function and call it just like we did in the `LoadProfileViewController` as well.
+In the editing view, there are three actions that we need to call: The `editing` view state's `save(username:)` action and the `savingError` view state's `retry()` and `cancel()` actions. We'll place these in a `setUpViews()` function and call it just like we did in the `LoadProfileViewController` as well.
 
 ```swift
 func setUpViews() {
@@ -286,7 +286,7 @@ func setUpViews() {
                 guard let strongSelf = self else { return }
                 if case .editing(let editingModel) = strongSelf.state.editingState {
                     strongSelf.observe(
-                        editingModel.saveUsername(strongSelf.usernameTextField.text ?? "")
+                        editingModel.save(username: strongSelf.usernameTextField.text ?? "")
                     )
                 }
             }
