@@ -18,7 +18,7 @@ Mocks generally allow the code within the unit test to provide a fake implementa
 
 ### Mocking with Protocols
 
-The most common form of designing for mockable testing is to use protocols that expose the properties and functions of the repository which are to be used broadly. Reference these repositories by their protocol instead of their concrete type. This allows you to create special mock implementations of the repository which can be injected into the test subject while unit testing.
+The most common form of designing for mockable testing is to use protocols that expose the properties and functions of the repository which are to be used broadly. Reference these repositories by protocol instead of their concrete type. This allows you to create special mock implementations of the repository which can be injected into the test subject while unit testing.
 
 A protocol and its accompanying mock type may look like this:
 
@@ -72,7 +72,7 @@ To unit test a VSM feature, you must construct the model that you wish to test, 
 func testUserProfileLoad() throws {
     let expectedUserData = UserData(username: "test")
     let mockRepository = MockDataRepository(loadResult: Just(expectedUserData))
-    let subject = LoadUserProfileViewState.LoaderModel(repository: mockRepository)
+    let subject = LoaderModel(repository: mockRepository)
     let output = subject.load()
     let testExpectation = XCTestExpectation(description: "Load Publisher")
     var results: [LoadUserProfileViewState] = []
@@ -111,9 +111,11 @@ func testUserProfileLoad() throws {
 }
 ```
 
-The above test calls the `LoadUserProfileViewState.LoaderModel`'s load function and asserts that the loading view state and the loaded state are emitted before the publisher finishes.
+The above test calls the `LoaderModel`'s load function and asserts that the loading view state and the loaded state are emitted before the publisher finishes.
 
 To consider the feature "fully tested", a test should be written for every model and action to validate that every possible view state output (including error states) is correctly emitted when called and that the appropriate data is associated with the view states.
+
+> Tip: Be sure to use the ["Test Repeatedly"](https://www.avanderlee.com/debugging/flaky-tests-test-repetitions/) feature in Xcode to ensure that your Combine unit tests do not have flaky assertions.
 
 ## Easier Unit Testing
 
@@ -123,7 +125,7 @@ The above example is quite verbose. Fortunately, there are a few techniques that
 
 To more easily test a VSM feature, it is recommended that you conform your view state type to the `Equatable` protocol, even if just within your unit test target. This will allow you to compare states by simply using the XCTest APIs, such as `XCTAssertEqual`.
 
-An example view state implementation of equatable will look something like this:
+An example view state implementation of `Equatable` will look something like this:
 
 ```swift
 extension LoadUserProfileViewState: Equatable {
@@ -144,13 +146,13 @@ extension LoadUserProfileViewState: Equatable {
 }
 ```
 
-This makes the above unit test much more concise:
+The `Equatable` conformance makes the unit test much more concise:
 
 ```swift
 func testUserProfileLoad() throws {
     let expectedUserData = UserData(username: "test")
     let mockRepository = MockDataRepository(loadResult: Just(expectedUserData))
-    let subject = LoadUserProfileViewState.LoaderModel(repository: mockRepository)
+    let subject = LoaderModel(repository: mockRepository)
     let output = subject.load()
     let testExpectation = XCTestExpectation(description: "Load Publisher")
     testExpectation.expectedFulfillmentCount = 3
@@ -167,22 +169,6 @@ func testUserProfileLoad() throws {
 }
 ```
 
-> Tip: It is possible, using protocol-oriented programming and reflection, to write a protocol that provides a default `Equatable` implementation that can be applied to any type via Swift type extensions. This may be worth while to develop for yourself if you find it tedious to implement equatable on all of the view state types in your app.
->
-> The approach would look something like:
->
-> ```swift
-> public protocol UnitTestEquatable: Equatable { }
->
-> public extension UnitTestEquatable {
->     static func == (lhs: Self, rhs: Self) -> Bool {
->         // Reflect the type and properties to compare their values recursively
->     }
-> }
-> 
-> extension SomeViewState: UnitTestEquatable { /*no-op*/ }
-> ```
-
 ## Testing Combine Publishers
 
 Combine publishers are notoriously difficult and verbose to test. This is because they are inherently asynchronous and guarantee no specific behavior by their type signature. A publisher may emit many results or none. A throwing publisher may finish with an error, or never finish at all. Finally, merged publishers may not emit values to subscribers in a predictable order.
@@ -191,22 +177,28 @@ As you can see from the unit test examples above, there is quite a bit of boiler
 
 The good news is that there is a library called [Testable Combine Publishers](https://github.com/albertbori/TestableCombinePublishers) which allows you to write unit tests for Combine publishers with _significantly_ less code. Since many of your VSM actions will return publishers, it may be a good idea to import this library into your test targets.
 
-The above unit test example, written with both Equatable View States and Testable Combine Publishers, will end up being as simple as:
+The above unit test example, if written with Testable Combine Publishers, will end up being as simple as:
 
 ```swift
 func testUserProfileLoad() throws {
     let expectedUserData = UserData(username: "test")
     let mockRepository = MockDataRepository(loadResult: Just(expectedUserData))
-    let subject = LoadUserProfileViewState.LoaderModel(repository: mockRepository)
+    let subject = LoaderModel(repository: mockRepository)
     subject.load()
         .collect(2)
         .expect([.loading, .loaded(expectedUserData)])
         .expectSuccess()
         .waitForExpectations(timeout: 10)
 }
+...
+extension LoadUserProfileViewState: AutomaticallyEquatable { /* no-op */ }
 ```
 
-> Tip: Be sure to use the ["Test Repeatedly"](https://www.avanderlee.com/debugging/flaky-tests-test-repetitions/) feature in Xcode to ensure that your Combine unit tests do not have flaky assertions.
+> Tip: The [`AutomaticallyEquatable`](https://github.com/albertbori/TestableCombinePublishers#automaticallyequatable) protocol extension in the Testable Combine Publishers library automatically conforms any type to `Equatable`. It does this by using reflection to recursively compare all of the values and their members against each other for equality.
+>
+> `AutomaticallyEquatable` is a good alternative to writing your own `Equatable` implementation because it will never become stale with future code changes.
+>
+> Note, that it has some interesting limitations which you can read in the documentation, but is generally safe for unit testing common cases.
 
 ## Behavior-driven Development
 
