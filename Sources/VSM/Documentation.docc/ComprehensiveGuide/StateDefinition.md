@@ -228,7 +228,7 @@ protocol LoadingErrorModeling {
 
 protocol EditingModeling {
     var data: UserData
-    func saveUsername(String) -> AnyPublisher<UserProfileViewState, Never>
+    func saveUsername(_ username: String) -> AnyPublisher<UserProfileViewState, Never>
 }
 
 protocol SavingErrorModeling {
@@ -290,7 +290,7 @@ struct EditUserProfileViewState {
 }
 
 protocol EditingModeling {
-    func saveUsername(String) -> AnyPublisher<EditUserProfileViewState, Never>
+    func saveUsername(_ username: String) -> AnyPublisher<EditUserProfileViewState, Never>
 }
 
 protocol SavingErrorModeling {
