@@ -8,7 +8,7 @@ One of the unique things about the VSM architecture is its philosophy on how mod
 
 > Tip: Building VSM models requires an understanding of [finite state machines](https://en.wikipedia.org/wiki/Finite-state_machine) and simple [recursion](https://www.vadimbulavin.com/recursion-in-swift/).
 
-There are multiple styles for building models in VSM. You can read more about each pattern in <doc:ModelStyles>. In this article, we will be focusing on the "Protocol with Structs" pattern where each model implements its functionality by creating structs that implement the protocol requirements. We recommend that you use the "Protocol with Structs" model style by default.
+There are multiple styles for building models in VSM. You can read more about each pattern in <doc:ModelStyles>. In this article, we will be focusing on the <doc:ModelStyles#Protocols-with-Structs> pattern where each model implements its functionality by creating structs that implement the protocol requirements. We recommend that you use the Protocol with Structs model style by default.
 
 We will continue from <doc:StateDefinition> by implementing the business logic for the models associated with `LoadUserProfileViewState` and the `EditUserProfileViewState`.
 
