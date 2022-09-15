@@ -60,7 +60,6 @@ struct LoaderModel: LoaderModeling {
 
 To implement the model in a readable way, we'll define the `load()` function to orchestrate the load work by returning the appropriate view states as the data loads. The `load()` function immediately returns a new "loading" state to the view and calls the `fetch()` function which will perform the data request.
 
-
 ```swift
 struct LoaderModel: LoaderModeling {
     ...
