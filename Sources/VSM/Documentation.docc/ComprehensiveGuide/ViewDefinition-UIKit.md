@@ -67,19 +67,19 @@ The resulting view state for the loading behavior of the flow chart (the left se
 
 ```swift
 enum LoadUserProfileViewState {
-    case initialized(LoaderModel)
+    case initialized(LoaderModeling)
     case loading
-    case loadingError(ErrorModel)
+    case loadingError(LoadingErrorModeling)
     case loaded(UserData)
-    
-    struct LoaderModel {
-        let load: () -> AnyPublisher<LoadUserProfileViewState, Never>
-    }
-    
-    struct ErrorModel {
-        let message: String
-        let retry: () -> AnyPublisher<LoadUserProfileViewState, Never>
-    }
+}
+
+protocol LoaderModeling {
+    func load() -> AnyPublisher<LoadUserProfileViewState, Never>
+}
+
+protocol LoadingErrorModeling {
+    let message: String
+    func retry() -> AnyPublisher<LoadUserProfileViewState, Never>
 }
 ```
 
@@ -163,22 +163,22 @@ If we go back up to the feature's flow chart and translate the editing behavior 
 struct EditUserProfileViewState {
     var data: UserData
     var editingState: EditingState
-    
+
     enum EditingState {
         case editing(EditingModel)
         case saving
         case savingError(ErrorModel)
     }
-    
-    struct EditingModel {
-        let saveUsername: (String) -> AnyPublisher<EditUserProfileViewState, Never>
-    }
-    
-    struct ErrorModel {
-        let message: String
-        let retry: () -> AnyPublisher<EditUserProfileViewState, Never>
-        let cancel: () -> AnyPublisher<EditUserProfileViewState, Never>
-    }
+}
+
+protocol EditingModeling {
+    func save(username: String) -> AnyPublisher<EditUserProfileViewState, Never>
+}
+
+protocol SavingErrorModeling {
+    let message: String
+    func retry() -> AnyPublisher<EditUserProfileViewState, Never>
+    func cancel() -> AnyPublisher<EditUserProfileViewState, Never>
 }
 ```
 
@@ -275,7 +275,7 @@ func setUpViews() {
 
 ### Editing View Actions
 
-In the editing view, there are three actions that we need to call: The `editing` view state's `saveUsername()` action and the `savingError` view state's `retry()` and `cancel()` actions. We'll place these in a `setUpViews()` function and call it just like we did in the `LoadProfileViewController` as well.
+In the editing view, there are three actions that we need to call: The `editing` view state's `save(username:)` action and the `savingError` view state's `retry()` and `cancel()` actions. We'll place these in a `setUpViews()` function and call it just like we did in the `LoadProfileViewController` as well.
 
 ```swift
 func setUpViews() {
@@ -286,7 +286,7 @@ func setUpViews() {
                 guard let strongSelf = self else { return }
                 if case .editing(let editingModel) = strongSelf.state.editingState {
                     strongSelf.observe(
-                        editingModel.saveUsername(strongSelf.usernameTextField.text ?? "")
+                        editingModel.save(username: strongSelf.usernameTextField.text ?? "")
                     )
                 }
             }

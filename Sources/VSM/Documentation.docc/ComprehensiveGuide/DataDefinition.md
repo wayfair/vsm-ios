@@ -94,45 +94,49 @@ For example, we have the User Profile Editor VSM feature, but we want to add a U
 
 ```swift
 enum UserBioViewState {
-    case initialized(LoaderModel)
+    case initialized(LoaderModeling)
     case loading
     case loaded(UserData)
-    case loadingError(ErrorModel)
-    
-    struct LoaderModel {
-        let load: () -> AnyPublisher<UserBioViewState, Never>
-    }
-    
-    struct ErrorModel {
-        let message: String
-        let retry: () -> AnyPublisher<UserBioViewState, Never>
-    }
+    case loadingError(ErrorModeling)
+}
+
+protocol LoaderModeling {
+    func load() -> AnyPublisher<UserBioViewState, Never>
+}
+
+protocol ErrorModeling {
+    let message: String
+    func retry() -> AnyPublisher<UserBioViewState, Never>
 }
 ```
 
 To support this feature shape, the User Bio models can be as simple as the following:
 
 ```swift
-extension UserBioViewState.LoaderModel {
+struct LoaderModel: LoaderModeling {
+    let repository: UserDataProviding
+
     init(repository: UserDataProviding) {
-        load = {
-            Self.loadUserData(from: repository)
-                .merge(with: Self.getUserDataStream(from: repository))
-                .eraseToAnyPublisher()
-        }
+        self.repository = repository
+    }
+
+    func load() -> AnyPublisher<UserBioViewState, Never> {
+        loadUserData()
+            .merge(with: getUserDataStream())
+            .eraseToAnyPublisher()
     }
     
-    private static func loadUserData(from repository: UserDataProviding) -> AnyPublisher<UserBioViewState, Never> {
+    private func loadUserData() -> AnyPublisher<UserBioViewState, Never> {
         repository.load()
             .map { UserBioViewState.loaded($0) }
             .catch { error -> Just<UserBioViewState> in
-                let errorModel = UserBioViewState.ErrorModel(repository: repository, message: error.localizedDescription)
+                let errorModel = ErrorModel(repository: repository, error: error)
                 return Just(UserBioViewState.loadingError(errorModel))
             }
             .eraseToAnyPublisher()
     }
     
-    private static func getUserDataStream(from repository: UserDataProviding) -> AnyPublisher<UserBioViewState, Never> {
+    private func getUserDataStream() -> AnyPublisher<UserBioViewState, Never> {
         repository.userDataPublisher
             .map { dataState -> UserBioViewState in
                 switch dataState {
@@ -146,12 +150,17 @@ extension UserBioViewState.LoaderModel {
     }
 }
 
-extension UserBioViewState.ErrorModel {
-    init(repository: UserDataProviding, message: String) {
-        self.message = message
-        retry = {
-            UserBioViewState.LoaderModel(repository: repository).load()
-        }
+struct ErrorModel: ErrorModeling {
+    let repository: UserDataProviding
+    let message: String
+
+    init(repository: UserDataProviding, error: Error) {
+        self.repository = repository
+        message = error.localizedDescription
+    }
+
+    func retry() -> AnyPublisher<UserBioViewState, Never> {
+        LoaderModel(repository: repository).load()
     }
 }
 ```
@@ -194,13 +203,16 @@ struct UserBioView: View, ViewStateRendering {
     }
 }
 
-extension UserBioViewState.LoaderModel {
+struct LoaderModel: LoaderModeling {
     typealias Dependencies = UserDataProvidingDependency
+    let dependencies: Dependencies
+
     init(dependencies: Dependencies) {
-        load = {
-            dependencies.userDataRepository.load()
-            ...
-        }
+        self.dependencies = dependencies
+    }
+
+    func load() -> AnyPublisher<UserBioViewState, Never> {
+        dependencies.userDataRepository.load()
     }
 }
 ```
