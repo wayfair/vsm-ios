@@ -19,7 +19,7 @@ We will not go into detail on how to write navigation code for iOS. This is cove
 
 In SwiftUI, you would use `@State` and `@Binding` properties on the view struct to control the navigation, as you would expect. In UIKit, you would use `UINavigationControllers` and the `performSegue(withIdentifier:sender:)`, `pushViewController(_:animated:)`, `present(_:animated:completion:)`, etc., as you would expect.
 
-Navigation logic does not generally belong in VSM models, except in cases where your feature _is_, itself, a navigation component (i.e., when building a custom navigation menu view). 
+Navigation logic does not generally belong in VSM models, except in cases where your feature _is_, itself, a navigation component (i.e., when building a custom navigation menu view).
 
 ## Navigation Logic
 
