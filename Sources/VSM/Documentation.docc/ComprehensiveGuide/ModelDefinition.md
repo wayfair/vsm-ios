@@ -46,24 +46,12 @@ struct LoaderModel: LoaderModeling {
 }
 ```
 
-Next, we'll create an initializer that collects the data required for the `load()` action.
+To implement the model in a readable way, we'll define the `load()` function to orchestrate the load work by returning the appropriate view states as the data loads. The `load()` function immediately returns a new "loading" state to the view and calls the `fetch()` function which performs the data request. The struct initializer will require a `userId` property for the user data request.
 
 ```swift
 struct LoaderModel: LoaderModeling {
     let userId: Int
 
-    init(userId: Int) {
-        self.userId = userId
-    }
-}
-```
-
-To implement the model in a readable way, we'll define the `load()` function to orchestrate the load work by returning the appropriate view states as the data loads. The `load()` function immediately returns a new "loading" state to the view and calls the `fetch()` function which will perform the data request.
-
-
-```swift
-struct LoaderModel: LoaderModeling {
-    ...
     func load() -> AnyPublisher<LoadUserProfileViewState, Never> {
         Just(.loading)
             .merge(with: fetch())
@@ -114,10 +102,6 @@ Our final Load Profile model looks like this:
 ```swift
 struct LoaderModel: LoaderModeling {
     let userId: Int
-
-    init(userId: Int) {
-        self.userId = userId
-    }
 
     func load() -> AnyPublisher<LoadUserProfileViewState, Never> {
         Just(.loading)
@@ -230,7 +214,7 @@ Our repository needs a `UserData` object because the save function also handles 
 
 Similar to the load action from the Load Profile model, we'll immediately return a new "saving" state to the view while the save operation is processing. Notice how we have to recreate the view state struct to do so.
 
-Next, we'll implement the `performSave()` function like so:
+Next, we'll implement the `performSave()` function by using the `UserDataRepository` to save the username to the data store. (We will cover proper dependency injection in <doc:DataDefinition>.)
 
 ```swift
 struct EditingModel: EditingModeling {
