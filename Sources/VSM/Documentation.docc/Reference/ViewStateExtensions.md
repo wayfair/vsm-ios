@@ -1,6 +1,6 @@
-# View State Extensions - VSM Reference
+# View State Extensions
 
-An instruction on making your View State fit the needs of your View
+An instruction on making your VSM View State fit the needs of your View
 
 ## Overview
 

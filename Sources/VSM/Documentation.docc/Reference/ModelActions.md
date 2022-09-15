@@ -1,6 +1,6 @@
-# Model Actions - VSM Reference
+# Model Actions
 
-A reference for choosing the best Action types for your Models
+A reference for choosing the best Action types for your VSM Models
 
 ## Overview
 

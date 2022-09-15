@@ -1,6 +1,6 @@
-# Navigation - VSM Reference
+# Navigation
 
-A breakdown of navigation concepts with the VSM architecture
+A breakdown of VSM navigation concepts
 
 ## Overview
 

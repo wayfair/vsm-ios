@@ -1,6 +1,6 @@
-# Communicating Between Views - VSM Reference
+# Communicating Between Views
 
-A quick guide on how to facilitate communication between views
+A quick guide on how to facilitate communication between Views in VSM
 
 ## Overview
 
