@@ -8,7 +8,7 @@ One of the unique things about the VSM architecture is its philosophy on how mod
 
 > Tip: Building VSM models requires an understanding of [finite state machines](https://en.wikipedia.org/wiki/Finite-state_machine) and simple [recursion](https://www.vadimbulavin.com/recursion-in-swift/).
 
-There are multiple styles for building models in VSM. You can read more about each pattern in <doc:ModelPatterns>. In this article, we will be focusing on the "Protocol" pattern where each model implements its functionality by creating structs that implement the protocol requirements. We recommend that you use the "Protocol" model style by default.
+There are multiple styles for building models in VSM. You can read more about each pattern in <doc:ModelStyles>. In this article, we will be focusing on the <doc:ModelStyles#Protocols-with-Structs> pattern where each model implements its functionality by creating structs that implement the protocol requirements. We recommend that you use the Protocol with Structs model style by default.
 
 We will continue from <doc:StateDefinition> by implementing the business logic for the models associated with `LoadUserProfileViewState` and the `EditUserProfileViewState`.
 
@@ -214,7 +214,7 @@ Our repository needs a `UserData` object because the save function also handles 
 
 Similar to the load action from the Load Profile model, we'll immediately return a new "saving" state to the view while the save operation is processing. Notice how we have to recreate the view state struct to do so.
 
-Next, we'll implement the `performSave()` function by using the `UserDataRepository` to save the username to the data store. (We will cover proper dependency injection in <doc:DataDefinition>.):
+Next, we'll implement the `performSave()` function by using the `UserDataRepository` to save the username to the data store. (We will cover proper dependency injection in <doc:DataDefinition>.)
 
 ```swift
 struct EditingModel: EditingModeling {
