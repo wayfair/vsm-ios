@@ -165,7 +165,7 @@ This approach declares each model as a struct with closures for the actions. Eac
 - Closures cannot have parameter names. This makes it difficult to follow Swift function naming conventions and can make the code a bit harder to read
 - Odd syntax is required for defining the model's behavior within the initializer because `self` cannot be accessed until all required members are assigned. This is a "catch-22" problem because the closures that need to reference `self` are required members that must be set within the initializer. To get around this, you either have to assign the closure to a "no-op" implementation, like `load = { Empty().eraseToAnyPublisher() }` and then assign it again to the actual closure implementation within the same initializer. Alternatively, you can use static members within the action closures instead of requiring `self`.
 - Dependencies and other data are shared between actions within a model by passing them along with each function call
-    - Engineers may be tempted to over-share model members with the view to reduce the friction of passing dependencies and data between the actions
+  - Engineers may be tempted to over-share model members with the view to reduce the friction of passing dependencies and data between the actions
 
 ### Examples
 
@@ -297,7 +297,7 @@ This approach uses the exact same Feature Shape style as the "Struct Extensions"
 - Closures cannot have parameter names. This makes it difficult to follow Swift function naming conventions and can make the code a bit harder to read
 - Odd syntax is required for defining the model's behavior within the builder because nested functions are required
 - Dependencies and other data are shared between actions within a model by passing them along with each function call
-    - Engineers may be tempted to over-share model members with the view to reduce the friction of passing dependencies and data between the actions
+  - Engineers may be tempted to over-share model members with the view to reduce the friction of passing dependencies and data between the actions
 - Engineers may be tempted to share functions between models by way of the builder. This would violate the VSM architecture principles
 - The builder may become bloated because it contains the entire feature's implementation
 
