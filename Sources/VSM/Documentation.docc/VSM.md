@@ -21,9 +21,19 @@ This package provides helpful types for implementing VSM, such as the ``StateCon
 
 - <doc:ViewCommunication>
 - <doc:ModelActions>
-- <doc:ModelPatterns>
+- <doc:ModelStyles>
 - <doc:Navigation>
 - <doc:ViewStateExtensions>
+
+### Guide Articles
+
+- <doc:VSMOverview>
+- <doc:StateDefinition>
+- <doc:ViewDefinition-SwiftUI>
+- <doc:ViewDefinition-UIKit>
+- <doc:ModelDefinition>
+- <doc:DataDefinition>
+- <doc:UnitTesting>
 
 ### Primary Types
 
