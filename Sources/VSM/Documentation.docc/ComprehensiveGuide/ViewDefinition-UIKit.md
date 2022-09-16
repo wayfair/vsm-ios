@@ -377,6 +377,14 @@ init?(userData: UserData, coder: NSCoder) {
 }
 ```
 
+## Synchronize View Logic
+
+All business logic belongs in VSM models and associated repositories. However, there are cases where some logic, pertaining exclusively to view matters, is appropriately placed within the view, managed by the view, and coordinated with the view state. The few areas where this practice is acceptable are:
+
+- Navigating between views (See <doc:Navigation>)
+- Receiving/streaming user input
+- Animating the view
+
 ## Iterative View Development
 
 The best approach to building features in VSM is to start with defining the view state, then move straight to building the view. Rely on mocked states and example/demo apps where possible to visualize each state. Postpone implementing the feature's business logic for as long as possible until you are confident that you have the right feature shape and view code.
