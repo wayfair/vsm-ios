@@ -150,7 +150,7 @@ final class LoadUserViewController: UIViewController, ViewStateRendering {
 
 ## Data Communication
 
-This category encompasses the majority of the feature communication scenarios. Any communication between views that does not belong in <doc:ViewCommunication#View-Communication> or <doc:ViewCommunication#Feature-Communication> falls into the this final category.
+This category encompasses the majority of the feature communication scenarios. Any communication between views that does not belong in <doc:ViewCommunication#View-Communication> or <doc:ViewCommunication#Feature-Communication> falls into this final category.
 
 The approach for handling this type of communication is simple. Instead of trying to communicate _through_ the views, you should instead share observable repositories between the views in question. This way each corresponding VSM feature has access to the same data and can be configured to update the view or run processes when the state of that shared data changes.
 
