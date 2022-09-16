@@ -6,8 +6,7 @@ on:
   push:
     branches:
       - main
-      - xcode-upgrade
-      # TODO Find another way to test DocC deploy actions than overwriting the live docs site.
+      - github-workflows # Protected branch for working on github workflows and deployments
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
