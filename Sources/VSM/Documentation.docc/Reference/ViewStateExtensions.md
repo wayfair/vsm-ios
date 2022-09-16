@@ -25,7 +25,7 @@ We will cover only Structural Identity in this article, as Explicit Identity is 
 
 ### Structural Identity
 
-Structural Identity in SwiftUI is the default mechanism for identifying views. It is done by recording the location of your view in the view hierarchy. (If you are familiar with identifying HTML tags on a web page in css or javascript by using [XPath](https://www.w3schools.com/xml/xpath_syntax.asp), this is the a very similar concept.)
+Structural Identity in SwiftUI is the default mechanism for identifying views. It is done by recording the location of your view in the view hierarchy. (If you are familiar with identifying HTML tags on a web page in CSS or JavaScript by using [XPath](https://www.w3schools.com/xml/xpath_syntax.asp), this is a very similar concept.)
 
 A view's location is its identity. Since SwiftUI flow control statements are translated into views, you'll discover that some view declarations might result in an inconsistent view identity.
 
@@ -110,13 +110,13 @@ struct EditUserProfileView: View, ViewStateRendering {
 
     init() {
         _hasError = Binding<Bool> {
-            get: {
+            get {
                 if case .savingError(let errorModel) = state.editingState {
                     return true
                 }
                 return false
             },
-            set: {
+            set {
                 /* no-op */
             }
         }
