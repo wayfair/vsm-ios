@@ -14,8 +14,8 @@ This package provides helpful types for implementing VSM, such as the ``StateCon
 
 ### Guides
 
-- <doc:ComprehensiveGuide>
 - <doc:QuickstartGuide>
+- <doc:ComprehensiveGuide>
 
 ### Reference Articles
 

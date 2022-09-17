@@ -1,6 +1,6 @@
 # Comprehensive VSM Guide
 
-An in-depth guide to the VSM architecture, framework, and resulting patterns
+An in-depth guide to the VSM architecture, framework, and patterns
 
 ## Overview
 

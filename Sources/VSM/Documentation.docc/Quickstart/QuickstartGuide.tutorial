@@ -1,0 +1,351 @@
+@Tutorial(time: 20) {
+    @Intro(title: "Quickstart Guide") {
+        Jump directly into learning VSM concepts and features by building a simple feature
+    }
+    
+    @Section(title: "Overview") {
+        @ContentAndMedia {
+            This guide covers building features with VSM at a high-level. For more detailed information on VSM, visit the <doc:ComprehensiveGuide>.
+            
+            VSM stands for both "View State Model" and "Viewable State Machine". The first definition describes how a feature in VSM is structured, the second definition illustrates how information flows.
+            
+            In VSM, the **View** renders the **State**. Each state may provide a **Model**. Each model contains the data and actions available in a given state. Each action in a model returns one or more new states. Any state changes will update the view.
+            
+            VSM is complimented by Observable Data Repositories (more info can be found on these repositories in <doc:DataDefinition>)
+            
+            @Image(source: vsm-structure.jpg, alt: "Diagram showing the flow of information between the view, action, and state")
+        }
+        
+        @ContentAndMedia {
+            In this guide, we will build a view that displays a blog entry for a blogging app. This feature will require that we show a loading view while the blog article is loading from the data source and an error view that shows if the data source is unable to load the blog entry. If the error view is shown, we need a "Retry" button that lets the user try to load the blog entry again.
+            
+            @Image(source: blog-stock.jpg, alt: "Meaningless, but required Xcode DocC Tutorial image"
+       }
+        
+        @Steps {
+            @Step {
+                The first step in VSM is clearly identifying the feature requirements. Specifically, the different states that the view can have and which data and actions are required for each state. Altogether, this information becomes the "Shape of the Feature".
+                
+                Here, you can see that we created a flow chart that represents this information.
+                
+                @Image(source: blog-flow-chart.jpg, alt: "A flow chart of how information is handled when loading a blog")
+            }
+        }
+    }
+    
+    @Section(title: "Building the State") {
+        @ContentAndMedia {
+            Once you have your feature requirements defined, you can define the "Feature Shape" in code.
+            
+            @Image(source: blog-stock.jpg, alt: "Diagram showing the flow of information between the view, action, and state")
+        }
+        
+        @Steps {
+            @Step {
+                Start by creating either an enum or a struct that describes the different view states and models.
+                
+                @Code(name: "BlogEntryViewState.swift", file: quickstart-state-enum)
+            }
+            
+            @Step {
+                You'll need an "initialized" state to kick off the loading action. Define a case for this state and its associated model value.
+                
+                @Code(name: "BlogEntryViewState.swift", file: quickstart-state-loader-state)
+            }
+            
+            @Step {
+                Fill in the "loader" model by adding the `loadEntry()` action which returns a series of view states as a Combine publisher.
+                
+                > Note: To learn more about VSM action types, see <doc:ModelActions>.
+                
+                @Code(name: "BlogEntryViewState.swift", file: quickstart-state-loader-model)
+            }
+            
+            @Step {
+                Now, define a "loading" state which should be immediately returned when the blog entry starts loading. Create an optional error model for use if the blog entry fails to load.
+                
+                > Note: Not all view states need an associated model. For more information on how building the state in VSM, see <doc:StateDefinition>.
+                
+                
+                @Code(name: "BlogEntryViewState.swift", file: quickstart-state-loading-state)
+            }
+            
+            @Step {
+                Fill in the error model definition by adding the error message that you want the user to see, and a retry action that returns a series of view states.
+                
+                @Code(name: "BlogEntryViewState.swift", file: quickstart-state-error-model)
+            }
+            
+            @Step {
+                Finally, create the loaded model that contains the blog entry information that you'd like to display.
+                
+                @Code(name: "BlogEntryViewState.swift", file: quickstart-state-loaded-model)
+            }
+        }
+    }
+    
+    @Section(title: "Building the View") {
+        @ContentAndMedia {
+            Now that we've defined our Feature Shape, we can start building the view. We will utilize two VSM framework types to make it easier to follow the pattern: <doc:ViewStateRendering> and <doc:StateContainer>.
+            
+            > Note: This example covers only SwiftUI, but UIKit is fully supported by VSM. To learn more about building views in VSM, see <doc:ViewDefinition-SwiftUI> or <doc:ViewDefinition-UIKit>.
+            
+            @Image(source: blog-stock.jpg, alt: "Meaningless, but required Xcode DocC Tutorial image")
+        }
+        
+        @Steps {
+            @Step {
+                First, start off by declaring your SwiftUI view.
+                
+                @Code(name: "BlogEntryView.swift", file: quickstart-view-start)
+            }
+            
+            @Step {
+                Next, conform your view to the `ViewStateRendering` protocol. You are required add a `StateContainer` property. 
+                
+                Wrap that property with the `@StateObject` property wrapper so that the view state is persisted between view updates.
+                
+                @Code(name: "BlogEntryView.swift", file: quickstart-view-conformance)
+            }
+            
+            @Step {
+                Now, create a `state` value switch statement in your view's `body` property that requires you to declare views for every view state.
+                
+                > Note: Not all view states are enums. For more information on alternative view state shapes, see <doc:StateDefinition>
+                
+                @Code(name: "BlogEntryView.swift", file: quickstart-view-switch)
+            }
+            
+            @Step {
+                Start with the "intialized" state by extracting the `LoaderModel` from the enum case.
+                
+                We'll want to show the `ProgressView` for this state.
+                
+                @Code(name: "BlogEntryView.swift", file: quickstart-view-initialized-state)
+            }
+            
+            @Step {
+                Now that you have a concrete `LoaderModel` type, we can use it to kick off the load entry action when the `ProgressView` appears.
+                
+                The action result _must_ be observed by the using the `observe(_:)` function.
+                
+                > Note: You can see from this code that VSM ensures that your load method will never be called more than once, even if by accident.
+                
+                @Code(name: "BlogEntryView.swift", file: quickstart-view-loader-action)
+            }
+            
+            @Step {
+                Define the case statement for the "loading" state and extract the optional `ErrorModel` value.
+                
+                Use a `ZStack` view to wrap the `ProgressView` and the optional error view so that the error view will appear on top of the progress indicator.
+                
+                > Note: This code fails to preserve SwiftUI's view identity for the `ProgressView`. To learn how to fix this, see <doc:ViewStateExtensions>.
+                
+                @Code(name: "BlogEntryView.swift", file: quickstart-view-loading-state)
+            }
+            
+            @Step {
+                Finish the loading view state by conditionally unwrapping the optional `ErrorModel` variable and declaring the error views.
+                
+                Make the "Retry" button action observe the `retry()` action.
+                
+                @Code(name: "BlogEntryView.swift", file: quickstart-view-error-view)
+            }
+            
+            @Step {
+                Finally, add a case statement for the "loaded" state which draws the blog entry view with the `LoadedModel`.
+                
+                @Code(name: "BlogEntryView.swift", file: quickstart-view-final)
+            }
+        }
+    }
+    
+    @Section(title: "Building the Data Repository") {
+        @ContentAndMedia {
+            We have declared the view state, and built the view against its type signature. Now, we will build the Observable Data Repository that we'll use to load the blog entry data.
+            
+            > Note: To learn more about building observable data repositories, see <doc:DataDefinition>.
+            
+            @Image(source: blog-stock.jpg, alt: "Meaningless, but required Xcode DocC Tutorial image")
+        }
+        
+        @Steps {
+            @Step {
+                Start by declaring a struct that describes the repository's data.
+                
+                Make this type `Decodable` so that we can convert it from json data to a Swift type.
+                
+                @Code(name: "LoaderModel.swift", file: quickstart-repository-blog-entry)
+            }
+            
+            @Step {
+                Now, define a protocol called `BlogEntryProviding` that describes the repository's behavior. The repository will have a `loadEntry(entryId:)` function that returns a Combine publisher.
+                
+                Since the data request can emit an `Error` result, we reflect that in the return type.
+                
+                > Note: To learn more about dependency injection best practices, see <doc:DataDefinition#Composed-Protocol-Dependency-Injection>.
+                
+                @Code(name: "LoaderModel.swift", file: quickstart-repository-contract)
+            }
+            
+            @Step {
+                Now, create a `BlogEntryRepository` class and conform it to the `BlogEntryProviding` protocol.
+                
+                @Code(name: "LoaderModel.swift", file: quickstart-repository-conformance)
+            }
+            
+            @Step {
+                Finally, fill out the required functions with code that loads a blog entry by its identifier and publishes the result.
+                
+                Be sure to explicitly handle all possible errors by returning a `Fail` publisher where necessary.
+                
+                @Code(name: "LoaderModel.swift", file: quickstart-repository-final)
+            }
+        }
+    }
+    
+    @Section(title: "Building the Models") {
+        @ContentAndMedia {
+            We have declared the view state, built the view, and created an observable data repository. Now, we will implement the business logic of the feature, which will be defined in model structs that conform to the model protocols that we defined along with the view state.
+            
+            > Note: To learn more about how to build models, see <doc:ModelDefinition>.
+            
+            @Image(source: blog-stock.jpg, alt: "Meaningless, but required Xcode DocC Tutorial image")
+        }
+        
+        @Steps {
+            
+            <!-- Loader Model -->
+            
+            @Step {
+                We'll start with the loader model. Declare a struct called `LoaderModel` and conform it to the `LoaderModeling` protocol that we defined along with our view state.
+                
+                @Code(name: "LoaderModel.swift", file: quickstart-models-loader-declaration)
+            }
+            
+            @Step {
+                Now, declare a blog entry `Int` property and a `BlogEntryProviding` property on the model which you will use to load the blog entry from the data store.
+                
+                @Code(name: "LoaderModel.swift", file: quickstart-models-loader-new-properties)
+            }
+            
+            @Step {
+                Begin implementing the `loadEntry()` function by returning a publisher that immediately emits the "loading" state.
+                
+                This is the view state that the user will see while the blog entry is loading from the data store.
+                
+                @Code(name: "LoaderModel.swift", file: quickstart-models-loader-loading)
+            }
+            
+            @Step {
+                Now, in a separate function called `getBlogEntry()`, call the repository's `loadEntry(entryId:)` function which emits a `BlogEntry` or an `Error` result.
+                
+                You will now be required by the compiler to convert both the `BlogEntry` and `Error` results to a `BlogEntryViewState` type.
+                
+                @Code(name: "LoaderModel.swift", file: quickstart-models-loader-get)
+            }
+            
+            @Step {
+                To convert a `BlogEntry` to a `BlogEntryViewState`, implement the `map(_:)` function on the `loadEntry(entryId:)` publisher.
+                
+                Extract the data from the publisher and convert it to a `LoadedModel` type (defined later). Return the model wrapped in the `.loaded` view state.
+                
+                @Code(name: "LoaderModel.swift", file: quickstart-models-loader-get-map)
+            }
+            
+            @Step {
+                To convert an `Error` result to a `BlogEntryViewState`, implement the `catch(_:)` function after `map(_:)` on the publisher.
+                
+                Extract the error from the publisher and convert it to a `ErrorModel` type (defined later). Return the model wrapped in the `.loading` view state.
+                
+                @Code(name: "LoaderModel.swift", file: quickstart-models-loader-get-catch)
+            }
+            
+            @Step {
+                To finish the `LoaderModel` implementation, merge the publisher returned by `getBlogEntry()` with the `loadEntry()` publisher.
+                
+                Merging these two publishers will cause your `loadEntry()` action to return the `.loading` view state, and then either the `.loaded` or `.loading` error view state after the data request completes.
+                
+                @Code(name: "LoaderModel.swift", file: quickstart-models-loader-final)
+            }
+            
+            <!-- Error Model -->
+            
+            @Step {
+                Now, build the `ErrorModel` that we already referenced in the `getBlogEntry()` steps above by declaring it as a struct and conforming it to the `ErrorModeling` protocol.
+                
+                @Code(name: "ErrorModel.swift", file: quickstart-models-error-declaration)
+            }
+            
+            @Step {
+                Add the same `entryId` and `repository` properties as the `LoaderModel` because those will be required for handling the `retry()` action
+                
+                @Code(name: "ErrorModel.swift", file: quickstart-models-error-new-properties)
+            }
+            
+            @Step {
+                Now, implement the `retry()` action by instantiating a new `LoaderModel` and forwarding the result of a the `loadEntry()` action.
+                
+                > Note: To learn more about recursive actions and forwarding view state publishers, see: <doc:ModelDefinition>.
+                
+                @Code(name: "ErrorModel.swift", file: quickstart-models-error-final)
+            }
+            
+            <!-- Loaded Model -->
+            
+            @Step {
+                Finally, implement our simplest model: `LoadedModel` by declaring a struct that conforms to the `LoadedModeling` protocol. We have also already referenced this model type in the `getBlogEntry()` steps above.
+                
+                > Note: This model is inert because it provides information but no actions. To learn more about different model types, see <doc:StateDefinition>.
+                
+                @Code(name: "LoadedModel.swift", file: quickstart-models-loaded-final)
+            }
+        }
+    }
+    
+    @Section(title: "Finalize the Feature") {
+        @ContentAndMedia {            
+            To wrap up this VSM feature, we will return to the view and prepare it to be used as the feature's entry point.
+            
+            @Image(source: blog-stock.jpg, alt: "Meaningless, but required Xcode DocC Tutorial image")
+        }
+        
+        @Steps {            
+            @Step {
+                First, create an initializer on the view that accepts the repository dependency and the entry identifier.
+                
+                @Code(name: "LoaderModel.swift", file: quickstart-feature-init)
+            }
+            
+            @Step {
+                Then, instantiate the `LoaderModel` struct with the `repository` and `entryId` parameters and wrap that model in the "initialized" view state.
+                
+                @Code(name: "LoaderModel.swift", file: quickstart-feature-init-state)
+            }
+            
+            @Step {
+                Finally, instantiate the `container` property with the state you just created. Your feature is now ready to use.
+                
+                > Note: To learn more about different ways for your feature to be initialized, see: <doc:ViewDefinition-SwiftUI> or <doc:ViewDefinition-UIKit>.
+                
+                @Code(name: "LoaderModel.swift", file: quickstart-feature-init-final)
+            }
+        }
+    }
+    
+    @Section(title: "Conclusion") {
+        @ContentAndMedia {            
+            This has been a brief and high-level introduction to building features using the VSM architecture.
+            
+            Reading the <doc:ComprehensiveGuide> will increase your depth of understanding of VSM, teach you new techniques, and help you avoid common implementation mistakes.
+            
+            There are also other helpful articles and documentation to be found on the main VSM documentation page: <doc:VSM>
+            
+            @Image(source: blog-stock.jpg, alt: "Meaningless, but required Xcode DocC Tutorial image")
+        }
+        
+        @Steps {
+            <!-- no-op: required for warning prevention -->
+        }
+    }
+}
