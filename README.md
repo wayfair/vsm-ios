@@ -6,7 +6,7 @@
 
 # VSM for iOS
 
-VSM is a reactive architecture that is also unidirectional, highly type-safe, behavior-driven and clean. This repository hosts an open-source swift package framework for easily building features in VSM on iOS.
+VSM is a reactive architecture that is unidirectional, highly type-safe, behavior-driven, and clean. This repository hosts an open-source swift package framework for easily building features in VSM on iOS.
 
 ## Overview
 
