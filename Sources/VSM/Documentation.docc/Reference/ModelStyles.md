@@ -1,6 +1,6 @@
-# Model Styles - VSM Reference
+# Model Styles
 
-A compendium of styles for building models in VSM
+A compendium of styles for building Models in VSM
 
 ## Overview
 

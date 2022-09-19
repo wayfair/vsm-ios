@@ -1,4 +1,4 @@
-# Implementing the Business Logic in VSM
+# Building the Model in VSM
 
 A guide for implementing business logic with Models in VSM
 

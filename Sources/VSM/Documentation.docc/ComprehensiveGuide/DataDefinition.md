@@ -1,4 +1,4 @@
-# Working with Data
+# Working with Data in VSM
 
 A guide for building reactive data repositories with Combine for VSM
 

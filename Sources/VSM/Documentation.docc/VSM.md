@@ -12,12 +12,12 @@ This package provides helpful types for implementing VSM, such as the ``StateCon
 
 ## Topics
 
-### Guides
+### VSM Guides
 
 - <doc:QuickstartGuide>
 - <doc:ComprehensiveGuide>
 
-### Reference Articles
+### VSM Reference Articles
 
 - <doc:ViewCommunication>
 - <doc:ModelActions>
@@ -25,7 +25,7 @@ This package provides helpful types for implementing VSM, such as the ``StateCon
 - <doc:Navigation>
 - <doc:ViewStateExtensions>
 
-### Guide Articles
+### VSM Guide Articles
 
 - <doc:VSMOverview>
 - <doc:StateDefinition>
