@@ -101,7 +101,7 @@
             }
             
             @Step {
-                Next, conform your view to the `ViewStateRendering` protocol. You are required add a `StateContainer` property. 
+                Next, conform your view to the `ViewStateRendering` protocol. You are required to add a `StateContainer` property which manages the view’s state for you.
                 
                 Wrap that property with the `@StateObject` property wrapper so that the view state is persisted between view updates.
                 
