@@ -37,7 +37,7 @@
         @ContentAndMedia {
             Once you have your feature requirements defined, you can define the "Feature Shape" in code.
             
-            @Image(source: blog-stock.jpg, alt: "Diagram showing the flow of information between the view, action, and state")
+            @Image(source: quickstart-state.jpg, alt: "Diagram showing the state progression of a blog entry loading feature")
         }
         
         @Steps {
@@ -90,7 +90,7 @@
             
             > Note: This example covers only SwiftUI, but UIKit is fully supported by VSM. To learn more about building views in VSM, see <doc:ViewDefinition-SwiftUI> or <doc:ViewDefinition-UIKit>.
             
-            @Image(source: blog-stock.jpg, alt: "Meaningless, but required Xcode DocC Tutorial image")
+            @Image(source: quickstart-view.jpg, alt: "A depiction of the view interacting with the state")
         }
         
         @Steps {
@@ -166,7 +166,7 @@
             
             > Note: To learn more about building observable data repositories, see <doc:DataDefinition>.
             
-            @Image(source: blog-stock.jpg, alt: "Meaningless, but required Xcode DocC Tutorial image")
+            @Image(source: quickstart-repository.jpg, alt: "Diagram showing the repository interacting with the models")
         }
         
         @Steps {
@@ -210,7 +210,7 @@
             
             > Note: To learn more about how to build models, see <doc:ModelDefinition>.
             
-            @Image(source: blog-stock.jpg, alt: "Meaningless, but required Xcode DocC Tutorial image")
+            @Image(source: quickstart-models.jpg, alt: "A diagram of the models section joining the repository and the state")
         }
         
         @Steps {
@@ -307,7 +307,7 @@
         @ContentAndMedia {            
             To wrap up this VSM feature, we will return to the view and prepare it to be used as the feature's entry point.
             
-            @Image(source: blog-stock.jpg, alt: "Meaningless, but required Xcode DocC Tutorial image")
+            @Image(source: quickstart-finalize.jpg, alt: "A diagram of the completed VSM feature components working together")
         }
         
         @Steps {            
