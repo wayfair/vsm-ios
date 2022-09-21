@@ -89,11 +89,16 @@ struct BlogEntryView: View, ViewStateRendering {
 
     var body: some View {
         switch state {
-        case .initialized(loaderModel: let loaderModel):            
+        case .initialized(loaderModel: let loaderModel):
+            observe(loaderModel.load()
             ...
         case .loading(errorModel: let errorModel):
             ...
-        case .loaded(loadedModel: let loadedModel)
+            Button("Retry") {
+                observe(errorModel.retry())
+            }
+        case .loaded(loadedModel: let loadedModel):
+            Text(loadedModel.title)
             ...
         }
     }
