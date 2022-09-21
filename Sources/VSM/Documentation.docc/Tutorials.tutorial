@@ -6,7 +6,7 @@
     @Chapter(name: "Quickstart Guide") {
         Jump directly into learning VSM concepts and features by building a simple feature
         
-        @Image(source: vsm-structure.jpg, alt: "Diagram showing the flow of information between the view, action, and state")
+        @Image(source: vsm-structure.png, alt: "Diagram showing the flow of information between the view, action, and state")
         
         @TutorialReference(tutorial: "doc:QuickstartGuide")
     }
@@ -16,7 +16,7 @@
 <!--    @Chapter(name: "Comprehensive Guide") {-->
 <!--        An in-depth guide to the VSM architecture, framework, and patterns-->
 <!--        -->
-<!--        @Image(source: vsm-structure.jpg, alt: "Diagram showing the structure of a VSM feature")-->
+<!--        @Image(source: vsm-structure.png, alt: "Diagram showing the structure of a VSM feature")-->
 <!--        -->
 <!--        @TutorialReference(tutorial: "doc:ComprehensiveGuide")-->
 <!--    }-->

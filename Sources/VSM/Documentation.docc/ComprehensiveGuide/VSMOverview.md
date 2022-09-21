@@ -18,7 +18,7 @@ The structure of your code should follow the above pattern, with a view code fil
 
 Optionally, due to the reactive nature of VSM, Observable Repositories are an excellent companion to VSM models in performing data operations (such as loading, saving, etc.) whose results can be forwarded to the view. These repositories can be shared between views for a powerful, yet safe approach to synchronizing the state of various views and data in the app.
 
-![VSM Feature Structure Diagram](vsm-structure.jpg)
+![VSM Feature Structure Diagram](vsm-structure.png)
 
 ## Flow
 
