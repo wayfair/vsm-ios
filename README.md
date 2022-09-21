@@ -6,19 +6,103 @@
 
 # VSM for iOS
 
-VSM is a unidirectional, type-safe, behavior-driven, clean architecture. This repository hosts an open-source swift package framework for easily building features in VSM on iOS.
+VSM is a reactive architecture that is unidirectional, highly type-safe, behavior-driven, and clean. This repository hosts an open-source swift package framework for easily building features in VSM on iOS.
 
 ## Overview
 
-VSM stands for View State Model. The View observes and renders the State. Each State may provide a Model. Each Model contains the Data and Actions available in the given State. Each Action in a Model returns one or more new States. State changes cause the View to update.
+VSM stands for both "View State Model" and "Viewable State Machine". The first definition describes how a feature in VSM is structured, the second definition illustrates how information flows.
 
 ![VSM Architecture Diagram](Sources/VSM/Documentation.docc/Resources/vsm-diagram.png))
 
-There are several options to help you get started
+In VSM, the **View** renders the **State**. Each state may provide a **Model**. Each model contains the data and actions available in a given state. Each action in a model returns one or more new states. Any state changes will update the view.
 
-- Jump into the [Quickstart Guide](https://wayfair.github.io/vsm-ios/documentation/vsm/quickstartguide)
-- Visit the [VSM Documentation](https://wayfair.github.io/vsm-ios/documentation/vsm/) for a complete framework reference and links to other learning resources
+## Learning Resources
+
+- The [VSM Documentation](https://wayfair.github.io/vsm-ios/documentation/vsm/) contains a complete framework reference, guides, and other learning resources
 - Open the [Demo App](Demos/Shopping) to see many different working examples of how to build features using the VSM pattern
+
+## Code Introduction
+
+The following are code excerpts of a feature that shows a blog entry from a data repository.
+
+### State Definition
+
+The state is usually defined as an enum or a struct and represents the states that the view can have. It also declares the data and actions available for each model. Actions return one or more new states.
+
+```swift
+enum BlogEntryViewState {
+    case initialized(loaderModel: LoaderModeling)
+    case loading(errorModel: ErrorModeling?)
+    case loaded(blogModel: LoadedModeling)
+}
+
+protocol LoaderModeling {
+    func load() -> AnyPublisher<BlogArticleViewState, Never>
+}
+
+protocol ErrorModeling {
+    var message: String { get }
+    func retry() -> AnyPublisher<BlogArticleViewState, Never>
+}
+
+protocol LoadedModeling {
+    var title: String { get }
+    var text: String { get }
+}
+```
+
+### Model Definition
+
+The models provide the data for a given view state and implement the business logic.
+
+```swift
+struct LoaderModel: LoaderModeling {
+    func load() -> AnyPublisher<BlogArticleViewState, Never> {
+        ...
+    }
+}
+
+struct ErrorModel: ErrorModeling {
+    var message: String
+    func retry() -> AnyPublisher<BlogArticleViewState, Never> {
+        ...
+    }
+}
+
+struct LoadedModel: LoadedModeling {
+    var title: String
+    var body: String
+}
+```
+
+### View Definition
+
+The view observes and renders the state using the `StateContainer` type. State changes will automatically update the view.
+
+```swift
+struct BlogEntryView: View, ViewStateRendering {
+    @StateObject var container: StateContainer<BlogEntryViewState>
+
+    init() {
+        _container = .init(state: .initialized(LoaderModel()))
+    }
+
+    var body: some View {
+        switch state {
+        case .initialized(loaderModel: let loaderModel):            
+            ...
+        case .loading(errorModel: let errorModel):
+            ...
+        case .loaded(loadedModel: let loadedModel)
+            ...
+        }
+    }
+}
+```
+
+_This example uses SwiftUI, but the framework is also designed to work seamlessly with UIKit._
+
+For more detailed tutorials and documentation, visit the [VSM Documentation](https://wayfair.github.io/vsm-ios/documentation/vsm/)
 
 ## Project Information
 

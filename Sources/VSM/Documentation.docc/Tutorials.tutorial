@@ -1,0 +1,33 @@
+@Tutorials(name: "VSM Guides") {
+    @Intro(title: "VSM Guides") {
+        A collection of guides to help get you started with the VSM architecture        
+    }
+    
+    @Chapter(name: "Quickstart Guide") {
+        Jump directly into learning VSM concepts and features by building a simple feature
+        
+        @Image(source: vsm-structure.jpg, alt: "Diagram showing the flow of information between the view, action, and state")
+        
+        @TutorialReference(tutorial: "doc:QuickstartGuide")
+    }
+    
+<!-- Uncomment this when the following Apple bug has been fixed: -->
+<!-- The following causes the doc generator to crash: SwiftDocC/RenderHierarchyTranslator.swift:120: Fatal error: Unexpected child '(reference: doc://VSM/documentation/VSM/ComprehensiveGuide, kind: SwiftDocC.DocumentationNode.Kind(name: "Article", id: "org.swift.docc.kind.article", isSymbol: false))' of chapter 'doc://VSM/tutorials/Tutorials/Comprehensive-Guide', only tutorials and articles are expected. -->
+<!--    @Chapter(name: "Comprehensive Guide") {-->
+<!--        An in-depth guide to the VSM architecture, framework, and patterns-->
+<!--        -->
+<!--        @Image(source: vsm-structure.jpg, alt: "Diagram showing the structure of a VSM feature")-->
+<!--        -->
+<!--        @TutorialReference(tutorial: "doc:ComprehensiveGuide")-->
+<!--    }-->
+    
+    @Resources {
+        Explore more resources for learning about VSM
+        
+        @SampleCode(destination: "https://github.com/wayfair/vsm-ios/tree/main/Demos") {
+            Download and explore sample code to get to know VSM
+            
+            - [Shopping App: A simple app that uses VSM](https://github.com/wayfair/vsm-ios/tree/main/Demos/Shopping)
+        }
+    }
+}
