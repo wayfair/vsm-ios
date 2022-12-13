@@ -31,6 +31,7 @@
 		32E5E78027B4930B002E9C47 /* CartRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32E5E77F27B4930B002E9C47 /* CartRepository.swift */; };
 		32E5E78227B49323002E9C47 /* FavoritesRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32E5E78127B49323002E9C47 /* FavoritesRepository.swift */; };
 		32E5E78A27B49BAC002E9C47 /* ProductsViewState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32E5E78927B49BAC002E9C47 /* ProductsViewState.swift */; };
+		32E729662948BD950065942E /* UIFrameworkDependency.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32E729652948BD950065942E /* UIFrameworkDependency.swift */; };
 		32EEC6F127B482B5001AB9C7 /* ShoppingApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32EEC6F027B482B5001AB9C7 /* ShoppingApp.swift */; };
 		32EEC6F527B482B7001AB9C7 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 32EEC6F427B482B7001AB9C7 /* Assets.xcassets */; };
 		32EEC6F827B482B7001AB9C7 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 32EEC6F727B482B7001AB9C7 /* Preview Assets.xcassets */; };
@@ -97,6 +98,7 @@
 		32E5E78127B49323002E9C47 /* FavoritesRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesRepository.swift; sourceTree = "<group>"; };
 		32E5E78527B49531002E9C47 /* vsm-ios */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = "vsm-ios"; path = ../..; sourceTree = "<group>"; };
 		32E5E78927B49BAC002E9C47 /* ProductsViewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductsViewState.swift; sourceTree = "<group>"; };
+		32E729652948BD950065942E /* UIFrameworkDependency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIFrameworkDependency.swift; sourceTree = "<group>"; };
 		32EEC6ED27B482B5001AB9C7 /* Shopping.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Shopping.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		32EEC6F027B482B5001AB9C7 /* ShoppingApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoppingApp.swift; sourceTree = "<group>"; };
 		32EEC6F427B482B7001AB9C7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -245,6 +247,7 @@
 				32F1B64027CAB10C00819F76 /* DispatchQueueSchedulerDependency.swift */,
 				32E5E78127B49323002E9C47 /* FavoritesRepository.swift */,
 				32E5E77D27B48EFF002E9C47 /* ProductRepository.swift */,
+				32E729652948BD950065942E /* UIFrameworkDependency.swift */,
 				32D32EED282C5B74009DC857 /* UserDefaultsDependency.swift */,
 			);
 			path = Dependencies;
@@ -507,6 +510,7 @@
 				32E5E77327B4858C002E9C47 /* AccountView.swift in Sources */,
 				32F1B5EA27C07C9D00819F76 /* FavoritesView.swift in Sources */,
 				32E5E78A27B49BAC002E9C47 /* ProductsViewState.swift in Sources */,
+				32E729662948BD950065942E /* UIFrameworkDependency.swift in Sources */,
 				322B21EB27BB3F2B00D147A4 /* FavoriteButtonView.swift in Sources */,
 				32E5E77A27B48D7B002E9C47 /* MainViewState.swift in Sources */,
 				32E5E77E27B48EFF002E9C47 /* ProductRepository.swift in Sources */,

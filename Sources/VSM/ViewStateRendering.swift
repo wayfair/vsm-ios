@@ -74,10 +74,23 @@ public protocol ViewStateRendering {
     /// This type is usually an enum with associated `Model` values for complex views.
     /// For simpler views, this can be a `struct` or any value type.
     /// `class`es (including `ObservableObject`s are supported, but not recommended.
-    associatedtype ViewState
+    associatedtype SomeViewState
     
     /// Contains the current `ViewState` value for rendering in the `View`.
-    var container: StateContainer<ViewState> { get }
+    var container: StateContainer<SomeViewState> { get }
+    
+    /// UIKit Only - Renders the current state change.
+    ///
+    /// This is not required in Swift UI. Add `@StateObject` or `@ObservedObject` to the `container` property to automatically render state changes in a SwiftUI view.
+    func render()
+}
+
+// MARK: - SwiftUI Extension
+
+public extension ViewStateRendering where Self: View {
+    
+    /// This is not required in Swift UI. Add `@StateObject` or `@ObservedObject` to the `container` property to automatically render state changes in a SwiftUI view.
+    func render() { /* no-op */ }
 }
 
 //MARK: - State Extension
@@ -85,7 +98,7 @@ public protocol ViewStateRendering {
 public extension ViewStateRendering {
     
     /// Convenience accessor for the `StateContainer`'s `state` property.
-    var state: ViewState {
+    var state: SomeViewState {
         container.state
     }
 }
@@ -96,25 +109,25 @@ public extension ViewStateRendering {
     
     /// Convenience accessor for the `StateContainer`'s `observe` function.
     /// Observes the state publisher emitted as a result of invoking some action
-    func observe(_ stateChangePublisher: AnyPublisher<ViewState, Never>) {
+    func observe(_ stateChangePublisher: AnyPublisher<SomeViewState, Never>) {
         container.observe(stateChangePublisher)
     }
 
     /// Convenience accessor for the `StateContainer`'s `observe` function.
     /// Observes the state emitted as a result of invoking some asynchronous action
-    func observe(_ awaitState: @escaping () async -> ViewState) {
+    func observe(_ awaitState: @escaping () async -> SomeViewState) {
         container.observe(awaitState)
     }
     
     /// Convenience accessor for the `StateContainer`'s `observe` function.
     /// Observes the states emitted as a result of invoking some asynchronous action that returns an asynchronous sequence
-    func observe<StateSequence: AsyncSequence>(_ awaitStateSequence: @escaping () async -> StateSequence) where StateSequence.Element == ViewState {
+    func observe<StateSequence: AsyncSequence>(_ awaitStateSequence: @escaping () async -> StateSequence) where StateSequence.Element == SomeViewState {
         container.observe(awaitStateSequence)
     }
 
     /// Convenience accessor for the `StateContainer`'s `observe` function.
     /// Observes the state emitted as a result of invoking some synchronous action
-    func observe(_ nextState: @autoclosure @escaping () -> ViewState) {
+    func observe(_ nextState: @autoclosure @escaping () -> SomeViewState) {
         container.observe(nextState)
     }
 }
@@ -135,7 +148,7 @@ public extension ViewStateRendering where Self: View {
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
     ///   - observedSetter: Converts the new `Value` to a new `ViewState`, which is automatically observed
     /// - Returns: A `Binding<Value>` for use in SwiftUI controls
-    func bind<Value>(_ stateKeyPath: KeyPath<ViewState, Value>, to observedSetter: @escaping (ViewState, Value) -> ViewState) -> Binding<Value> {
+    func bind<Value>(_ stateKeyPath: KeyPath<SomeViewState, Value>, to observedSetter: @escaping (SomeViewState, Value) -> SomeViewState) -> Binding<Value> {
         container.bind(stateKeyPath, to: observedSetter)
     }
     
@@ -146,7 +159,7 @@ public extension ViewStateRendering where Self: View {
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
     ///   - observedSetter: A **method signature** which converts the new `Value` to a new `ViewState` and is automatically observed
     /// - Returns: A `Binding<Value>` for use in SwiftUI controls
-    func bind<Value>(_ stateKeyPath: KeyPath<ViewState, Value>, to observedSetter: @escaping (ViewState) -> (Value) -> ViewState) -> Binding<Value> {
+    func bind<Value>(_ stateKeyPath: KeyPath<SomeViewState, Value>, to observedSetter: @escaping (SomeViewState) -> (Value) -> SomeViewState) -> Binding<Value> {
         container.bind(stateKeyPath, to: observedSetter)
     }
 }
@@ -161,7 +174,7 @@ public extension ViewStateRendering where Self: View {
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
     ///   - observedSetter: Converts the new `Value` to a new `ViewState`, which is automatically observed
     /// - Returns: A `Binding<Value>` for use in SwiftUI controls
-    func bind<Value>(_ stateKeyPath: KeyPath<ViewState, Value>, to observedSetter: @escaping (ViewState, Value) async -> ViewState) -> Binding<Value> {
+    func bind<Value>(_ stateKeyPath: KeyPath<SomeViewState, Value>, to observedSetter: @escaping (SomeViewState, Value) async -> SomeViewState) -> Binding<Value> {
         container.bind(stateKeyPath, to: observedSetter)
     }
     
@@ -172,7 +185,7 @@ public extension ViewStateRendering where Self: View {
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
     ///   - observedSetter: A **method signature** which converts the new `Value` to a new `ViewState` and is automatically observed
     /// - Returns: A `Binding<Value>` for use in SwiftUI controls
-    func bind<Value>(_ stateKeyPath: KeyPath<ViewState, Value>, to observedSetter: @escaping (ViewState) -> (Value) async -> ViewState) -> Binding<Value> {
+    func bind<Value>(_ stateKeyPath: KeyPath<SomeViewState, Value>, to observedSetter: @escaping (SomeViewState) -> (Value) async -> SomeViewState) -> Binding<Value> {
         container.bind(stateKeyPath, to: observedSetter)
     }
 }
@@ -187,7 +200,7 @@ public extension ViewStateRendering where Self: View {
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
     ///   - observedSetter: Converts the new `Value` to a new `ViewState`, which is automatically observed
     /// - Returns: A `Binding<Value>` for use in SwiftUI controls
-    func bind<Value>(_ stateKeyPath: KeyPath<ViewState, Value>, to observedSetter: @escaping (ViewState, Value) -> AnyPublisher<ViewState, Never>) -> Binding<Value> {
+    func bind<Value>(_ stateKeyPath: KeyPath<SomeViewState, Value>, to observedSetter: @escaping (SomeViewState, Value) -> AnyPublisher<SomeViewState, Never>) -> Binding<Value> {
         container.bind(stateKeyPath, to: observedSetter)
     }
     
@@ -198,7 +211,7 @@ public extension ViewStateRendering where Self: View {
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
     ///   - observedSetter: A **method signature** which converts the new `Value` to a new `ViewState` and is automatically observed
     /// - Returns: A `Binding<Value>` for use in SwiftUI controls
-    func bind<Value>(_ stateKeyPath: KeyPath<ViewState, Value>, to observedSetter: @escaping (ViewState) -> (Value) -> AnyPublisher<ViewState, Never>) -> Binding<Value> {
+    func bind<Value>(_ stateKeyPath: KeyPath<SomeViewState, Value>, to observedSetter: @escaping (SomeViewState) -> (Value) -> AnyPublisher<SomeViewState, Never>) -> Binding<Value> {
         container.bind(stateKeyPath, to: observedSetter)
     }
 }
@@ -216,7 +229,7 @@ public extension ViewStateRendering {
     ///   - stateChangePublisherAction: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     func observe(
-        _ stateChangePublisherAction: @escaping @autoclosure () -> AnyPublisher<ViewState, Never>,
+        _ stateChangePublisherAction: @escaping @autoclosure () -> AnyPublisher<SomeViewState, Never>,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         file: String = #file,
         line: UInt = #line
@@ -232,7 +245,7 @@ public extension ViewStateRendering {
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     ///   - identifier: The identifier for grouping actions for debouncing
     func observe(
-        _ stateChangePublisherAction: @escaping @autoclosure () ->  AnyPublisher<ViewState, Never>,
+        _ stateChangePublisherAction: @escaping @autoclosure () ->  AnyPublisher<SomeViewState, Never>,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     ) {
@@ -246,7 +259,7 @@ public extension ViewStateRendering {
     ///   - stateChangeAsyncAction: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     func observe(
-        _ stateChangeAsyncAction: @escaping () async -> ViewState,
+        _ stateChangeAsyncAction: @escaping () async -> SomeViewState,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         file: String = #file,
         line: UInt = #line
@@ -262,7 +275,7 @@ public extension ViewStateRendering {
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     ///   - identifier: The identifier for grouping actions for debouncing
     func observe(
-        _ stateChangeAsyncAction: @escaping () async -> ViewState,
+        _ stateChangeAsyncAction: @escaping () async -> SomeViewState,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     ) {
@@ -280,7 +293,7 @@ public extension ViewStateRendering {
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         file: String = #file,
         line: UInt = #line
-    ) where SomeAsyncSequence.Element == ViewState {
+    ) where SomeAsyncSequence.Element == SomeViewState {
         container.observe(stateChangeAsyncSequenceAction, debounced: dueTime, file: file, line: line)
     }
     
@@ -295,7 +308,7 @@ public extension ViewStateRendering {
         _ stateChangeAsyncSequenceAction: @escaping () async -> SomeAsyncSequence,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
-    ) where SomeAsyncSequence.Element == ViewState {
+    ) where SomeAsyncSequence.Element == SomeViewState {
         container.observe(stateChangeAsyncSequenceAction, debounced: dueTime, identifier: identifier)
     }
     
@@ -306,7 +319,7 @@ public extension ViewStateRendering {
     ///   - stateChangeAction: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     func observe(
-        _ stateChangeAction: @escaping @autoclosure () -> ViewState,
+        _ stateChangeAction: @escaping @autoclosure () -> SomeViewState,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         file: String = #file,
         line: UInt = #line
@@ -322,7 +335,7 @@ public extension ViewStateRendering {
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     ///   - identifier: The identifier for grouping actions for debouncing
     func observe(
-        _ stateChangeAction: @escaping @autoclosure () -> ViewState,
+        _ stateChangeAction: @escaping @autoclosure () -> SomeViewState,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     ) {

@@ -7,7 +7,7 @@ let package = Package(
     name: "VSM",
     platforms: [
         .iOS(.v13),
-        .macOS(.v10_15)
+        .macOS(.v11)
     ],
     products: [
         .library(

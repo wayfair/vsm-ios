@@ -52,8 +52,8 @@ struct SettingsView: View, ViewStateRendering {
         )
         
         // c.2
-        isConvenienceBindingExampleEnabled2 = container.bind(\.isConvenienceBindingExampleEnabled2, to: ViewState.toggleIsConvenienceBindingExampleEnabled2)
-        // The last parameter in c.2 can also be `SettingsViewStateModel.toggleIsConvenienceBindingExampleEnabled2`. ViewState is just a generic type alias.
+        isConvenienceBindingExampleEnabled2 = container.bind(\.isConvenienceBindingExampleEnabled2, to: SomeViewState.toggleIsConvenienceBindingExampleEnabled2)
+        // The last parameter in c.2 can also be `SettingsViewStateModel.toggleIsConvenienceBindingExampleEnabled2`. SomeViewState is just a generic type alias.
     }
     
     var body: some View {

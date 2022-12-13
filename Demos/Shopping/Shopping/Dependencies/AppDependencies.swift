@@ -13,19 +13,22 @@ class AppDependencies: MainView.Dependencies {
     var favoritesRepository: FavoritesRepository
     var dispatchQueue: DispatchQueueScheduling
     var userDefaults: UserDefaults
+    var frameworkProvider: UIFrameworkProviding
     
     init(
         productRepository: ProductRepository,
         cartRepository: CartRepository,
         favoritesRepository: FavoritesRepository,
         dispatchQueue: DispatchQueueScheduling,
-        userDefaults: UserDefaults
+        userDefaults: UserDefaults,
+        frameworkProvider: UIFrameworkProviding
     ) {
         self.productRepository = productRepository
         self.cartRepository = cartRepository
         self.favoritesRepository = favoritesRepository
         self.dispatchQueue = dispatchQueue
         self.userDefaults = userDefaults
+        self.frameworkProvider = frameworkProvider
     }
 }
 
@@ -44,7 +47,8 @@ extension AppDependencies {
                         cartRepository: cartRepository,
                         favoritesRepository: favoritesRepository,
                         dispatchQueue: DispatchQueueScheduler(),
-                        userDefaults: UserDefaults.standard
+                        userDefaults: UserDefaults.standard,
+                        frameworkProvider: UIFrameworkProvider(dependencies: UIFrameworkProviderDependencies(userDefaults: UserDefaults.standard))
                     )
                     continuation.resume(returning: appDependencies)
                 }
@@ -62,7 +66,8 @@ struct MockAppDependencies: MainView.Dependencies {
             mockCartRepository: MockCartRepository.noOp,
             mockFavoritesRepository: MockFavoritesRepository.noOp,
             mockDispatchQueue: MockDispatchQueueScheduler.immediate,
-            mockUserDefaults: UserDefaults()
+            mockUserDefaults: UserDefaults(),
+            mockUIFrameworkProvider: MockUIFrameworkProvider.noOp
         )
     }
     
@@ -71,6 +76,7 @@ struct MockAppDependencies: MainView.Dependencies {
     var mockFavoritesRepository: MockFavoritesRepository
     var mockDispatchQueue: MockDispatchQueueScheduler
     var mockUserDefaults: UserDefaults
+    var mockUIFrameworkProvider: MockUIFrameworkProvider
     
     var productRepository: ProductRepository {
         mockProductRepository
@@ -90,5 +96,9 @@ struct MockAppDependencies: MainView.Dependencies {
     
     var userDefaults: UserDefaults {
         mockUserDefaults
+    }
+    
+    var frameworkProvider: UIFrameworkProviding {
+        mockUIFrameworkProvider
     }
 }
