@@ -16,18 +16,18 @@ class AtomicStateChangeSubscriber<State> {
     /// Subscribes to changes in state. This subscription happens exactly once even if called repeatedly in a multi-threaded environment.
     ///
     /// This is primarily used for wiring up any non-standard state observation, such as within the static subscript of a property wrapper.
-    func subscribe(to statePublisher: some Publisher<State, Never>, receivedValue: @escaping (State) -> Void) {
+    func subscribeOnce(to statePublisher: some Publisher<State, Never>, receivedValue: @escaping (State) -> Void) {
         // Ensure we are subscribing on the main thread for thread safety of shared mutable properties of this object
         if Thread.isMainThread {
-            subscribeSynced(to: statePublisher, receivedValue: receivedValue)
+            subscribeOnceSynced(to: statePublisher, receivedValue: receivedValue)
         } else {
             DispatchQueue.main.async {
-                self.subscribeSynced(to: statePublisher, receivedValue: receivedValue)
+                self.subscribeOnceSynced(to: statePublisher, receivedValue: receivedValue)
             }
         }
     }
     
-    private func subscribeSynced(to statePublisher: some Publisher<State, Never>, receivedValue: @escaping (State) -> Void) {
+    private func subscribeOnceSynced(to statePublisher: some Publisher<State, Never>, receivedValue: @escaping (State) -> Void) {
         guard subscription == nil, willSubscribe else { return }
         willSubscribe = false
         subscription = statePublisher

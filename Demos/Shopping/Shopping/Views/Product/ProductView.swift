@@ -8,11 +8,11 @@
 import SwiftUI
 import VSM
 
-struct ProductView: View, ViewStateRendering {
+struct ProductView: View {
     typealias Dependencies = ProductDetailLoaderModel.Dependencies & ProductDetailView.Dependencies & CartButtonView.Dependencies
     let dependencies: Dependencies
     let productId: Int
-    @ObservedObject var container: StateContainer<ProductViewState>
+    @ViewState var state: ProductViewState
     
     init(dependencies: Dependencies, productId: Int) {
         self.dependencies = dependencies
@@ -21,24 +21,29 @@ struct ProductView: View, ViewStateRendering {
             dependencies: dependencies,
             productId: productId
         )
-        container = .init(state: .initialized(initializedModule))
-        container.observe(initializedModule.loadProductDetail())
+        _state = .init(wrappedValue: .initialized(initializedModule))
     }
     
     var body: some View {
         Group {
-            switch container.state {
+            switch state {
             case .initialized, .loading:
                 ProgressView()
             case .loaded(let productDetail):
                 ProductDetailView(dependencies: dependencies, productDetail: productDetail)
             case .error(message: let message, retry: let retryAction):
-                loadingErrorView(message: message, retryAction: { container.observe(retryAction()) })
+                loadingErrorView(message: message, retryAction: { $state.observe(retryAction()) })
+                
             }
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 CartButtonView(dependencies: dependencies)
+            }
+        }
+        .onAppear {
+            if case .initialized(let initializedModule) = state {
+                $state.observe(initializedModule.loadProductDetail())
             }
         }
     }
@@ -63,11 +68,11 @@ struct ProductView: View, ViewStateRendering {
     }
 }
 
-class ProductViewController: UIViewController, ViewStateRendering {
+class ProductViewController: UIViewController {
     typealias Dependencies = ProductDetailLoaderModel.Dependencies & ProductDetailView.Dependencies & CartButtonView.Dependencies
     let dependencies: Dependencies
     let productId: Int
-    @AutoRendered var container: StateContainer<ProductViewState>
+    @ViewState var state: ProductViewState
     
     lazy var activityIndicatorView: UIActivityIndicatorView = UIActivityIndicatorView.init()
         
@@ -78,9 +83,8 @@ class ProductViewController: UIViewController, ViewStateRendering {
             dependencies: dependencies,
             productId: productId
         )
-        _container = .init(state: .initialized(initializedModel))
+        _state = .init(wrappedValue: ProductViewState.initialized(initializedModel), render: Self.render)
         super.init(nibName: nil, bundle: nil)
-        observe(initializedModel.loadProductDetail())
     }
     
     required init?(coder: NSCoder) {
@@ -89,16 +93,22 @@ class ProductViewController: UIViewController, ViewStateRendering {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        if case .initialized(let initializedModel) = state {
+            $state.observe(initializedModel.loadProductDetail())
+        }
         view.addSubview(activityIndicatorView)
         activityIndicatorView.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             activityIndicatorView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
             activityIndicatorView.centerXAnchor.constraint(equalTo: view.centerXAnchor)
         ])
+        if case .initialized(let initializedModel) = state {
+            $state.observe(initializedModel.loadProductDetail())
+        }
     }
     
     func render() {
-        switch container.state {
+        switch state {
         case .initialized, .loading:
             activityIndicatorView.isHidden = false
             activityIndicatorView.startAnimating()
@@ -117,7 +127,7 @@ class ProductViewController: UIViewController, ViewStateRendering {
         case .error(message: let message, retry: let retry):
             let alertViewController = UIAlertController(title: "Oops!", message: message, preferredStyle: .alert)
             alertViewController.addAction(.init(title: "Retry", style: .default, handler: { [weak self] action in
-                self?.observe(retry())
+                self?.$state.observe(retry())
             }))
             present(alertViewController, animated: true)
         }
@@ -130,7 +140,7 @@ extension ProductView {
     init(state: ProductViewState, productId: Int = 0, dependencies: Dependencies = MockAppDependencies.noOp) {
         self.dependencies = dependencies
         self.productId = productId
-        container = .init(state: state)
+        _state = .init(wrappedValue: state)
     }
 }
 

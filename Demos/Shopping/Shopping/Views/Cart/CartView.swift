@@ -8,23 +8,23 @@
 import SwiftUI
 import VSM
 
-struct CartView: View, ViewStateRendering {
+struct CartView: View {
     typealias Dependencies = CartLoaderModel.Dependencies & CartLoadedModel.Dependencies & CartRemovingProductModel.Dependencies
     let dependencies: Dependencies
     @Binding var showModal: Bool
-    @StateObject var container: StateContainer<CartViewState>
+    @ViewState var state: CartViewState
     
     init(dependencies: Dependencies, showModal: Binding<Bool>) {
         self.dependencies = dependencies
         self._showModal = showModal
-        _container = .init(state: .initialized(CartLoaderModel(dependencies: dependencies)))
+        _state = .init(wrappedValue: .initialized(CartLoaderModel(dependencies: dependencies)))
     }
     
     var body: some View {
         NavigationView {
             ZStack {
-                cartView(title: container.state.isOrderComplete ? "Reciept" : "Cart", cart: container.state.cart)
-                switch container.state {
+                cartView(title: state.isOrderComplete ? "Reciept" : "Cart", cart: state.cart)
+                switch state {
                 case .initialized, .loading:
                     ProgressView()
                 case .loadedEmpty:
@@ -44,8 +44,8 @@ struct CartView: View, ViewStateRendering {
             .navigationBarItems(trailing: dismissButtonView())
         }
         .onAppear {
-            if case .initialized(let loaderModel) = container.state {
-                container.observe(loaderModel.loadCart())
+            if case .initialized(let loaderModel) = state {
+                $state.observe(loaderModel.loadCart())
             }
         }
     }
@@ -55,7 +55,7 @@ struct CartView: View, ViewStateRendering {
             Text("Oops!").font(.title)
             Text(errorModel.message)
             Button("Retry") {
-                container.observe(errorModel.retry())
+                $state.observe(errorModel.retry())
             }
             .buttonStyle(DemoButtonStyle())
         }
@@ -84,10 +84,10 @@ struct CartView: View, ViewStateRendering {
                 }
                 .frame(height: 44)
                 .swipeActions {
-                    switch container.state {
+                    switch state {
                     case .loaded(let loadedModel), .removingProductError(_, let loadedModel), .checkoutError(_, let loadedModel):
                         Button(role: .destructive) {
-                            container.observe(loadedModel.removeProduct(id: product.cartId))
+                            $state.observe(loadedModel.removeProduct(id: product.cartId))
                         } label : {
                             Label("Delete", systemImage: "trash.fill")
                         }
@@ -96,17 +96,17 @@ struct CartView: View, ViewStateRendering {
                     }
                 }
             }
-            if case .orderComplete = container.state { } else {
+            if case .orderComplete = state { } else {
                 Spacer()
-                Button(container.state.isCheckingOut ? "Placing Order..." : "Place Order") {
-                    switch container.state {
+                Button(state.isCheckingOut ? "Placing Order..." : "Place Order") {
+                    switch state {
                     case .loaded(let loadedModel), .removingProductError(_, let loadedModel), .checkoutError(_, let loadedModel):
-                        container.observe(loadedModel.checkout())
+                        $state.observe(loadedModel.checkout())
                     default:
                         break
                     }
                 }
-                .buttonStyle(DemoButtonStyle(enabled: container.state.canCheckout))
+                .buttonStyle(DemoButtonStyle(enabled: state.canCheckout))
                 .padding()
             }
         }
@@ -114,11 +114,11 @@ struct CartView: View, ViewStateRendering {
     
     func dismissButtonView() -> some View {
         Button(action: {
-            if container.state.allowModalDismissal {
+            if state.allowModalDismissal {
                 self.showModal = false
             }
         }) {
-            if container.state.allowModalDismissal {
+            if state.allowModalDismissal {
                 Image(systemName: "xmark")
             }
         }
@@ -149,7 +149,7 @@ extension CartView {
     init(state: CartViewState) {
         dependencies = MockAppDependencies.noOp
         _showModal = .init(get: { true }, set: { _ in })
-        _container = .init(state: state)
+        _state = .init(wrappedValue: state)
     }
 }
 

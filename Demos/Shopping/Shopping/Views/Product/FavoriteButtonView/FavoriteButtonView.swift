@@ -8,15 +8,15 @@
 import SwiftUI
 import VSM
 
-struct FavoriteButtonView: View, ViewStateRendering {
+struct FavoriteButtonView: View {
     typealias Dependencies = FavoriteInfoLoaderModel.Dependencies & FavoriteButtonLoadedModel.Dependencies
     let dependencies: Dependencies
     let productId: Int
     let productName: String
-    @StateObject var container: StateContainer<FavoriteButtonViewState> = .init(state: .initialized(FavoriteInfoLoaderModel()))
+    @ViewState var state: FavoriteButtonViewState = .initialized(FavoriteInfoLoaderModel())
     
     var isLoading: Bool {
-        switch container.state {
+        switch state {
         case .initialized, .loading, .error:
             return true
         default:
@@ -32,7 +32,7 @@ struct FavoriteButtonView: View, ViewStateRendering {
     
     var body: some View {
         Button(action: {
-            if case .loaded(let loadedModel) = container.state {
+            if case .loaded(let loadedModel) = state {
                 loadedModel.toggleFavorite()
             }
         }) {
@@ -42,14 +42,14 @@ struct FavoriteButtonView: View, ViewStateRendering {
         }
         .disabled(isLoading)
         .onAppear {
-            if case .initialized(let loaderModel) = container.state {
-                container.observe(loaderModel.loadFavoriteInfo(dependencies: dependencies, productId: productId, productName: productName))
+            if case .initialized(let loaderModel) = state {
+                $state.observe(loaderModel.loadFavoriteInfo(dependencies: dependencies, productId: productId, productName: productName))
             }
         }
     }
     
     func getSystemImageName() -> String {
-        switch container.state {
+        switch state {
         case .initialized, .loading:
             return "heart"
         case .loaded(let loadedModel):
@@ -67,7 +67,7 @@ extension FavoriteButtonView {
         self.dependencies = dependencies
         self.productId = 0
         self.productName = ""
-        _container = .init(state: state)
+        _state = .init(wrappedValue: state)
     }
 }
 
