@@ -8,16 +8,16 @@
 import SwiftUI
 import VSM
 
-struct ProductsView: View, ViewStateRendering {
+struct ProductsView: View {
     typealias Dependencies = ProductsLoaderModel.Dependencies & ProductGridItemView.Dependencies & CartButtonView.Dependencies
     let dependencies: Dependencies
-    @ObservedObject private(set) var container: StateContainer<ProductsViewState>
+    @ViewState var state: ProductsViewState
     
     init(dependencies: Dependencies) {
         self.dependencies = dependencies
         let loaderModel = ProductsLoaderModel(dependencies: dependencies)
-        container = .init(state: .initialized(loaderModel))
-        container.observe(loaderModel.loadProducts())
+        _state = .init(wrappedValue: .initialized(loaderModel))
+        $state.observe(loaderModel.loadProducts())
     }
     
     var body: some View {
@@ -28,7 +28,7 @@ struct ProductsView: View, ViewStateRendering {
             case .loaded(let loadedModel):
                 loadedView(loadedModel)
             case .error(let message, let retryAction):
-                errorView(message: message, retryAction: { container.observe(retryAction()) })
+                errorView(message: message, retryAction: { $state.observe(retryAction()) })
             }
         }
         .navigationTitle("Products")
@@ -73,7 +73,7 @@ struct ProductsView: View, ViewStateRendering {
 extension ProductsView {
     init(dependencies: Dependencies, state: ProductsViewState) {
         self.dependencies = dependencies
-        container = .init(state: state)
+        _state = .init(wrappedValue: state)
     }
 }
 

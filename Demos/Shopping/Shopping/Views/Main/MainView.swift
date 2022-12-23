@@ -8,18 +8,18 @@
 import SwiftUI
 import VSM
 
-struct MainView: View, ViewStateRendering {
+struct MainView: View {
     typealias Dependencies = ProductsView.Dependencies & AccountView.Dependencies
-    @ObservedObject private(set) var container: StateContainer<MainViewState>
+    @ViewState var state: MainViewState
     
     init(appDependenciesProvider: AsyncResource<MainView.Dependencies>) {
         // Enable the following debug-only flag to view all state changes in all `StateContainer`s
         // StateContainer._debug()
         let loaderModel = DependenciesLoaderModel(appDependenciesProvider: appDependenciesProvider)
-        container = .init(state: .initialized(loaderModel))
+        _state = .init(wrappedValue: .initialized(loaderModel))
         // Enable the following debug-only flag to view all state changes in _this_ `StateContainer`
         // container._debug(options: [.conciseEnum, .container, .memory])
-        container.observe(loaderModel.loadDependencies())
+        $state.observe(loaderModel.loadDependencies())
     }
     
     var body: some View {
@@ -58,7 +58,7 @@ struct MainView: View, ViewStateRendering {
 
 extension MainView {
     init(state: MainViewState) {
-        container = .init(state: state)
+        _state = .init(wrappedValue: state)
     }
 }
 

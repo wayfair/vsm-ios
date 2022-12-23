@@ -8,16 +8,16 @@
 import SwiftUI
 import VSM
 
-struct ProductDetailView: View, ViewStateRendering {
+struct ProductDetailView: View {
     typealias Dependencies = AddToCartModel.Dependencies & FavoriteButtonView.Dependencies
     let dependencies: Dependencies
     let productDetail: ProductDetail
-    @ObservedObject var container: StateContainer<ProductDetailViewState>
+    @ViewState var state: ProductDetailViewState
     
     init(dependencies: Dependencies, productDetail: ProductDetail) {
         self.dependencies = dependencies
         self.productDetail = productDetail
-        container = .init(state: .viewing(AddToCartModel(dependencies: dependencies, productId: productDetail.id)))
+        _state = .init(wrappedValue: .viewing(AddToCartModel(dependencies: dependencies, productId: productDetail.id)))
         //    .debug()
         // Uncomment this line to see state changes printed to the console for this view.
         // NOTE: The line above will produce a compiler warning in DEBUG, and will break any non-DEBUG build.
@@ -30,10 +30,10 @@ struct ProductDetailView: View, ViewStateRendering {
                 Spacer()
                 addToCartButtonView()
             }
-            if case .addedToCart = container.state {
+            if case .addedToCart = state {
                 addToCartToastView()
             }
-            if case .addToCartError(let message, _) = container.state {
+            if case .addToCartError(let message, _) = state {
                 addToCartErrorView(message: message)
             }
         }
@@ -66,17 +66,17 @@ struct ProductDetailView: View, ViewStateRendering {
     }
     
     func addToCartButtonView() -> some View {
-        Button(container.state.isAddingToCart ? "Adding to Cart..." : "Add to Cart") {
-            switch container.state {
+        Button(state.isAddingToCart ? "Adding to Cart..." : "Add to Cart") {
+            switch state {
             case .viewing(let addToCartModel), .addedToCart(let addToCartModel), .addToCartError(_, let addToCartModel):
-                container.observe(addToCartModel.addToCart())
+                $state.observe(addToCartModel.addToCart())
             case .addingToCart, .initialized:
                 break
             }
         }
-        .buttonStyle(DemoButtonStyle(enabled: container.state.canAddToCart))
+        .buttonStyle(DemoButtonStyle(enabled: state.canAddToCart))
         .padding()
-        .disabled(!container.state.canAddToCart)
+        .disabled(!state.canAddToCart)
     }
     
     func addToCartToastView() -> some View {
@@ -105,7 +105,7 @@ extension ProductDetailView {
     init(productDetail: ProductDetail, state: ProductDetailViewState, dependencies: Dependencies = MockAppDependencies.noOp) {
         self.dependencies = dependencies
         self.productDetail = productDetail
-        container = .init(state: state)
+        _state = .init(wrappedValue: state)
     }
 }
 

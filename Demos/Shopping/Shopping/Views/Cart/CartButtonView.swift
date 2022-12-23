@@ -8,24 +8,24 @@
 import SwiftUI
 import VSM
 
-struct CartButtonView: View, ViewStateRendering {
+struct CartButtonView: View {
     typealias Dependencies = CartCountLoaderModel.Dependencies & CartView.Dependencies
     let dependencies: Dependencies
     @State var showCart: Bool = false
-    @ObservedObject var container: StateContainer<CartButtonViewState>
+    @ViewState var state: CartButtonViewState
     
     init(dependencies: Dependencies) {
         self.dependencies = dependencies
         let loaderModel = CartCountLoaderModel(dependencies: dependencies)
-        container = .init(state: .initialized(loaderModel))
-        container.observe(loaderModel.loadCount())
+        _state = .init(wrappedValue: .initialized(loaderModel))
+        $state.observe(loaderModel.loadCount())
     }
     
     var body: some View {
         Button(action: { showCart.toggle() }) {
             Image(systemName: "cart")
         }
-        .overlay(Badge(count: container.state.cartItemCount))
+        .overlay(Badge(count: state.cartItemCount))
         .fullScreenCover(isPresented: $showCart) {
             CartView(dependencies: dependencies, showModal: $showCart)
         }
@@ -37,7 +37,7 @@ struct CartButtonView: View, ViewStateRendering {
 extension CartButtonView {
     init(dependencies: Dependencies, state: CartButtonViewState) {
         self.dependencies = dependencies
-        container = .init(state: state)
+        _state = .init(wrappedValue: state)
     }
 }
 
@@ -73,22 +73,22 @@ struct CartButtonView_Previews: PreviewProvider {
 
 // MARK: - Alternative approach using a simple single-state view model:
 
-struct CartButtonView_SingleStateViewModelExample: View, ViewStateRendering {
+struct CartButtonView_SingleStateViewModelExample: View {
     typealias Dependencies = Alt_CartButtonViewState.Dependencies & CartView.Dependencies
     let dependencies: Dependencies
     @State var showCart: Bool = false
-    @ObservedObject var container: StateContainer<Alt_CartButtonViewStateProviding>
+    @ViewState var state: Alt_CartButtonViewStateProviding
     
     init(dependencies: Dependencies) {
         self.dependencies = dependencies
-        container = .init(state: Alt_CartButtonViewState(dependencies: dependencies))
+        _state = .init(wrappedValue: Alt_CartButtonViewState(dependencies: dependencies))
     }
     
     var body: some View {
         Button(action: { showCart.toggle() }) {
             Image(systemName: "cart")
         }
-        .overlay(Badge(count: container.state.cartItemCount))
+        .overlay(Badge(count: state.cartItemCount))
         .fullScreenCover(isPresented: $showCart) {
             CartView(dependencies: dependencies, showModal: $showCart)
         }
