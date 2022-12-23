@@ -67,7 +67,7 @@ import Combine
 ///     }
 /// }
 /// ```
-@available(*, deprecated, message: "Use the `@ViewState` property wrapper instead.")
+@available(*, deprecated, message: "Use the `@ViewState` property wrapper or `StateContainer` instead.")
 public protocol ViewStateRendering {
     
     /// The type that represents your View's state.
@@ -83,7 +83,7 @@ public protocol ViewStateRendering {
 
 //MARK: - State Extension
 
-@available(*, deprecated, message: "Use the `@ViewState` property wrapper instead.")
+@available(*, deprecated, message: "Use the `@ViewState` property wrapper or `StateContainer` instead.")
 public extension ViewStateRendering {
     
     /// Convenience accessor for the `StateContainer`'s `state` property.
@@ -94,7 +94,7 @@ public extension ViewStateRendering {
 
 // MARK: - Observe Extensions
 
-@available(*, deprecated, message: "Use the `@ViewState` property wrapper instead.")
+@available(*, deprecated, message: "Use the `@ViewState` property wrapper or `StateContainer` instead.")
 public extension ViewStateRendering {
     
     /// Convenience accessor for the `StateContainer`'s `observe` function.
@@ -130,7 +130,7 @@ import SwiftUI
 
 // MARK: - Synchronous Observed Binding Extensions
 
-@available(*, deprecated, message: "Use the `@ViewState` property wrapper instead.")
+@available(*, deprecated, message: "Use the `@ViewState` property wrapper or `StateContainer` instead.")
 public extension ViewStateRendering where Self: View {
     
     /// Creates a unidirectional, auto-observing `Binding<Value>` for the `ViewState` using a `KeyPath` and a basic closure.
@@ -157,7 +157,7 @@ public extension ViewStateRendering where Self: View {
 
 // MARK: - Asynchronous Observed Binding Extensions
 
-@available(*, deprecated, message: "Use the `@ViewState` property wrapper instead.")
+@available(*, deprecated, message: "Use the `@ViewState` property wrapper or `StateContainer` instead.")
 public extension ViewStateRendering where Self: View {
     
     /// Creates a unidirectional, auto-observing `Binding<Value>` for the `ViewState` using a `KeyPath` and a basic closure.
@@ -184,7 +184,7 @@ public extension ViewStateRendering where Self: View {
 
 // MARK: - ViewState-Publishing Observed Binding Extensions
 
-@available(*, deprecated, message: "Use the `@ViewState` property wrapper instead.")
+@available(*, deprecated, message: "Use the `@ViewState` property wrapper or `StateContainer` instead.")
 public extension ViewStateRendering where Self: View {
     
     /// Creates a unidirectional, auto-observing `Binding<Value>` for the `ViewState` using a `KeyPath` and a basic closure.
@@ -213,7 +213,7 @@ public extension ViewStateRendering where Self: View {
 
 // MARK: Observe Debounce Extensions
 
-@available(*, deprecated, message: "Use the `@ViewState` property wrapper instead.")
+@available(*, deprecated, message: "Use the `@ViewState` property wrapper or `StateContainer` instead.")
 public extension ViewStateRendering {
     
     /// Debounces the action calls by `dueTime`, then observes the `State` publisher emitted as a result of invoking the action.

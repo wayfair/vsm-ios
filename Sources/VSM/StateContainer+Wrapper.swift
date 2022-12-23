@@ -10,10 +10,10 @@ import Foundation
 import SwiftUI
 
 @available(iOS 14.0, *)
-public extension ViewState {
-    /// Used by the `ViewState` property wrapper as its projected value.
+public extension StateContainer {
+    /// Used by view state property wrappers as a projected value.
     struct Wrapper {
-        let container: StateContainer<State>
+        public var container: StateContainer<State>
         
         // MARK: Publisher
         

@@ -72,7 +72,7 @@ class ProductViewController: UIViewController {
     typealias Dependencies = ProductDetailLoaderModel.Dependencies & ProductDetailView.Dependencies & CartButtonView.Dependencies
     let dependencies: Dependencies
     let productId: Int
-    @ViewState var state: ProductViewState
+    @RenderedViewState var state: ProductViewState
     
     lazy var activityIndicatorView: UIActivityIndicatorView = UIActivityIndicatorView.init()
         

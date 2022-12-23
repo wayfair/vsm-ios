@@ -1,41 +1,26 @@
 //
-//  ViewState.swift
+//  RenderedViewState.swift
 //  
 //
-//  Created by Albert Bori on 11/18/22.
+//  Created by Albert Bori on 12/23/22.
 //
 
-import Combine
-import SwiftUI
+import Foundation
 
-/// Provides VSM functionality for a SwiftUI or UIKit view.
+/// **(UIKit Only)** Manages the view state for a UIView or UIViewController. Automatically calls `render()` when the view state changes. Used in VSM features.
 ///
 /// This property wrapper encapsulates a view's state property with an underlying `StateContainer` to provide the current view state .
 /// A subset of `StateContainer` members are available through the `$` prefix, such as `observe(...)` and `bind(...)`.
 ///
-/// **Usage*
+/// **Usage**
 ///
 /// Decorate your view state property with this property wrapper.
 ///
-/// SwiftUI Example:
-///
-/// ```swift
-/// struct MyView: View {
-///     @ViewState var state: MyViewState
-///
-///     var body: some View {
-///         Button(state.someValue) {
-///             $state.observe(state.someAction())
-///         }
-///     }
-/// }
-/// ```
-///
-/// UIKit Example:
+/// Direct Initialization Example:
 ///
 /// ```swift
 /// class MyViewController: UIViewController {
-///     @ViewState var state: MyViewState
+///     @RenderedViewState var state: MyViewState
 ///
 ///     init(state: MyViewState) {
 ///         _state = .init(wrappedValue: state, render: Self.render)
@@ -50,71 +35,65 @@ import SwiftUI
 ///     }
 /// }
 /// ```
+///
+/// Implicit Initialization Example:
+///
+/// ```swift
+/// class MyViewController: UIViewController {
+///     @RenderedViewState(render: MyViewController.render)
+///     var state: MyViewState = MyViewState()
+///
+///     func render() {
+///         if state.someValue {
+///             ...
+///             $state.observe(state.someAction())
+///         }
+///     }
+/// }
+/// ```
 @available(iOS 14.0, *)
 @propertyWrapper
-public struct ViewState<State>: DynamicProperty {
+public struct RenderedViewState<State> {
     
-    // MARK: SwiftUI Properties
-    
-    /// Keeps track of the state container for value parent types (SwiftUI views)
-    /// It is not used for UIKit views
-    @StateObject var valueTypeContainer: StateContainer<State>
-    @SwiftUI.State var valueTypeWrapper: Wrapper
-    
-    // MARK: UIKit Properties
-    
-    /// Keeps track of the state container for class parent types (UIKit views)
-    /// It is not used for SwiftUI views
-    let referenceTypeContainer: StateContainer<State>
-    let referenceTypeWrapper: Wrapper
+    let container: StateContainer<State>
+    let wrapper: StateContainer<State>.Wrapper
     /// Tracks state changes for invoking `render` when the state changes
     let stateDidChangeSubscriber: AtomicStateChangeSubscriber<State> = .init()
     /// Implicitly used by UIKit views to automatically call the provided function when the state changes
-    var render: ((AnyObject, State) -> ())?
-    /// Prevents runtime warnings related to using `@StateObject` when not attached to a SwiftUI view (ie, in UIKit views)
-    var isParentReferenceType: Bool { render != nil }
+    var render: (AnyObject, State) -> ()
     
-    // MARK: Wrapped Properties
-    
-    var container: StateContainer<State> {
-        isParentReferenceType ? referenceTypeContainer : valueTypeContainer
-    }
+    // MARK: - Encapsulating Properties
 
     public var wrappedValue: State {
         get { container.state }
     }
 
-    public var projectedValue: Wrapper {
-        isParentReferenceType ? referenceTypeWrapper : valueTypeWrapper
+    public var projectedValue: StateContainer<State>.Wrapper {
+        wrapper
     }
     
-    // MARK: Initializers
-
-    /// Instantiate with a custom `StateContainer` to allow the caller to directly interact with the `StateContainer`, if desired.
-    ///
-    /// - Parameter container: `StateContainer` where `State` matches the view state type.
-    public init(container: StateContainer<State>) {
-        self.referenceTypeContainer = container
-        self.referenceTypeWrapper = .init(container: container)
-        self._valueTypeContainer = .init(wrappedValue: container)
-        self._valueTypeWrapper = SwiftUI.State(initialValue: Wrapper(container: container))
+    // MARK: - Initializers
+    
+    /// **(UIKit only)** Instantiates the rendered view state with a custom state container.
+    /// - Parameters:
+    ///   - container: The state container that manages the view state.
+    ///   - render: The function to call when the view state changes.
+    public init<Parent: AnyObject>(container: StateContainer<State>, render: @escaping (Parent) -> () -> ()) {
+        self.container = container
+        self.wrapper = .init(container: container)
+        let anyRender: (Any, State) -> () = { parent, state in
+            guard let parent = parent as? Parent else { return }
+            render(parent)()
+        }
+        self.render = anyRender
     }
     
-    private init(_state: State, render: ((AnyObject, State) -> ())?) {
-        self.init(container: StateContainer(state: _state))
-        self.render = render
-    }
-    
-    public init(wrappedValue: State) {
-        self.init(_state: wrappedValue, render: nil)
-    }
-    
-    /// UIKit only. Instantiates with a render function that is invoked when the State changes.
+    /// **(UIKit only)** Instantiates the rendered view state with an initial value.
     ///
     /// Example:
     /// ```swift
     /// class MyViewController: UIViewController {
-    ///     @ViewState var state: MyViewState
+    ///     @RenderedViewState var state: MyViewState
     ///
     ///     init(state: MyViewState) {
     ///         _state = .init(wrappedValue: state, render: Self.render)
@@ -129,19 +108,18 @@ public struct ViewState<State>: DynamicProperty {
     ///     }
     /// }
     /// ```
+    ///
     /// - Parameters:
-    ///   - wrappedValue: The view state to be wrapped.
+    ///   - wrappedValue: The view state to be managed by the state container.
     ///   - render: The function to call when the view state changes.
     public init<Parent: AnyObject>(
         wrappedValue: State,
         render: @escaping (Parent) -> () -> ()
     ) {
-        let render: (Any, State) -> () = { parent, state in
-            guard let parent = parent as? Parent else { return }
-            render(parent)()
-        }
-        self.init(_state: wrappedValue, render: render)
+        self.init(container: StateContainer(state: wrappedValue), render: render)
     }
+    
+    // MARK: - Automatic Rendering
 
     /// Automatically calls `render()` when the state changes on any class that has a property decorated with this property wrapper. (Intended for UIKit only)
     ///
@@ -153,18 +131,15 @@ public struct ViewState<State>: DynamicProperty {
     public static subscript<ParentClass: AnyObject>(
         _enclosingInstance instance: ParentClass,
         wrapped wrappedKeyPath: KeyPath<ParentClass, State>,
-        storage storageKeyPath: KeyPath<ParentClass, ViewState<State>>
+        storage storageKeyPath: KeyPath<ParentClass, RenderedViewState<State>>
     ) -> State {
         get {
             let wrapper = instance[keyPath: storageKeyPath]
-            guard let render = wrapper.render else {
-                return wrapper.wrappedValue
-            }
             wrapper
                 .stateDidChangeSubscriber
                 .subscribeOnce(to: wrapper.container.statePublisher) { [weak instance] newState in
                     guard let instance else { return }
-                    render(instance, newState)
+                    wrapper.render(instance, newState)
                 }
             return wrapper.wrappedValue
         }
