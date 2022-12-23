@@ -13,9 +13,12 @@ struct MainView: View, ViewStateRendering {
     @ObservedObject private(set) var container: StateContainer<MainViewState>
     
     init(appDependenciesProvider: AsyncResource<MainView.Dependencies>) {
-        //_StateContainerDebugLogger._enableAll = true // Enable this debug-only flag to view all state changes in all `StateContainer`s
+        // Enable the following debug-only flag to view all state changes in all `StateContainer`s
+        // StateContainer._debug()
         let loaderModel = DependenciesLoaderModel(appDependenciesProvider: appDependenciesProvider)
         container = .init(state: .initialized(loaderModel))
+        // Enable the following debug-only flag to view all state changes in _this_ `StateContainer`
+        // container._debug(options: [.conciseEnum, .container, .memory])
         container.observe(loaderModel.loadDependencies())
     }
     

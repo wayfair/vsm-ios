@@ -19,6 +19,9 @@ final public class StateContainer<State>: ObservableObject {
         stateDidChangeSubject.eraseToAnyPublisher()
     }()
     
+    /// Used for debug logging. Inert in non-DEBUG schemas.
+    lazy var debugLogger: StateContainerDebugLogger = StateContainerDebugLogger()
+    
     private var cancellable: AnyCancellable?
     private var asyncTask: Task<Void, Error>?
     private var stateDidChangeSubject: CurrentValueSubject<State, Never>
