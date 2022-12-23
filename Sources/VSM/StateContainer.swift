@@ -5,15 +5,23 @@ import Foundation
 /// Observes the output of actions called by the view.
 final public class StateContainer<State>: ObservableObject {
     
+    /// The current state, managed by this container.
+    ///
+    /// This value is always updated on the main thread.
     @Published public private(set) var state: State {
         didSet {
             stateDidChangeSubject.value = state
         }
     }
+    
+    /// Publishes the State on `didSet` (main thread). For a `willSet` publisher, use the `$state` projected value.
+    public lazy var statePublisher: AnyPublisher<State, Never> = {
+        stateDidChangeSubject.eraseToAnyPublisher()
+    }()
+    
     private var cancellable: AnyCancellable?
     private var asyncTask: Task<Void, Error>?
     private var stateDidChangeSubject: CurrentValueSubject<State, Never>
-    private var subscribers: [ObjectIdentifier: AnyCancellable] = [:]
     
     // Debounce Properties
     private var debounceSubscriptionQueue: DispatchQueue = DispatchQueue(label: #function, qos: .userInitiated)
@@ -37,15 +45,6 @@ final public class StateContainer<State>: ObservableObject {
     
     deinit {
         cancelRunningObservations()
-    }
-}
-
-// MARK: - State Change Subscribers
-
-public extension StateContainer {
-    /// Publishes the State on `didSet` (main thread). For a `willSet` publisher, use the `$state` projected value.
-    var statePublisher: AnyPublisher<State, Never> {
-        stateDidChangeSubject.share().eraseToAnyPublisher()
     }
 }
 

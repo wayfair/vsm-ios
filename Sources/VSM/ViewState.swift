@@ -58,23 +58,25 @@ public struct ViewState<State>: DynamicProperty {
     
     /// Keeps track of the state container for value parent types (SwiftUI views)
     /// It is not used for UIKit views
-    @StateObject private var valueTypeContainer: StateContainer<State>
+    @StateObject var valueTypeContainer: StateContainer<State>
+    @SwiftUI.State var valueTypeWrapper: Wrapper
     
     // MARK: UIKit Properties
     
     /// Keeps track of the state container for class parent types (UIKit views)
     /// It is not used for SwiftUI views
-    private var referenceTypeContainer: StateContainer<State>
+    let referenceTypeContainer: StateContainer<State>
+    let referenceTypeWrapper: Wrapper
     /// Tracks state changes for invoking `render` when the state changes
-    private var stateDidChangeSubscriber: AtomicStateChangeSubscriber<State> = .init()
+    let stateDidChangeSubscriber: AtomicStateChangeSubscriber<State> = .init()
     /// Implicitly used by UIKit views to automatically call the provided function when the state changes
-    private var render: ((AnyObject, State) -> ())?
+    var render: ((AnyObject, State) -> ())?
     /// Prevents runtime warnings related to using `@StateObject` when not attached to a SwiftUI view (ie, in UIKit views)
-    private var isParentReferenceType: Bool { render != nil }
+    var isParentReferenceType: Bool { render != nil }
     
     // MARK: Wrapped Properties
     
-    private var container: StateContainer<State> {
+    var container: StateContainer<State> {
         isParentReferenceType ? referenceTypeContainer : valueTypeContainer
     }
 
@@ -82,25 +84,24 @@ public struct ViewState<State>: DynamicProperty {
         get { container.state }
     }
 
-    private let wrapper: Wrapper
     public var projectedValue: Wrapper {
-        wrapper
+        isParentReferenceType ? referenceTypeWrapper : valueTypeWrapper
     }
     
-    // MARK: Intializers
+    // MARK: Initializers
 
     /// Instantiate with a custom `StateContainer` to allow the caller to directly interact with the `StateContainer`, if desired.
     ///
     /// - Parameter container: `StateContainer` where `State` matches the view state type.
-    init(container: StateContainer<State>) {
+    public init(container: StateContainer<State>) {
         self.referenceTypeContainer = container
+        self.referenceTypeWrapper = .init(container: container)
         self._valueTypeContainer = .init(wrappedValue: container)
-        self.wrapper = .init(container: container)
+        self._valueTypeWrapper = SwiftUI.State(initialValue: Wrapper(container: container))
     }
     
     private init(_state: State, render: ((AnyObject, State) -> ())?) {
-        let container = StateContainer(state: _state)
-        self.init(container: container)
+        self.init(container: StateContainer(state: _state))
         self.render = render
     }
     
