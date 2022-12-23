@@ -1,6 +1,6 @@
 import Combine
 
-/// Conforms a SwiftUI or UIKit view to the VSM pattern.
+/// [⚠️ Deprecated] Conforms a SwiftUI or UIKit view to the VSM pattern.
 ///
 /// Conforming a SwiftUI `View`, `UIView`, or `UIViewController` to ``ViewStateRendering`` aids in adoption of the VSM pattern.
 /// This will provide the view with its own ``StateContainer`` by way of the ``container`` property.
@@ -67,7 +67,7 @@ import Combine
 ///     }
 /// }
 /// ```
-@available(*, deprecated, message: "Use the `@ViewState` property wrapper or `StateContainer` instead.")
+@available(*, deprecated, message: "Adopt the @ViewState (or @RenderedViewState) property wrapper or work directly with a StateContainer.")
 public protocol ViewStateRendering {
     
     /// The type that represents your View's state.
@@ -83,10 +83,11 @@ public protocol ViewStateRendering {
 
 //MARK: - State Extension
 
-@available(*, deprecated, message: "Use the `@ViewState` property wrapper or `StateContainer` instead.")
+@available(*, deprecated, message: "Adopt the @ViewState (or @RenderedViewState) property wrapper or work directly with a StateContainer.")
 public extension ViewStateRendering {
     
     /// Convenience accessor for the `StateContainer`'s `state` property.
+    @available(*, deprecated, message: "Use container.state or adopt the @ViewState (or @RenderedViewState) pattern.")
     var state: SomeViewState {
         container.state
     }
@@ -94,29 +95,33 @@ public extension ViewStateRendering {
 
 // MARK: - Observe Extensions
 
-@available(*, deprecated, message: "Use the `@ViewState` property wrapper or `StateContainer` instead.")
+@available(*, deprecated, message: "Adopt the @ViewState (or @RenderedViewState) property wrapper or work directly with a StateContainer.")
 public extension ViewStateRendering {
     
     /// Convenience accessor for the `StateContainer`'s `observe` function.
     /// Observes the state publisher emitted as a result of invoking some action
+    @available(*, deprecated, message: "Use container.observe or adopt the @ViewState (or @RenderedViewState) pattern.")
     func observe(_ stateChangePublisher: AnyPublisher<SomeViewState, Never>) {
         container.observe(stateChangePublisher)
     }
 
     /// Convenience accessor for the `StateContainer`'s `observe` function.
     /// Observes the state emitted as a result of invoking some asynchronous action
+    @available(*, deprecated, message: "Use container.observe or adopt the @ViewState (or @RenderedViewState) pattern.")
     func observe(_ awaitState: @escaping () async -> SomeViewState) {
         container.observe(awaitState)
     }
     
     /// Convenience accessor for the `StateContainer`'s `observe` function.
     /// Observes the states emitted as a result of invoking some asynchronous action that returns an asynchronous sequence
+    @available(*, deprecated, message: "Use container.observe or adopt the @ViewState (or @RenderedViewState) pattern.")
     func observe<StateSequence: AsyncSequence>(_ awaitStateSequence: @escaping () async -> StateSequence) where StateSequence.Element == SomeViewState {
         container.observe(awaitStateSequence)
     }
 
     /// Convenience accessor for the `StateContainer`'s `observe` function.
     /// Observes the state emitted as a result of invoking some synchronous action
+    @available(*, deprecated, message: "Use container.observe or adopt the @ViewState (or @RenderedViewState) pattern.")
     func observe(_ nextState: @autoclosure @escaping () -> SomeViewState) {
         container.observe(nextState)
     }
@@ -130,7 +135,7 @@ import SwiftUI
 
 // MARK: - Synchronous Observed Binding Extensions
 
-@available(*, deprecated, message: "Use the `@ViewState` property wrapper or `StateContainer` instead.")
+@available(*, deprecated, message: "Adopt the @ViewState (or @RenderedViewState) property wrapper or work directly with a StateContainer.")
 public extension ViewStateRendering where Self: View {
     
     /// Creates a unidirectional, auto-observing `Binding<Value>` for the `ViewState` using a `KeyPath` and a basic closure.
@@ -139,6 +144,7 @@ public extension ViewStateRendering where Self: View {
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
     ///   - observedSetter: Converts the new `Value` to a new `ViewState`, which is automatically observed
     /// - Returns: A `Binding<Value>` for use in SwiftUI controls
+    @available(*, deprecated, message: "Use container.bind or adopt the @ViewState (or @RenderedViewState) pattern.")
     func bind<Value>(_ stateKeyPath: KeyPath<SomeViewState, Value>, to observedSetter: @escaping (SomeViewState, Value) -> SomeViewState) -> Binding<Value> {
         container.bind(stateKeyPath, to: observedSetter)
     }
@@ -150,6 +156,7 @@ public extension ViewStateRendering where Self: View {
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
     ///   - observedSetter: A **method signature** which converts the new `Value` to a new `ViewState` and is automatically observed
     /// - Returns: A `Binding<Value>` for use in SwiftUI controls
+    @available(*, deprecated, message: "Use container.bind or adopt the @ViewState (or @RenderedViewState) pattern.")
     func bind<Value>(_ stateKeyPath: KeyPath<SomeViewState, Value>, to observedSetter: @escaping (SomeViewState) -> (Value) -> SomeViewState) -> Binding<Value> {
         container.bind(stateKeyPath, to: observedSetter)
     }
@@ -157,7 +164,7 @@ public extension ViewStateRendering where Self: View {
 
 // MARK: - Asynchronous Observed Binding Extensions
 
-@available(*, deprecated, message: "Use the `@ViewState` property wrapper or `StateContainer` instead.")
+@available(*, deprecated, message: "Adopt the @ViewState (or @RenderedViewState) property wrapper or work directly with a StateContainer.")
 public extension ViewStateRendering where Self: View {
     
     /// Creates a unidirectional, auto-observing `Binding<Value>` for the `ViewState` using a `KeyPath` and a basic closure.
@@ -166,6 +173,7 @@ public extension ViewStateRendering where Self: View {
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
     ///   - observedSetter: Converts the new `Value` to a new `ViewState`, which is automatically observed
     /// - Returns: A `Binding<Value>` for use in SwiftUI controls
+    @available(*, deprecated, message: "Use container.bind or adopt the @ViewState (or @RenderedViewState) pattern.")
     func bind<Value>(_ stateKeyPath: KeyPath<SomeViewState, Value>, to observedSetter: @escaping (SomeViewState, Value) async -> SomeViewState) -> Binding<Value> {
         container.bind(stateKeyPath, to: observedSetter)
     }
@@ -177,6 +185,7 @@ public extension ViewStateRendering where Self: View {
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
     ///   - observedSetter: A **method signature** which converts the new `Value` to a new `ViewState` and is automatically observed
     /// - Returns: A `Binding<Value>` for use in SwiftUI controls
+    @available(*, deprecated, message: "Use container.bind or adopt the @ViewState (or @RenderedViewState) pattern.")
     func bind<Value>(_ stateKeyPath: KeyPath<SomeViewState, Value>, to observedSetter: @escaping (SomeViewState) -> (Value) async -> SomeViewState) -> Binding<Value> {
         container.bind(stateKeyPath, to: observedSetter)
     }
@@ -184,7 +193,7 @@ public extension ViewStateRendering where Self: View {
 
 // MARK: - ViewState-Publishing Observed Binding Extensions
 
-@available(*, deprecated, message: "Use the `@ViewState` property wrapper or `StateContainer` instead.")
+@available(*, deprecated, message: "Adopt the @ViewState (or @RenderedViewState) property wrapper or work directly with a StateContainer.")
 public extension ViewStateRendering where Self: View {
     
     /// Creates a unidirectional, auto-observing `Binding<Value>` for the `ViewState` using a `KeyPath` and a basic closure.
@@ -193,6 +202,7 @@ public extension ViewStateRendering where Self: View {
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
     ///   - observedSetter: Converts the new `Value` to a new `ViewState`, which is automatically observed
     /// - Returns: A `Binding<Value>` for use in SwiftUI controls
+    @available(*, deprecated, message: "Use container.bind or adopt the @ViewState (or @RenderedViewState) pattern.")
     func bind<Value>(_ stateKeyPath: KeyPath<SomeViewState, Value>, to observedSetter: @escaping (SomeViewState, Value) -> AnyPublisher<SomeViewState, Never>) -> Binding<Value> {
         container.bind(stateKeyPath, to: observedSetter)
     }
@@ -204,6 +214,7 @@ public extension ViewStateRendering where Self: View {
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
     ///   - observedSetter: A **method signature** which converts the new `Value` to a new `ViewState` and is automatically observed
     /// - Returns: A `Binding<Value>` for use in SwiftUI controls
+    @available(*, deprecated, message: "Use container.bind or adopt the @ViewState (or @RenderedViewState) pattern.")
     func bind<Value>(_ stateKeyPath: KeyPath<SomeViewState, Value>, to observedSetter: @escaping (SomeViewState) -> (Value) -> AnyPublisher<SomeViewState, Never>) -> Binding<Value> {
         container.bind(stateKeyPath, to: observedSetter)
     }
@@ -213,7 +224,7 @@ public extension ViewStateRendering where Self: View {
 
 // MARK: Observe Debounce Extensions
 
-@available(*, deprecated, message: "Use the `@ViewState` property wrapper or `StateContainer` instead.")
+@available(*, deprecated, message: "Adopt the @ViewState (or @RenderedViewState) property wrapper or work directly with a StateContainer.")
 public extension ViewStateRendering {
     
     /// Debounces the action calls by `dueTime`, then observes the `State` publisher emitted as a result of invoking the action.
@@ -222,6 +233,7 @@ public extension ViewStateRendering {
     /// - Parameters:
     ///   - stateChangePublisherAction: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
+    @available(*, deprecated, message: "Use container.observe or adopt the @ViewState (or @RenderedViewState) pattern.")
     func observe(
         _ stateChangePublisherAction: @escaping @autoclosure () -> AnyPublisher<SomeViewState, Never>,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
@@ -238,6 +250,7 @@ public extension ViewStateRendering {
     ///   - stateChangePublisherAction: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     ///   - identifier: The identifier for grouping actions for debouncing
+    @available(*, deprecated, message: "Use container.observe or adopt the @ViewState (or @RenderedViewState) pattern.")
     func observe(
         _ stateChangePublisherAction: @escaping @autoclosure () ->  AnyPublisher<SomeViewState, Never>,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
@@ -252,6 +265,7 @@ public extension ViewStateRendering {
     /// - Parameters:
     ///   - stateChangeAsyncAction: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
+    @available(*, deprecated, message: "Use container.observe or adopt the @ViewState (or @RenderedViewState) pattern.")
     func observe(
         _ stateChangeAsyncAction: @escaping () async -> SomeViewState,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
@@ -268,6 +282,7 @@ public extension ViewStateRendering {
     ///   - stateChangeAsyncAction: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     ///   - identifier: The identifier for grouping actions for debouncing
+    @available(*, deprecated, message: "Use container.observe or adopt the @ViewState (or @RenderedViewState) pattern.")
     func observe(
         _ stateChangeAsyncAction: @escaping () async -> SomeViewState,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
@@ -282,6 +297,7 @@ public extension ViewStateRendering {
     /// - Parameters:
     ///   - stateChangeAsyncSequenceAction: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
+    @available(*, deprecated, message: "Use container.observe or adopt the @ViewState (or @RenderedViewState) pattern.")
     func observe<SomeAsyncSequence: AsyncSequence>(
         _ stateChangeAsyncSequenceAction: @escaping () async -> SomeAsyncSequence,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
@@ -298,6 +314,7 @@ public extension ViewStateRendering {
     ///   - stateChangeAsyncSequenceAction: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     ///   - identifier: The identifier for grouping actions for debouncing
+    @available(*, deprecated, message: "Use container.observe or adopt the @ViewState (or @RenderedViewState) pattern.")
     func observe<SomeAsyncSequence: AsyncSequence>(
         _ stateChangeAsyncSequenceAction: @escaping () async -> SomeAsyncSequence,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
@@ -312,6 +329,7 @@ public extension ViewStateRendering {
     /// - Parameters:
     ///   - stateChangeAction: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
+    @available(*, deprecated, message: "Use container.observe or adopt the @ViewState (or @RenderedViewState) pattern.")
     func observe(
         _ stateChangeAction: @escaping @autoclosure () -> SomeViewState,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
@@ -328,6 +346,7 @@ public extension ViewStateRendering {
     ///   - stateChangeAction: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     ///   - identifier: The identifier for grouping actions for debouncing
+    @available(*, deprecated, message: "Use container.observe or adopt the @ViewState (or @RenderedViewState) pattern.")
     func observe(
         _ stateChangeAction: @escaping @autoclosure () -> SomeViewState,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
