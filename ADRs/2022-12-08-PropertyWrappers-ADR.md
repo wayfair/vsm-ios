@@ -12,7 +12,11 @@ import Combine
 class SomeViewController: UIViewController, ViewStateRendering {
     var container: StateContainer<SomeViewState>
     var stateSubscription: AnyCancellable?
-    ...
+    
+    init() {
+        container = .init(state: SomeViewState())
+    }
+
     func viewDidLoad() {
         stateSubscription = container
             .$state
@@ -32,17 +36,134 @@ class SomeViewController: UIViewController, ViewStateRendering {
 These are the problems with the current approach:
 
 1. Wiring up the subscription, including toting a subscription property, introduces repetitive boilerplate code to each VSM view.
-1. It's easy to incorrectly configure the state subscription.
-1. Accidentally capturing `self` within the `sink` closure will cause memory leaks (strong reference cycles)
-1. Using `state` or `container.state` within the `sink` closure of the `$state` publisher will give you the previous value, not the current value. (Due to the inherent behavior of the `@Published` state property in the `StateContainer`)
+2. It's easy to incorrectly configure the state subscription.
+3. Accidentally capturing `self` within the `sink` closure will cause memory leaks (strong reference cycles)
+4. Using `state` or `container.state` within the `sink` closure of the `$state` publisher will give you the previous value, not the current value. (Due to the inherent behavior of the `@Published` state property in the `StateContainer`)
 
 ## Proposed Solution
 
-### AutoRendered Property Wrapper
+The solution is broken into two parts:
+1. [RenderedViewState Property Wrapper](#RenderedViewState-Property-Wrapper)
+2. [ViewState Property Wrapper](#ViewState-Property-Wrapper)
 
-The most appropriate solution is to create a property wrapper that encapsulates the state observation logic.
+### RenderedViewState Property Wrapper
 
-This property wrapper, called `@AutoRendered` can access the enclosing UIView (or UIViewController) and invoke a new `render()` function on `ViewStateRendering`. The `render()` function is not needed or used in SwiftUI views.
+The most appropriate solution is to create a UIKit-specific property wrapper that encapsulates the state observation logic.
+
+This property wrapper, called `@RenderedViewState` can access the enclosing UIView (or UIViewController) and invoke a specified `render()` function. The `render()` function is not needed or used in SwiftUI views.
+
+Example Usage
+
+```swift
+class SomeViewController: UIViewController {
+    @RenderedViewState(render: SomeViewController.render)
+    var state: SomeViewState = SomeViewState()
+    ...
+    func render() {
+        switch state {
+            ...
+            $state.observe(state.someAction())
+        }
+    }
+}
+```
+
+Alternative Usage
+
+```swift
+class SomeViewController: UIViewController {
+    @RenderedViewState var state: SomeViewState
+    
+    init() {
+        _state = .init(wrappedValue: SomeViewState(), render: Self.render)
+        super.init(bundle: nil, nib: nil)
+    }
+
+    func render() {
+        switch state {
+            ...
+            $state.observe(state.someAction())
+        }
+    }
+}
+```
+
+The solution utilizes the same technique that powers SwiftUI's `@Published` property behavior, where the property wrapper parent can be accessed in a static subscript to add observation behavior to the wrapped value.
+
+Bonus: This solution also takes the opportunity to improve the ergonomics of a VSM view by leveraging the power of property wrappers. It does this by encapsulating the `StateContainer` and exposing a subset of the `StateContainer` members via the projected value (`$`) of the property wrapper. These members are:
+
+- `publisher` is a `Publisher<State, Never>` which publishes the view state on the main thread from the `didSet` event of the `StateContainer`'s state property.
+- `observe` is forwarded directly to the `StateContainer`, which updates the current view state to the results of some action.
+- `bind` is forwarded directly to the `StateContainer`, which creates two-way bindings to the current view state.
+
+Benefits
+
+- Removes 8 lines of boilerplate code (Solves problem #1)
+- Removes potential for incorrect state subscription (Solves problem #2)
+- Removes potential for memory leaks in state observation (Solves problem #3)
+- Invokes `render()` after the state value changes, ensuring that the `state` property is safe to access in the rendering code (Solves problem #4)
+
+Knock-on Benefits
+- Allows custom state subscription to be possible if required (by opting out of the `@RenderedViewState` property and using the `StateContainer`'s new `statePublisher` property)
+- `publisher` allows for more stable custom state observation
+- Improves the ergonomics of building a VSM view
+    - `ViewStateRendering` is deprecated because `@RenderedViewState` supersedes it in every way. This removes developer confusion around `ViewStateRendering` and its somewhat ambiguous purpose
+    - A simpler view state declaration allows developers to focus on the state type instead of clouding the concept with the `StateContainer` requirements
+    - Developers can name their view state property as they see fit
+
+Drawbacks
+
+- Forgetting to apply `@RenderedViewState` to the `state` property will result in unexpected runtime behavior.
+    - This concern is mitigated by the fact that SwiftUI's property wrappers have the same tradeoff (`@State`, `@ObservedObject`, etc.)
+    - This can be mitigated by Swift Lint rules, or possibly targeted ("purple") runtime warnings as the [Composable Architecture](https://github.com/pointfreeco/swift-composable-architecture/blob/main/Sources/ComposableArchitecture/Internal/RuntimeWarnings.swift) does.
+
+### ViewState Property Wrapper
+
+The `@RenderedViewState` property wrapper brings so many benefits with trivial tradeoffs that it spawned the idea that the SwiftUI VSM view ergonomics would stand to benefit greatly from the same treatment.
+
+Therefore, a new `@ViewState` property wrapper is proposed in tandem which provides the same conveniences of `@RenderedViewState` but is purpose-built for SwiftUI and its nuances.
+
+Example Usage
+
+```swift
+struct SomeView: View {
+    @ViewState var state: SomeViewState
+    ...
+    var body: some View {
+        Button("\(state.isEnabled)") {
+            $state.observe(state.toggle(isEnabled: !state.isEnabled))
+        }
+        .onChange(of: state.isEnabled) { isEnabled in 
+            print(isEnabled)
+        }
+        .onReceive($state.publisher) { newState in 
+            print(newState)
+        }
+    }
+}
+```
+
+This property wrapper works exactly like `@RenderedViewState`, but without the need to specify a render function. It relies on SwiftUI's `DynamicProperty`, and `@StateObject` under the hood to propagate changes in view state to the view, which are automatically rendered each time the state changes, as you'd expect.
+
+Benefits
+
+- All of the benefits of `@RenderedViewState` mentioned above
+- Developers will no longer have to worry about navigating the nuances of `@StateObject` vs `@ObservedObject` as it is handled automatically within `@ViewState`
+- When considered with `@RenderedViewState`, the `ViewStateRendering` protocol is no longer useful or necessary and can be fully deprecated
+
+Drawbacks
+
+- `@ViewState` be confused with `@RenderedViewState`. The compiler prevents `@RenderedViewState` from being used in a SwiftUI view, the reverse is possible. This causes unexpected runtime behavior and runtime warnings.
+    - To a lesser extent, this concern is mitigated by the fact that SwiftUI's property wrappers have the same tradeoff (`@State`, `@ObservedObject`, etc.)
+    - This can be mitigated by Swift Lint rules
+
+## Alternatives Considered
+
+Several other solutions were considered which provide similar benefits while making the VSM framework more ergonomic. The two alternatives mentioned below were the most noteworthy.
+
+### UIKit-only @AutoRendered Property Wrapper
+
+The first idea was to introduce a UIKit-specific property wrapper used in conjunction with the `ViewStateRendering` protocol. It was originally dubbed `@AutoRendered` and its sole purpose was to automate the `render()` function.
 
 Example Usage
 
@@ -58,25 +179,19 @@ class SomeViewController: UIViewController, ViewStateRendering {
 }
 ```
 
-The solution utilizes the same technique that powers SwiftUI's `@Published` property behavior, where the property wrapper parent can be accessed in a static subscript to add observation behavior to the wrapped value.
+This required adding a `render()` function to the `ViewStateRendering` protocol that was optional for SwiftUI views, but required for UIKit views.
 
 Benefits
 
-- Removes 9 lines of boilerplate code (Solves problem #1)
-- Removes potential for incorrect state subscription (Solves problem #2)
-- Removes potential for memory leaks in state observation (Solves problem #3)
-- Invokes `render()` after the state value changes, ensuring `state` and `container.state` are both safe to access in the rendering code. (Solves problem #4)
-- Allows custom state subscription to be possible if required (by opting out of the `@AutoRendered` property)
+- Very simple solution
+- Addresses the main issues with VSM in UIKit
 
 Drawbacks
 
-- Forgetting to apply `@AutoRendered` to the `container` property will result in runtime behavior issues (Property wrapper usage cannot be enforced by the compiler, as is the standard for all property wrappers like `@State`, `@ObservedObject`, etc.)
+- This causes a breaking change for developers with the new `render()` protocol requirement
+- It doesn't do as much for overall ergonomics as the `ViewState` property wrapper solutions
 
-## Alternatives Considered
-
-Two other solutions were considered which provide similar benefits while making the VSM framework more ergonomic.
-
-### ViewState Property Wrapper
+### A Single ViewState Property Wrapper
 
 This solution focuses on addressing the problems in question while improving the ergonomics of the SwiftUI VSM view code. It does so by introducing a `@ViewState` property wrapper which encapsulates the `StateContainer` entirely from the engineer. It also provides the same convenient auto-observing behavior as `@AutoRender`, allowing it to be used for both SwiftUI and UIKit.
 
