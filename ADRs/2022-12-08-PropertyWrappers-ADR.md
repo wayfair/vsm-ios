@@ -43,6 +43,7 @@ These are the problems with the current approach:
 ## Proposed Solution
 
 The solution is broken into two parts:
+
 1. [RenderedViewState Property Wrapper](#Part%201%20-%20RenderedViewState%20Property%20Wrapper)
 2. [ViewState Property Wrapper](#Part%202%20-%20ViewState%20Property%20Wrapper)
 
@@ -102,18 +103,19 @@ Benefits
 - Invokes `render()` after the state value changes, ensuring that the `state` property is safe to access in the rendering code (Solves problem #4)
 
 Knock-on Benefits
+
 - Allows custom state subscription to be possible if required (by opting out of the `@RenderedViewState` property and using the `StateContainer`'s new `statePublisher` property)
 - The new `$state.publisher` property allows for more stable custom state observation (on `didSet` vs `willSet`)
 - Improves the ergonomics of building a VSM view
-    - `ViewStateRendering` is superseded by `@RenderedViewState` in every way. This removes developer confusion around `ViewStateRendering` and its somewhat ambiguous purpose
-    - A simpler view state declaration allows developers to directly focus on the view state type and concerns instead of clouding the concept with the `StateContainer` declaration
-    - Developers can name their view state property as they see fit. It is no longer constrained to `container.state` by the `ViewStateRendering` protocol. `state` is the recommended view state property name and will be used throughout the documentation.
+  - `ViewStateRendering` is superseded by `@RenderedViewState` in every way. This removes developer confusion around `ViewStateRendering` and its somewhat ambiguous purpose
+  - A simpler view state declaration allows developers to directly focus on the view state type and concerns instead of clouding the concept with the `StateContainer` declaration
+  - Developers can name their view state property as they see fit. It is no longer constrained to `container.state` by the `ViewStateRendering` protocol. `state` is the recommended view state property name and will be used throughout the documentation.
 
 Drawbacks
 
 - Forgetting to apply `@RenderedViewState` to the `state` property will result in unexpected runtime behavior
-    - This concern is mitigated by the fact that SwiftUI's property wrappers have the same tradeoff (`@State`, `@ObservedObject`, etc.)
-    - This can be mitigated by Swift Lint rules, or possibly targeted ("purple") runtime warnings as the [Composable Architecture](https://github.com/pointfreeco/swift-composable-architecture/blob/main/Sources/ComposableArchitecture/Internal/RuntimeWarnings.swift) does
+  - This concern is mitigated by the fact that SwiftUI's property wrappers have the same tradeoff (`@State`, `@ObservedObject`, etc.)
+  - This can be mitigated by Swift Lint rules, or possibly targeted ("purple") runtime warnings as the [Composable Architecture](https://github.com/pointfreeco/swift-composable-architecture/blob/main/Sources/ComposableArchitecture/Internal/RuntimeWarnings.swift) does
 - Extra typing is required on some lines because `observe` and `bind` are no longer accessible directly on the view through the `ViewStateRendering` protocol (`$state.observe(...)` vs `observe(...)`)
 - The developer is further removed from the "metal" of the framework (the `StateContainer`)
 
@@ -158,9 +160,9 @@ Drawbacks
 
 - The same drawbacks as the `@RenderedViewState` property
 - `@ViewState` may be confused with `@RenderedViewState`. The compiler prevents `@RenderedViewState` from being used in a SwiftUI view, but the reverse is possible. This mistake causes unexpected runtime behavior and runtime warnings.
-    - To a lesser extent, this concern is deflated by the fact that SwiftUI's property wrappers have the same tradeoff (`@State`, `@ObservedObject`, etc.)
-    - This can be mitigated by Swift Lint rules
-    - See [Alternative: A Single ViewState Property Wrapper](A%20Single%20ViewState%20Property%20Wrapper) for contrast
+  - To a lesser extent, this concern is deflated by the fact that SwiftUI's property wrappers have the same tradeoff (`@State`, `@ObservedObject`, etc.)
+  - This can be mitigated by Swift Lint rules
+  - See [Alternative: A Single ViewState Property Wrapper](A%20Single%20ViewState%20Property%20Wrapper) for contrast
 
 ## Alternatives Considered
 
@@ -254,8 +256,8 @@ Drawbacks
 
 - The simple default initializer for SwiftUI views is lost because the extra set of UIKit initializers prevent the convenience initializer from being inferred by the Swift compiler
 - The property wrapper is incorrectly configurable in a way that is not immediately apparent to the developer (ie, if you use the SwiftUI initializer on a UIKit view).
-    - It is difficult for the developer to understand which initializers are appropriate in which situations
-    - This makes it feel like a problem with the framework instead of a developer education issue.
+  - It is difficult for the developer to understand which initializers are appropriate in which situations
+  - This makes it feel like a problem with the framework instead of a developer education issue.
 
 The proposed solution addresses these drawbacks by providing two distinct property wrappers, one for each paradigm. This simplifies both the implementation code and improves developer understanding of the framework types and requirements.
 
