@@ -1,34 +1,41 @@
 {
-  "object": {
-    "pins": [
-      {
-        "package": "combine-schedulers",
-        "repositoryURL": "https://github.com/pointfreeco/combine-schedulers",
-        "state": {
-          "branch": null,
-          "revision": "4cf088c29a20f52be0f2ca54992b492c54e0076b",
-          "version": "0.5.3"
-        }
-      },
-      {
-        "package": "TestableCombinePublishers",
-        "repositoryURL": "https://github.com/albertbori/TestableCombinePublishers.git",
-        "state": {
-          "branch": null,
-          "revision": "c4581c15e3960af0b8e946193fc260a8deb128a3",
-          "version": "1.0.4"
-        }
-      },
-      {
-        "package": "xctest-dynamic-overlay",
-        "repositoryURL": "https://github.com/pointfreeco/xctest-dynamic-overlay",
-        "state": {
-          "branch": null,
-          "revision": "50a70a9d3583fe228ce672e8923010c8df2deddd",
-          "version": "0.2.1"
-        }
+  "pins" : [
+    {
+      "identity" : "combine-schedulers",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/pointfreeco/combine-schedulers",
+      "state" : {
+        "revision" : "4cf088c29a20f52be0f2ca54992b492c54e0076b",
+        "version" : "0.5.3"
       }
-    ]
-  },
-  "version": 1
+    },
+    {
+      "identity" : "swift-docc-plugin",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-docc-plugin",
+      "state" : {
+        "revision" : "3303b164430d9a7055ba484c8ead67a52f7b74f6",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "testablecombinepublishers",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/albertbori/TestableCombinePublishers.git",
+      "state" : {
+        "revision" : "c4581c15e3960af0b8e946193fc260a8deb128a3",
+        "version" : "1.0.4"
+      }
+    },
+    {
+      "identity" : "xctest-dynamic-overlay",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/pointfreeco/xctest-dynamic-overlay",
+      "state" : {
+        "revision" : "50a70a9d3583fe228ce672e8923010c8df2deddd",
+        "version" : "0.2.1"
+      }
+    }
+  ],
+  "version" : 2
 }
