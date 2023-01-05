@@ -30,6 +30,7 @@ struct ProductDetailView: View, ViewStateRendering {
                 Spacer()
                 addToCartButtonView()
             }
+            .navigationTitle(productDetail.name)
             if case .addedToCart = container.state {
                 addToCartToastView()
             }
@@ -41,13 +42,10 @@ struct ProductDetailView: View, ViewStateRendering {
     
     func productDetailsView() -> some View {
         VStack(alignment: .leading) {
-            VStack(alignment: .leading) {
-                Text(productDetail.name).font(.largeTitle)
-                HStack {
-                    Text(productDetail.price, format: .currency(code: "USD"))
-                    Spacer()
-                    FavoriteButtonView(dependencies: dependencies, productId: productDetail.id, productName: productDetail.name)
-                }
+            HStack {
+                Text(productDetail.price, format: .currency(code: "USD"))
+                Spacer()
+                FavoriteButtonView(dependencies: dependencies, productId: productDetail.id, productName: productDetail.name)
             }
             .padding()
             AsyncImage(url: productDetail.imageURL) { image in
@@ -60,6 +58,7 @@ struct ProductDetailView: View, ViewStateRendering {
                         .frame(width: geometry.size.width, height: geometry.size.width, alignment: .center)
                 }
             }
+            .accessibilityIdentifier("\(productDetail.name) Image")
             Text(productDetail.description).font(.body)
                 .padding()
         }
