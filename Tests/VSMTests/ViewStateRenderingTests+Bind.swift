@@ -11,11 +11,11 @@ import XCTest
 import VSM
 
 class ViewStateRenderingTests_Bind: XCTestCase {
-    var subject: AnyViewStateRendering<MockBindableStateModel>!
+    var subject: AnyViewStateRendering<MockBindableState>!
     var cancellables: Set<AnyCancellable> = []
 
     override func setUpWithError() throws {
-        subject = AnyViewStateRendering(container: .init(state: MockBindableStateModel(isEnabled: false)))
+        subject = AnyViewStateRendering(container: .init(state: MockBindableState(isEnabled: false)))
         
         let expectation = expectation(description: "Waiting for \(#function)")
         subject.container.$state
@@ -40,7 +40,7 @@ class ViewStateRenderingTests_Bind: XCTestCase {
     }
     
     func testBindSynchronousMethodSignature() throws {
-        let binding = subject.bind(\.isEnabled, to: MockBindableStateModel.toggleSync)
+        let binding = subject.bind(\.isEnabled, to: MockBindableState.toggleSync)
         binding.wrappedValue = true
         waitForExpectations(timeout: 1)
     }
@@ -52,7 +52,7 @@ class ViewStateRenderingTests_Bind: XCTestCase {
     }
     
     func testBindAsynchronousMethodSignature() throws {
-        let binding = subject.bind(\.isEnabled, to: MockBindableStateModel.toggleAsync)
+        let binding = subject.bind(\.isEnabled, to: MockBindableState.toggleAsync)
         binding.wrappedValue = true
         waitForExpectations(timeout: 1)
     }
@@ -64,7 +64,7 @@ class ViewStateRenderingTests_Bind: XCTestCase {
     }
     
     func testBindPublisherMethodSignature() throws {
-        let binding = subject.bind(\.isEnabled, to: MockBindableStateModel.togglePublisher)
+        let binding = subject.bind(\.isEnabled, to: MockBindableState.togglePublisher)
         binding.wrappedValue = true
         waitForExpectations(timeout: 1)
     }

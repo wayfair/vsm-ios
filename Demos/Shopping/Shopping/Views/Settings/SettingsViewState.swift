@@ -9,7 +9,7 @@ import Foundation
 import VSM
 
 // Note that in this example, the "S" in "VSM" is silent, because the corresponding view has a single state, which is implied by a single State-Model type
-struct SettingsViewStateModel: MutatingCopyable {
+struct SettingsViewState: MutatingCopyable {
     typealias Dependencies = UserDefaultsDependency
     
     enum SettingKey {

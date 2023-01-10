@@ -22,10 +22,10 @@ struct ShoppingApp: App {
         
         // Reset user defaults if running a UI Test
         if ProcessInfo.processInfo.environment["RESET_USER_DEFAULTS"] == "YES" {
-            UserDefaults.standard.set(false, forKey: SettingsViewStateModel.SettingKey.isCustomBindingExampleEnabled)
-            UserDefaults.standard.set(false, forKey: SettingsViewStateModel.SettingKey.isStateBindingExampleEnabled)
-            UserDefaults.standard.set(false, forKey: SettingsViewStateModel.SettingKey.isConvenienceBindingExampleEnabled1)
-            UserDefaults.standard.set(false, forKey: SettingsViewStateModel.SettingKey.isConvenienceBindingExampleEnabled2)
+            UserDefaults.standard.set(false, forKey: SettingsViewState.SettingKey.isCustomBindingExampleEnabled)
+            UserDefaults.standard.set(false, forKey: SettingsViewState.SettingKey.isStateBindingExampleEnabled)
+            UserDefaults.standard.set(false, forKey: SettingsViewState.SettingKey.isConvenienceBindingExampleEnabled1)
+            UserDefaults.standard.set(false, forKey: SettingsViewState.SettingKey.isConvenienceBindingExampleEnabled2)
         }
     }
     
