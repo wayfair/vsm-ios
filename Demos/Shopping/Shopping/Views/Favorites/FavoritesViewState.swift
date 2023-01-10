@@ -92,7 +92,7 @@ struct FavoritesViewLoadedModel: FavoritesViewLoadedModeling {
     let favorites: [FavoritedProduct]
     
     func delete(productId: Int) -> AnyPublisher<FavoritesViewState, Never> {
-        let statePublisher = Just(FavoritesViewState.deleting(favorites))
+        let statePublisher = Just(FavoritesViewState.deleting(favorites.filter({ $0.id != productId })))
         let apiPublisher = dependencies.favoritesRepository.removeFavorite(productId: productId)
             .flatMap({ modelBuilder.buildLoaderModel().loadFavorites() })
             .catch({ error in Just(FavoritesViewState.deletingError(

@@ -14,6 +14,11 @@ struct ShoppingApp: App {
         // Uncomment this line to see state changes printed to the console for every StateContainer in the app.
         // NOTE: The line below will produce a compiler warning in DEBUG, and will break any non-DEBUG build.
         // StateContainer.debug()
+        
+        // Disable animations if running a UI Test
+        if ProcessInfo.processInfo.environment["UITEST_DISABLE_ANIMATIONS"] == "YES" {
+            UIView.setAnimationsEnabled(false)
+        }
     }
     
     var body: some Scene {

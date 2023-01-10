@@ -25,6 +25,7 @@ struct Badge: View {
                     // custom positioning in the top-right corner
                     .alignmentGuide(.top) { $0[.bottom] - 8 }
                     .alignmentGuide(.trailing) { $0[.trailing] - $0.width * 0.25 }
+                    .accessibilityIdentifier("Cart Item Count")
             }
         }
     }

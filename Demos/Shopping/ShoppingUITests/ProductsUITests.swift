@@ -8,70 +8,42 @@
 import XCTest
 
 class ProductsViewTests: XCTestCase {
-    static var app: XCUIApplication!
-    var app: XCUIApplication { Self.app }
-    
-    override class func setUp() {
-        super.setUp()
-        app = XCUIApplication()
-        app.launch()
-    }
-    
-    override class func tearDown() {
-        super.tearDown()
-        app = nil
-    }
+    var app: XCUIApplication!
     
     override func setUp() {
         super.setUp()
         
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
+
+        app = XCUIApplication()
+        app.launchEnvironment = ["UITEST_DISABLE_ANIMATIONS" : "YES"]
+        app.launch()
     }
     
-    func testProductGridDisplayed() {
-        // Test that the Products view displays a grid of 3 products, each with a button labeled "Ottoman", "TV Stand", and "Couch", respectively
-        let ottomanButton = app.buttons["Ottoman"]
-        _ = ottomanButton.waitForExistence(timeout: 5)
-        XCTAssertTrue(ottomanButton.exists)
-        XCTAssertTrue(app.buttons["TV Stand"].exists)
-        XCTAssertTrue(app.buttons["Couch"].exists)
-        
-        // Test that the Products view displays an image for each product
-        XCTAssertTrue(app.images["Ottoman Image"].exists)
-        XCTAssertTrue(app.images["TV Stand Image"].exists)
-        XCTAssertTrue(app.images["Couch Image"].exists)
+    override func tearDown() {
+        super.tearDown()
+        app = nil
     }
     
-    func testProductViewsDisplayed() {
-        // Test that tapping on a product in the Products view displays a product view with a navigation bar title matching the product name, and the correct product price is displayed
-        let ottomanButton = app.buttons["Ottoman"]
-        ottomanButton.tap()
-        
-        // This line prevents weird error: ("_TtGC7SwiftUI19UIHosting") is not equal to ("Ottoman")
-        _ = app.navigationBars.element.waitForExistence(timeout: 5)
-        
-        XCTAssertEqual(app.navigationBars.element.identifier, "Ottoman")
-        XCTAssertTrue(app.staticTexts["$199.99"].exists)
-        XCTAssertTrue(app.images["Ottoman Image"].exists)
-
-        app.navigationBars.buttons.element(boundBy: 0).tap()
-
-        let tvStandButton = app.buttons["TV Stand"]
-        tvStandButton.tap()
-        XCTAssertEqual(app.navigationBars.element.identifier, "TV Stand")
-        XCTAssertTrue(app.staticTexts["$299.99"].exists)
-        XCTAssertTrue(app.images["TV Stand Image"].exists)
-
-        app.navigationBars.buttons.element(boundBy: 0).tap()
-
-        let couchButton = app.buttons["Couch"]
-        couchButton.tap()
-        XCTAssertEqual(app.navigationBars.element.identifier, "Couch")
-        XCTAssertTrue(app.staticTexts["$599.99"].exists)
-        XCTAssertTrue(app.images["Couch Image"].exists)
-        
-        app.navigationBars.buttons.element(boundBy: 0).tap()
+    func testProducts() {
+        // Tests that each product displays the appropriate information in the list
+        MainTestView(app: app)
+            .defaultTab()
+            .tapProduct("Ottoman")
+            .assert(app.navigationBars["Ottoman"].exists)
+            .assert(app.staticTexts["$199.99"].exists)
+            .assert(app.images["Ottoman Image"].exists)
+            .tapBackButton()
+            .tapProduct("TV Stand")
+            .assert(app.navigationBars["TV Stand"].exists)
+            .assert(app.staticTexts["$299.99"].exists)
+            .assert(app.images["TV Stand Image"].exists)
+            .tapBackButton()
+            .tapProduct("Couch")
+            .assert(app.navigationBars["Couch"].exists)
+            .assert(app.staticTexts["$599.99"].exists)
+            .assert(app.images["Couch Image"].exists)
+            .tapBackButton()
+            .assert(app.navigationBars["Products"].exists)
     }
-
 }

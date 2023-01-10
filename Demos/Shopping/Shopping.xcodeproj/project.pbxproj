@@ -19,6 +19,13 @@
 		322B21F327BC55D400D147A4 /* CartViewState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 322B21F227BC55D400D147A4 /* CartViewState.swift */; };
 		32387F2529661A3F00B78C3B /* ProductsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32387F2429661A3F00B78C3B /* ProductsUITests.swift */; };
 		32387F272966280900B78C3B /* FavoritesUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32387F262966280900B78C3B /* FavoritesUITests.swift */; };
+		32387F292967221E00B78C3B /* CartUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32387F282967221E00B78C3B /* CartUITests.swift */; };
+		32387F2C2969048400B78C3B /* MainTabTestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32387F2B2969048400B78C3B /* MainTabTestView.swift */; };
+		32387F2E29690A2200B78C3B /* TestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32387F2D29690A2200B78C3B /* TestView.swift */; };
+		32387F302969159F00B78C3B /* CartTestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32387F2F2969159F00B78C3B /* CartTestView.swift */; };
+		32387F32296915EF00B78C3B /* ProductDetailTestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32387F31296915EF00B78C3B /* ProductDetailTestView.swift */; };
+		32387F342969167000B78C3B /* FavoritesTestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32387F332969167000B78C3B /* FavoritesTestView.swift */; };
+		32387F36296D021C00B78C3B /* XCUIElement+waitForExistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32387F35296D021C00B78C3B /* XCUIElement+waitForExistence.swift */; };
 		325653D3295E43BA00EBA450 /* MainUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 325653D2295E43BA00EBA450 /* MainUITests.swift */; };
 		3289790527BEF65D00651ADE /* DemoButtonStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3289790427BEF65D00651ADE /* DemoButtonStyle.swift */; };
 		3289790827BF2D5400651ADE /* CartButtonViewState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3289790727BF2D5400651ADE /* CartButtonViewState.swift */; };
@@ -85,6 +92,13 @@
 		322B21F227BC55D400D147A4 /* CartViewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CartViewState.swift; sourceTree = "<group>"; };
 		32387F2429661A3F00B78C3B /* ProductsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductsUITests.swift; sourceTree = "<group>"; };
 		32387F262966280900B78C3B /* FavoritesUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesUITests.swift; sourceTree = "<group>"; };
+		32387F282967221E00B78C3B /* CartUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CartUITests.swift; sourceTree = "<group>"; };
+		32387F2B2969048400B78C3B /* MainTabTestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabTestView.swift; sourceTree = "<group>"; };
+		32387F2D29690A2200B78C3B /* TestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestView.swift; sourceTree = "<group>"; };
+		32387F2F2969159F00B78C3B /* CartTestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CartTestView.swift; sourceTree = "<group>"; };
+		32387F31296915EF00B78C3B /* ProductDetailTestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductDetailTestView.swift; sourceTree = "<group>"; };
+		32387F332969167000B78C3B /* FavoritesTestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesTestView.swift; sourceTree = "<group>"; };
+		32387F35296D021C00B78C3B /* XCUIElement+waitForExistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCUIElement+waitForExistence.swift"; sourceTree = "<group>"; };
 		325653D2295E43BA00EBA450 /* MainUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainUITests.swift; sourceTree = "<group>"; };
 		3289790427BEF65D00651ADE /* DemoButtonStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoButtonStyle.swift; sourceTree = "<group>"; };
 		3289790727BF2D5400651ADE /* CartButtonViewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CartButtonViewState.swift; sourceTree = "<group>"; };
@@ -157,6 +171,19 @@
 				322B21EE27BC086700D147A4 /* FavoriteButtonViewState.swift */,
 			);
 			path = FavoriteButtonView;
+			sourceTree = "<group>";
+		};
+		32387F2A2969021100B78C3B /* Helpers */ = {
+			isa = PBXGroup;
+			children = (
+				32387F2F2969159F00B78C3B /* CartTestView.swift */,
+				32387F332969167000B78C3B /* FavoritesTestView.swift */,
+				32387F2B2969048400B78C3B /* MainTabTestView.swift */,
+				32387F31296915EF00B78C3B /* ProductDetailTestView.swift */,
+				32387F2D29690A2200B78C3B /* TestView.swift */,
+				32387F35296D021C00B78C3B /* XCUIElement+waitForExistence.swift */,
+			);
+			path = Helpers;
 			sourceTree = "<group>";
 		};
 		329F66D428297FE10089DD70 /* Settings */ = {
@@ -338,9 +365,11 @@
 		32EEC70A27B482B7001AB9C7 /* ShoppingUITests */ = {
 			isa = PBXGroup;
 			children = (
+				32387F2A2969021100B78C3B /* Helpers */,
 				325653D2295E43BA00EBA450 /* MainUITests.swift */,
 				32387F2429661A3F00B78C3B /* ProductsUITests.swift */,
 				32387F262966280900B78C3B /* FavoritesUITests.swift */,
+				32387F282967221E00B78C3B /* CartUITests.swift */,
 			);
 			path = ShoppingUITests;
 			sourceTree = "<group>";
@@ -559,7 +588,14 @@
 			files = (
 				32387F272966280900B78C3B /* FavoritesUITests.swift in Sources */,
 				325653D3295E43BA00EBA450 /* MainUITests.swift in Sources */,
+				32387F2E29690A2200B78C3B /* TestView.swift in Sources */,
+				32387F36296D021C00B78C3B /* XCUIElement+waitForExistence.swift in Sources */,
+				32387F2C2969048400B78C3B /* MainTabTestView.swift in Sources */,
 				32387F2529661A3F00B78C3B /* ProductsUITests.swift in Sources */,
+				32387F32296915EF00B78C3B /* ProductDetailTestView.swift in Sources */,
+				32387F342969167000B78C3B /* FavoritesTestView.swift in Sources */,
+				32387F302969159F00B78C3B /* CartTestView.swift in Sources */,
+				32387F292967221E00B78C3B /* CartUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

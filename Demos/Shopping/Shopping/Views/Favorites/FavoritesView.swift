@@ -69,7 +69,7 @@ struct FavoritesView: View, ViewStateRendering {
         ProgressView()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.white.opacity(0.75))
-            .accessibilityIdentifier("Deleting Progress View")
+            .accessibilityIdentifier("Processing...")
     }
     
     func errorView(_ errorModel: FavoritesViewErrorModeling) -> some View {

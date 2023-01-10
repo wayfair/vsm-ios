@@ -25,6 +25,7 @@ struct CartButtonView: View, ViewStateRendering {
         Button(action: { showCart.toggle() }) {
             Image(systemName: "cart")
         }
+        .accessibilityIdentifier("Show Cart")
         .overlay(Badge(count: container.state.cartItemCount))
         .fullScreenCover(isPresented: $showCart) {
             CartView(dependencies: dependencies, showModal: $showCart)
