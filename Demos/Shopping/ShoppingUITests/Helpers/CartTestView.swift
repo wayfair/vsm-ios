@@ -32,17 +32,13 @@ struct CartTestView<ParentView: TestView>: PresentedTestView {
     
     @discardableResult
     func remove(_ name: String, file: StaticString = #file, line: UInt = #line) -> Self {
-        // The following is unconventional because of the flakiness of XCTest's automated UI test framework
-        // - Use cell w/ query instead of static text because of intermittent search failures
-        // - Swipe multiple times because the first swipe is often missed
         let row = app.collectionViews.cells.containing(.staticText, identifier: name).firstMatch
         let deleteButton = app.buttons["Remove \(name)"]
         XCTAssertTrue(row.waitForExistence(), "Can't find '\(name) Row'", file: file, line: line)
         row.swipeLeft()
-        row.swipeLeft()
         XCTAssertTrue(deleteButton.waitForExistence(), "Can't find 'Remove \(name)'", file: file, line: line)
         deleteButton.tap()
-        XCTAssertTrue(app.progressIndicators["Processing..."].waitForNonexistence(), "'Processing...' is stuck", file: file, line: line)
+        XCTAssertTrue(app.activityIndicators["Processing..."].waitForNonexistence(), "'Processing...' is stuck", file: file, line: line)
         return self
     }
     

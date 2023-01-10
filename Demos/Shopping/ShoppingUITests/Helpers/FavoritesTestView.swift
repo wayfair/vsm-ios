@@ -26,7 +26,7 @@ struct FavoritesTestView: PushedTestView, TabTestView {
         app.staticTexts[name].swipeLeft()
         XCTAssertTrue(deleteButton.waitForExistence(), "Can't find 'Delete \(name)'", file: file, line: line)
         deleteButton.tap()
-        XCTAssertTrue(app.progressIndicators["Processing..."].waitForNonexistence(), "'Processing...' is stuck", file: file, line: line)
+        XCTAssertTrue(app.activityIndicators["Processing..."].waitForNonexistence(), "'Processing...' is stuck", file: file, line: line)
         return self
     }
 }
