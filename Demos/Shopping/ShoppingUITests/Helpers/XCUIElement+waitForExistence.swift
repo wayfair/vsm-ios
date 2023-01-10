@@ -13,9 +13,9 @@ extension XCUIElement {
     /// Searches for an element for up  to 5 seconds. Returns the instant that the element is found or when the search times out.
     /// - Parameter hittable: Conditionally require if the item should be hittable (defaults to `true`)
     /// - Returns: Returns true if the element was found and is appropriately hittable (if specified). Otherwise returns false.
-    func waitForExistence(hittable: Bool = true) -> Bool {
+    func waitForExistence(hittable: Bool = true, enabled: Bool = true) -> Bool {
         for _ in 1...maxWaitCount {
-            if exists && (!hittable || isHittable) { return true }
+            if exists && (!hittable || isHittable) && (!enabled || isEnabled) { return true }
             Thread.sleep(forTimeInterval: 0.1)
         }
         return false

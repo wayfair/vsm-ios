@@ -45,4 +45,11 @@ struct CartTestView<ParentView: TestView>: PresentedTestView {
         XCTAssertTrue(app.progressIndicators["Processing..."].waitForNonexistence(), "'Processing...' is stuck", file: file, line: line)
         return self
     }
+    
+    @discardableResult
+    func tapPlaceOrder(file: StaticString = #file, line: UInt = #line) -> Self {
+        XCTAssertTrue(app.buttons["Place Order"].waitForExistence(), "Can't find 'Place Order' button", file: file, line: line)
+        app.buttons["Place Order"].tap()
+        return self
+    }
 }

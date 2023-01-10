@@ -79,4 +79,18 @@ class CartTests: XCTestCase {
             .assert(app.staticTexts["$0.00"].exists)
             .assert(app.staticTexts["Your cart is empty."].waitForExistence())
     }
+    
+    func testOrder() {
+        // Test that adding a product to cart and ordering shows the receipt view
+        MainTestView(app: app)
+            .defaultTab()
+            .tapProduct("Ottoman")
+            .tapAddToCart()
+            .tapCartButton()
+            .tapPlaceOrder()
+            .assert(app.staticTexts["Receipt"].waitForExistence())
+            .assert(app.staticTexts["Ottoman"].exists)
+            .assert(app.staticTexts["$199.99"].exists)
+            .tapCloseButton()
+    }
 }
