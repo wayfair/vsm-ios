@@ -9,8 +9,8 @@ import XCTest
 
 /// The test view for the favorites list which provides the ability to remove favorites
 struct FavoritesTestView: PushedTestView, TabTestView {
-    var app: XCUIApplication
-    var previousView: AccountTabTestView
+    let app: XCUIApplication
+    let previousView: AccountTabTestView
     
     init(app: XCUIApplication, previousView: AccountTabTestView, file: StaticString = #file, line: UInt = #line) {
         self.app = app

@@ -19,6 +19,14 @@ struct ShoppingApp: App {
         if ProcessInfo.processInfo.environment["UITEST_DISABLE_ANIMATIONS"] == "YES" {
             UIView.setAnimationsEnabled(false)
         }
+        
+        // Reset user defaults if running a UI Test
+        if ProcessInfo.processInfo.environment["RESET_USER_DEFAULTS"] == "YES" {
+            UserDefaults.standard.set(false, forKey: SettingsViewStateModel.SettingKey.isCustomBindingExampleEnabled)
+            UserDefaults.standard.set(false, forKey: SettingsViewStateModel.SettingKey.isStateBindingExampleEnabled)
+            UserDefaults.standard.set(false, forKey: SettingsViewStateModel.SettingKey.isConvenienceBindingExampleEnabled1)
+            UserDefaults.standard.set(false, forKey: SettingsViewStateModel.SettingKey.isConvenienceBindingExampleEnabled2)
+        }
     }
     
     var body: some Scene {

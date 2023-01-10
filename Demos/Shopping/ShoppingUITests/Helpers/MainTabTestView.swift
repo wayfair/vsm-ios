@@ -85,4 +85,11 @@ struct AccountTabTestView: TabTestView, CartButtonTestView {
         app.buttons["Favorites"].tap()
         return .init(app: app, previousView: self, file: file, line: line)
     }
+    
+    @discardableResult
+    func tapSettings(file: StaticString = #file, line: UInt = #line) -> SettingsTestView {
+        XCTAssertTrue(app.buttons["Settings"].exists, "Can't find Settings button", file: file, line: line)
+        app.buttons["Settings"].tap()
+        return .init(app: app, previousView: self, file: file, line: line)
+    }
 }

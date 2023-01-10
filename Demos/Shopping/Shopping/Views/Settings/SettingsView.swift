@@ -60,6 +60,7 @@ struct SettingsView: View, ViewStateRendering {
         List {
             // a.
             Toggle("Custom Binding", isOn: isCustomBindingExampleEnabled)
+                .accessibilityIdentifier("Custom Binding Toggle")
             
             // b.
             Toggle("State Binding", isOn: $isStateBindingExampleEnabled)
@@ -69,12 +70,16 @@ struct SettingsView: View, ViewStateRendering {
                 .onChange(of: container.state.isStateBindingExampleEnabled, perform: { enabled in
                     isStateBindingExampleEnabled = enabled
                 })
+                .accessibilityIdentifier("State Binding Toggle")
             
             // c.1
             Toggle("Convenience Binding 1", isOn: isConvenienceBindingExampleEnabled1)
+                .accessibilityIdentifier("Convenience Binding 1 Toggle")
             
             // c.2
             Toggle("Convenience Binding 2", isOn: isConvenienceBindingExampleEnabled2)
+                .accessibilityIdentifier("Convenience Binding 2 Toggle")
         }
+        .navigationTitle("Settings")
     }
 }
