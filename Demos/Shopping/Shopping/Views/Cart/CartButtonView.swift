@@ -70,27 +70,3 @@ struct CartButtonView_Previews: PreviewProvider {
         .previewDisplayName("99 Count State")
     }
 }
-
-// MARK: - Alternative approach using a simple single-state view model:
-
-struct CartButtonView_SingleStateViewModelExample: View, ViewStateRendering {
-    typealias Dependencies = Alt_CartButtonViewState.Dependencies & CartView.Dependencies
-    let dependencies: Dependencies
-    @State var showCart: Bool = false
-    @ObservedObject var container: StateContainer<Alt_CartButtonViewStateProviding>
-    
-    init(dependencies: Dependencies) {
-        self.dependencies = dependencies
-        container = .init(state: Alt_CartButtonViewState(dependencies: dependencies))
-    }
-    
-    var body: some View {
-        Button(action: { showCart.toggle() }) {
-            Image(systemName: "cart")
-        }
-        .overlay(Badge(count: container.state.cartItemCount))
-        .fullScreenCover(isPresented: $showCart) {
-            CartView(dependencies: dependencies, showModal: $showCart)
-        }
-    }
-}
