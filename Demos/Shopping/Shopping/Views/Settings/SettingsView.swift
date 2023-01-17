@@ -67,9 +67,9 @@ struct SettingsView: View, ViewStateRendering {
                 .onChange(of: isStateBindingExampleEnabled) { enabled in
                     container.observe(container.state.toggleIsStateBindingExampleEnabled(enabled))
                 }
-                .onChange(of: container.state.isStateBindingExampleEnabled, perform: { enabled in
-                    isStateBindingExampleEnabled = enabled
-                })
+                .onReceive(container.$state) { state in
+                    isStateBindingExampleEnabled = state.isStateBindingExampleEnabled
+                }
                 .accessibilityIdentifier("State Binding Toggle")
             
             // c.1
