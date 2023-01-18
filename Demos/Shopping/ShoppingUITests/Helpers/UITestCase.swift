@@ -17,10 +17,7 @@ open class UITestCase: XCTestCase {
         continueAfterFailure = false
 
         app = XCUIApplication()
-        app.launchEnvironment = [
-            "UITEST_DISABLE_ANIMATIONS" : "YES",
-            "RESET_USER_DEFAULTS": "YES"
-        ]
+        app.launchArguments += ["-UITesting"]
         app.launch()
     }
     

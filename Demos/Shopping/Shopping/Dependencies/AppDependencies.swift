@@ -43,12 +43,16 @@ extension AppDependencies {
                     let productRepository = ProductDatabase()
                     let cartRepository = CartDatabase(dependencies: CartDatabaseDependencies(productRepository: productRepository))
                     let favoritesRepository = FavoritesDatabase(dependencies: FavoritesDatabaseDependencies(productRepository: productRepository))
+                    
+                    // Stub user defaults with an ephemeral implementation if this is a UI test
+                    let userDefaults = ShoppingApp.isUITesting ? StubbedUserDefaults() : UserDefaults.standard
+                    
                     let appDependencies = AppDependencies(
                         productRepository: productRepository,
                         cartRepository: cartRepository,
                         favoritesRepository: favoritesRepository,
                         dispatchQueue: DispatchQueueScheduler(),
-                        userDefaults: UserDefaults.standard
+                        userDefaults: userDefaults
                     )
                     continuation.resume(returning: appDependencies)
                 }
