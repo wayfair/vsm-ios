@@ -7,7 +7,7 @@
 
 import XCTest
 
-class ProductsViewTests: XCTestCase {
+class ProductsUITests: XCTestCase {
     var app: XCUIApplication!
     
     override func setUp() {

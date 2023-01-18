@@ -7,7 +7,7 @@
 
 import XCTest
 
-class CartTests: XCTestCase {
+class CartUITests: XCTestCase {
     var app: XCUIApplication!
     
     override func setUp() {
@@ -25,7 +25,7 @@ class CartTests: XCTestCase {
         app = nil
     }
     
-    func testSyncrhonizedCartState() {
+    func testSynchronizedCartState() {
         // Test that adding and removing items from the cart updates the cart button badge
         MainTestView(app: app)
             .defaultTab()
