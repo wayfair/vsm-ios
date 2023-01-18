@@ -27,7 +27,7 @@ class FavoritesUITests: XCTestCase {
     
     func testToggleFavoriteButton() {
         // Test that the favorite toggle button toggles and retains its value between navigations
-        MainTestView(app: app)
+        MainPage(app: app)
             .defaultTab()
             .tapProduct("Ottoman")
             .tapFavorite()
@@ -45,7 +45,7 @@ class FavoritesUITests: XCTestCase {
     
     func testSynchronizedFavoriteState() {
         // Tests that the favorites state is synchronized between views if changed in one place
-        let productView = MainTestView(app: app)
+        let productView = MainPage(app: app)
             .defaultTab()
             .tapProduct("Ottoman")
         
@@ -61,7 +61,7 @@ class FavoritesUITests: XCTestCase {
     
     func testAddAndRemoveManyFavorites() {
         // Tests that the add/remove many behavior works
-        MainTestView(app: app)
+        MainPage(app: app)
             .defaultTab()
             .tapProduct("Ottoman")
             .tapFavorite()

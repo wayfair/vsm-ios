@@ -1,5 +1,5 @@
 //
-//  TestView.swift
+//  TestableUI.swift
 //  ShoppingUITests
 //
 //  Created by Albert Bori on 1/6/23.
@@ -8,11 +8,11 @@
 import XCTest
 
 /// A generic view tester type used for automated UI tests of the Shopping demo app
-protocol TestView {
+protocol TestableUI {
     var app: XCUIApplication { get }
 }
 
-extension TestView {
+extension TestableUI {
     /// Asserts that the condition is true while preserving fluent API calls
     @discardableResult
     func assert(_ condition: Bool, file: StaticString = #file, line: UInt = #line) -> Self {
@@ -36,28 +36,28 @@ extension TestView {
 }
 
 /// Provides back button navigation to test views that are pushed onto the navigation stack
-protocol PushedTestView<PreviousTestView>: TestView {
-    associatedtype PreviousTestView: TestView
-    var previousView: PreviousTestView { get }
+protocol PushedPage<PreviousPage>: TestableUI {
+    associatedtype PreviousPage: TestableUI
+    var previousView: PreviousPage { get }
 }
 
-extension PushedTestView {
+extension PushedPage {
     @discardableResult
-    func tapBackButton() -> PreviousTestView {
+    func tapBackButton() -> PreviousPage {
         app.navigationBars.buttons.element(boundBy: 0).tap()
         return previousView
     }
 }
 
 /// Provides back-button navigation to test views that are presented from another view controller
-protocol PresentedTestView<ParentTester>: TestView {
-    associatedtype ParentTester: TestView
-    var parentView: ParentTester { get }
+protocol PresentedPage<ParentPage>: TestableUI {
+    associatedtype ParentPage: TestableUI
+    var parentView: ParentPage { get }
 }
 
-extension PresentedTestView {
+extension PresentedPage {
     @discardableResult
-    func tapCloseButton() -> ParentTester {
+    func tapCloseButton() -> ParentPage {
         app.buttons["Close"].tap()
         return parentView
     }

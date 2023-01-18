@@ -1,5 +1,5 @@
 //
-//  FavoritesTestView.swift
+//  FavoritesPage.swift
 //  ShoppingUITests
 //
 //  Created by Albert Bori on 1/6/23.
@@ -8,11 +8,11 @@
 import XCTest
 
 /// The test view for the favorites list which provides the ability to remove favorites
-struct FavoritesTestView: PushedTestView, TabTestView {
+struct FavoritesPage: PushedPage, TabbedPage {
     let app: XCUIApplication
-    let previousView: AccountTabTestView
+    let previousView: AccountTabPage
     
-    init(app: XCUIApplication, previousView: AccountTabTestView, file: StaticString = #file, line: UInt = #line) {
+    init(app: XCUIApplication, previousView: AccountTabPage, file: StaticString = #file, line: UInt = #line) {
         self.app = app
         self.previousView = previousView
         XCTAssertTrue(app.collectionViews.element.waitForExistence(), "Can't find Favorites nav bar item", file: file, line: line)

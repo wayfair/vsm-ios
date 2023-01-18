@@ -27,7 +27,7 @@ class MainUITests: XCTestCase {
     
     func testTabs() {
         // Tests that the products tab is defaulted and that the inter-tab navigation works
-        MainTestView(app: app)
+        MainPage(app: app)
             .defaultTab()
             .tapAccountsTab()
             .tapProductsTab()

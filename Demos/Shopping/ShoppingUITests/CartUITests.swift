@@ -27,7 +27,7 @@ class CartUITests: XCTestCase {
     
     func testSynchronizedCartState() {
         // Test that adding and removing items from the cart updates the cart button badge
-        MainTestView(app: app)
+        MainPage(app: app)
             .defaultTab()
             .tapProduct("Ottoman")
             .tapAddToCart()
@@ -55,7 +55,7 @@ class CartUITests: XCTestCase {
     
     func testAddAndRemoveFromCart() {
         // Test that adding and removing products from the cart in the Products view works as expected
-        MainTestView(app: app)
+        MainPage(app: app)
             .defaultTab()
             .tapProduct("Ottoman")
             .tapAddToCart()
@@ -82,7 +82,7 @@ class CartUITests: XCTestCase {
     
     func testOrder() {
         // Test that adding a product to cart and ordering shows the receipt view
-        MainTestView(app: app)
+        MainPage(app: app)
             .defaultTab()
             .tapProduct("Ottoman")
             .tapAddToCart()

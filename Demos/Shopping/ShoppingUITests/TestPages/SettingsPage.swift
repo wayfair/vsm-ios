@@ -1,5 +1,5 @@
 //
-//  SettingsTestView.swift
+//  SettingsPage.swift
 //  ShoppingUITests
 //
 //  Created by Albert Bori on 1/10/23.
@@ -8,11 +8,11 @@
 import XCTest
 
 /// Test view for the settings toggle switches (custom state bindings)
-struct SettingsTestView: TestView, PushedTestView {
+struct SettingsPage: TestableUI, PushedPage {
     let app: XCUIApplication
-    let previousView: AccountTabTestView
+    let previousView: AccountTabPage
     
-    init(app: XCUIApplication, previousView: AccountTabTestView, file: StaticString = #file, line: UInt = #line) {
+    init(app: XCUIApplication, previousView: AccountTabPage, file: StaticString = #file, line: UInt = #line) {
         self.app = app
         self.previousView = previousView
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(), "Can't find Favorites nav bar item", file: file, line: line)

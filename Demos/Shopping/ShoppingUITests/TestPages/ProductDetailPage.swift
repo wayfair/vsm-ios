@@ -1,5 +1,5 @@
 //
-//  ProductDetailTestView.swift
+//  ProductDetailPage.swift
 //  ShoppingUITests
 //
 //  Created by Albert Bori on 1/6/23.
@@ -8,12 +8,12 @@
 import XCTest
 
 /// The test view for product detail which provides favorite toggle and add-to-cart behavior
-struct ProductDetailTestView: PushedTestView, TabTestView, CartButtonTestView {
+struct ProductDetailPage: PushedPage, TabbedPage, CartButtonProviding {
     var app: XCUIApplication
-    var previousView: ProductsTabTestView
+    var previousView: ProductsTabPage
     var name: String
     
-    init(app: XCUIApplication, previousView: ProductsTabTestView, name: String, file: StaticString = #file, line: UInt = #line) {
+    init(app: XCUIApplication, previousView: ProductsTabPage, name: String, file: StaticString = #file, line: UInt = #line) {
         self.app = app
         self.previousView = previousView
         self.name = name

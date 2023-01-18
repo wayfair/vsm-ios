@@ -27,7 +27,7 @@ class ProductsUITests: XCTestCase {
     
     func testProducts() {
         // Tests that each product displays the appropriate information in the list
-        MainTestView(app: app)
+        MainPage(app: app)
             .defaultTab()
             .tapProduct("Ottoman")
             .assert(app.navigationBars["Ottoman"].exists)

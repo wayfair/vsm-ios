@@ -31,7 +31,7 @@ final class SettingsUITests: XCTestCase {
     
     func testToggleStates() {
         // Tests that each of the toggles work and hold their values between navigations
-        MainTestView(app: app)
+        MainPage(app: app)
             .tapAccountsTab()
             .tapSettings()
             .assert(app.switches["Custom Binding Toggle"].value as? String, equals: "0")
