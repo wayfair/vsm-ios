@@ -27,11 +27,15 @@ struct ProductsTabPage: TabbedPage, CartButtonProviding {
     }
     
     @discardableResult
-    func tapProduct(_ name: String, file: StaticString = #file, line: UInt = #line) -> ProductDetailPage {
-        XCTAssertTrue(app.buttons[name].exists, file: file, line: line)
-        app.buttons[name].tap()
-        XCTAssertTrue(app.navigationBars.element.waitForExistence(), file: file, line: line)
-        return .init(app: app, previousView: self, name: name, file: file, line: line)
+    func assertProductsPageIsVisible(file: StaticString = #file, line: UInt = #line) -> Self {
+        assert(app.navigationBars["Products"].exists, message: "Can't find 'Products' nav bar", file: file, line: line)
+    }
+    
+    @discardableResult
+    func tapProductCell(for product: TestProduct, file: StaticString = #file, line: UInt = #line) -> ProductDetailPage {
+        XCTAssertTrue(app.buttons[product.name].exists, "Can't find product cell '\(product.name)' button", file: file, line: line)
+        app.buttons[product.name].tap()
+        return .init(app: app, previousView: self, product: product, file: file, line: line)
     }
 }
 
@@ -42,6 +46,11 @@ struct AccountTabPage: TabbedPage, CartButtonProviding {
     init(app: XCUIApplication, file: StaticString = #file, line: UInt = #line) {
         self.app = app
         XCTAssertTrue(app.navigationBars["Account"].waitForExistence(), "Can't find Account nav bar item", file: file, line: line)
+    }
+    
+    @discardableResult
+    func assertAccountPageIsVisible(file: StaticString = #file, line: UInt = #line) -> Self {
+        assert(app.navigationBars["Account"].exists, message: "Can't find 'Account' nav bar", file: file, line: line)
     }
     
     @discardableResult
@@ -56,5 +65,24 @@ struct AccountTabPage: TabbedPage, CartButtonProviding {
         XCTAssertTrue(app.buttons["Settings"].exists, "Can't find Settings button", file: file, line: line)
         app.buttons["Settings"].tap()
         return .init(app: app, previousView: self, file: file, line: line)
+    }
+}
+
+enum TestProduct: String {
+    case couch = "Couch"
+    case ottoman = "Ottoman"
+    case tvStand = "TV Stand"
+    
+    var name: String { rawValue }
+    
+    var price: String {
+        switch self {
+        case .couch:
+            return "$599.99"
+        case .ottoman:
+            return "$199.99"
+        case .tvStand:
+            return "$299.99"
+        }
     }
 }

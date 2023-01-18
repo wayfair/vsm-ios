@@ -15,21 +15,29 @@ protocol TestableUI {
 extension TestableUI {
     /// Asserts that the condition is true while preserving fluent API calls
     @discardableResult
-    func assert(_ condition: Bool, file: StaticString = #file, line: UInt = #line) -> Self {
-        XCTAssertTrue(condition, file: file, line: line)
+    func assert(_ condition: Bool, message: String? = nil, file: StaticString = #file, line: UInt = #line) -> Self {
+        if let message {
+            XCTAssertTrue(condition, message, file: file, line: line)
+        } else {
+            XCTAssertTrue(condition, file: file, line: line)
+        }
         return self
     }
     
     /// Asserts that the first parameter equals the second while preserving fluent API calls
     @discardableResult
-    func assert<Value: Equatable>(_ left: Value, equals right: Value, file: StaticString = #file, line: UInt = #line) -> Self {
-        XCTAssertEqual(left, right, file: file, line: line)
+    func assert<Value: Equatable>(_ left: Value, equals right: Value, message: String? = nil, file: StaticString = #file, line: UInt = #line) -> Self {
+        if let message {
+            XCTAssertEqual(left, right, message, file: file, line: line)
+        } else {
+            XCTAssertEqual(left, right, file: file, line: line)
+        }
         return self
     }
     
     /// Executes the assertion statement while preserving fluent API calls
     @discardableResult
-    func assert(_ statement: () -> Void, file: StaticString = #file, line: UInt = #line) -> Self {
+    func assert(_ statement: @autoclosure () -> Void, file: StaticString = #file, line: UInt = #line) -> Self {
         statement()
         return self
     }

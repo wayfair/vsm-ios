@@ -19,12 +19,17 @@ struct FavoritesPage: PushedPage, TabbedPage {
     }
     
     @discardableResult
-    func unfavorite(_ name: String, file: StaticString = #file, line: UInt = #line) -> Self {
-        let row = app.staticTexts["\(name) Row"]
-        let deleteButton = app.buttons["Delete \(name)"]
-        XCTAssertTrue(row.waitForExistence(), "Can't find '\(name) Row'", file: file, line: line)
-        app.staticTexts[name].swipeLeft()
-        XCTAssertTrue(deleteButton.waitForExistence(), "Can't find 'Delete \(name)'", file: file, line: line)
+    func assertEmptyFavorites(file: StaticString = #file, line: UInt = #line) -> Self {
+        assert(app.staticTexts["You have no favorite products."].waitForExistence(), message: "Favorites is not empty", file: file, line: line)
+    }
+    
+    @discardableResult
+    func unfavorite(product: TestProduct, file: StaticString = #file, line: UInt = #line) -> Self {
+        let row = app.staticTexts["\(product.name) Row"]
+        let deleteButton = app.buttons["Delete \(product.name)"]
+        XCTAssertTrue(row.waitForExistence(), "Can't find '\(product.name) Row'", file: file, line: line)
+        app.staticTexts[product.name].swipeLeft()
+        XCTAssertTrue(deleteButton.waitForExistence(), "Can't find 'Delete \(product.name)'", file: file, line: line)
         deleteButton.tap()
         XCTAssertTrue(app.activityIndicators["Processing..."].waitForNonexistence(), "'Processing...' is stuck", file: file, line: line)
         return self

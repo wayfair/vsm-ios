@@ -13,21 +13,12 @@ class ProductsUITests: UITestCase {
         // Tests that each product displays the appropriate information in the list
         mainPage
             .defaultTab()
-            .tapProduct("Ottoman")
-            .assert(app.navigationBars["Ottoman"].exists)
-            .assert(app.staticTexts["$199.99"].exists)
-            .assert(app.images["Ottoman Image"].exists)
+            .tapProductCell(for: .ottoman)
             .tapBackButton()
-            .tapProduct("TV Stand")
-            .assert(app.navigationBars["TV Stand"].exists)
-            .assert(app.staticTexts["$299.99"].exists)
-            .assert(app.images["TV Stand Image"].exists)
+            .tapProductCell(for: .tvStand)
             .tapBackButton()
-            .tapProduct("Couch")
-            .assert(app.navigationBars["Couch"].exists)
-            .assert(app.staticTexts["$599.99"].exists)
-            .assert(app.images["Couch Image"].exists)
+            .tapProductCell(for: .couch)
             .tapBackButton()
-            .assert(app.navigationBars["Products"].exists)
+            .assertProductsPageIsVisible()
     }
 }

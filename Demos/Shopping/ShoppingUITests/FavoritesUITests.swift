@@ -13,53 +13,51 @@ class FavoritesUITests: UITestCase {
         // Test that the favorite toggle button toggles and retains its value between navigations
         mainPage
             .defaultTab()
-            .tapProduct("Ottoman")
-            .tapFavorite()
-            .tapUnfavorite()
-            .tapFavorite()
+            .tapProductCell(for: .ottoman)
+            .tapFavoriteButton()
+            .tapUnfavoriteButton()
+            .tapFavoriteButton()
             .tapBackButton()
-            .tapProduct("Ottoman")
-            .assert(app.buttons["Unfavorite Button"].exists)
-            .tapUnfavorite()
-            .assert(app.buttons["Favorite Button"].exists)
+            .tapProductCell(for: .ottoman)
+            .tapUnfavoriteButton()
             .tapBackButton()
-            .tapProduct("Ottoman")
-            .assert(app.buttons["Favorite Button"].exists)
+            .tapProductCell(for: .ottoman)
+            .assertFavoriteButtonExists()
     }
     
     func testSynchronizedFavoriteState() {
         // Tests that the favorites state is synchronized between views if changed in one place
         let productView = mainPage
             .defaultTab()
-            .tapProduct("Ottoman")
+            .tapProductCell(for: .ottoman)
         
         productView
-            .tapFavorite()
+            .tapFavoriteButton()
             .tapAccountsTab()
             .tapFavorites()
-            .unfavorite("Ottoman")
-            .assert(app.staticTexts["You have no favorite products."].waitForExistence())
+            .unfavorite(product: .ottoman)
+            .assertEmptyFavorites()
             .tapProductsTab(expectingView: productView)
-            .assert(app.buttons["Favorite Button"].waitForExistence())
+            .assertFavoriteButtonExists()
     }
     
     func testAddAndRemoveManyFavorites() {
         // Tests that the add/remove many behavior works
         mainPage
             .defaultTab()
-            .tapProduct("Ottoman")
-            .tapFavorite()
+            .tapProductCell(for: .ottoman)
+            .tapFavoriteButton()
             .tapBackButton()
-            .tapProduct("TV Stand")
-            .tapFavorite()
+            .tapProductCell(for: .tvStand)
+            .tapFavoriteButton()
             .tapBackButton()
-            .tapProduct("Couch")
-            .tapFavorite()
+            .tapProductCell(for: .couch)
+            .tapFavoriteButton()
             .tapAccountsTab()
             .tapFavorites()
-            .unfavorite("TV Stand")
-            .unfavorite("Ottoman")
-            .unfavorite("Couch")
-            .assert(app.staticTexts["You have no favorite products."].waitForExistence())
+            .unfavorite(product: .tvStand)
+            .unfavorite(product: .ottoman)
+            .unfavorite(product: .couch)
+            .assertEmptyFavorites()
     }
 }

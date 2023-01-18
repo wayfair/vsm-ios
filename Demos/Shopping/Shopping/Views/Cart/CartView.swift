@@ -76,7 +76,9 @@ struct CartView: View, ViewStateRendering {
             HStack {
                 Text(title).font(.largeTitle)
                 Spacer()
-                Text(cart.total, format: .currency(code: "USD")).font(.largeTitle)
+                Text(cart.total, format: .currency(code: "USD"))
+                    .font(.largeTitle)
+                    .accessibilityLabel(Text("Total: \(cart.total.formatted(.currency(code: "USD")))"))
             }
             .padding()
             List(cart.products, id: \.cartId) { product in

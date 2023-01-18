@@ -19,28 +19,21 @@ struct SettingsPage: TestableUI, PushedPage {
     }
     
     @discardableResult
-    func toggleCustomBinding(file: StaticString = #file, line: UInt = #line) -> Self {
-        toggle("Custom Binding Toggle")
-    }
-    
-    @discardableResult
-    func toggleStateBinding(file: StaticString = #file, line: UInt = #line) -> Self {
-        toggle("State Binding Toggle")
-    }
-    
-    @discardableResult
-    func toggleConvenienceBinding1(file: StaticString = #file, line: UInt = #line) -> Self {
-        toggle("Convenience Binding 1 Toggle")
-    }
-    
-    @discardableResult
-    func toggleConvenienceBinding2(file: StaticString = #file, line: UInt = #line) -> Self {
-        toggle("Convenience Binding 2 Toggle")
-    }
-    
-    private func toggle(_ switchName: String, file: StaticString = #file, line: UInt = #line) -> Self {
-        XCTAssertTrue(app.switches[switchName].waitForExistence(), "Can't find '\(switchName)' switch", file: file, line: line)
-        app.switches[switchName].tap()
+    func toggleSetting(_ setting: Setting, file: StaticString = #file, line: UInt = #line) -> Self {
+        XCTAssertTrue(app.switches[setting.rawValue].waitForExistence(), "Can't find '\(setting.rawValue)' switch", file: file, line: line)
+        app.switches[setting.rawValue].tap()
         return self
+    }
+    
+    @discardableResult
+    func assertSetting(_ setting: Setting, isOn: Bool, file: StaticString = #file, line: UInt = #line) -> Self {
+        assert(app.switches[setting.rawValue].value as? String, equals: isOn ? "1" : "0", message: "'\(setting.rawValue)' is not \(isOn ? "on" : "off")", file: file, line: line)
+    }
+    
+    enum Setting: String {
+        case customBinding = "Custom Binding Toggle"
+        case stateBinding = "State Binding Toggle"
+        case convenienceBinding1 = "Convenience Binding 1 Toggle"
+        case convenienceBinding2 = "Convenience Binding 2 Toggle"
     }
 }
