@@ -7,27 +7,11 @@
 
 import XCTest
 
-class FavoritesUITests: XCTestCase {
-    var app: XCUIApplication!
-    
-    override func setUp() {
-        super.setUp()
-        
-        continueAfterFailure = false
-
-        app = XCUIApplication()
-        app.launchEnvironment = ["UITEST_DISABLE_ANIMATIONS" : "YES"]
-        app.launch()
-    }
-    
-    override func tearDown() {
-        super.tearDown()
-        app = nil
-    }
+class FavoritesUITests: UITestCase {
     
     func testToggleFavoriteButton() {
         // Test that the favorite toggle button toggles and retains its value between navigations
-        MainPage(app: app)
+        mainPage
             .defaultTab()
             .tapProduct("Ottoman")
             .tapFavorite()
@@ -45,7 +29,7 @@ class FavoritesUITests: XCTestCase {
     
     func testSynchronizedFavoriteState() {
         // Tests that the favorites state is synchronized between views if changed in one place
-        let productView = MainPage(app: app)
+        let productView = mainPage
             .defaultTab()
             .tapProduct("Ottoman")
         
@@ -61,7 +45,7 @@ class FavoritesUITests: XCTestCase {
     
     func testAddAndRemoveManyFavorites() {
         // Tests that the add/remove many behavior works
-        MainPage(app: app)
+        mainPage
             .defaultTab()
             .tapProduct("Ottoman")
             .tapFavorite()

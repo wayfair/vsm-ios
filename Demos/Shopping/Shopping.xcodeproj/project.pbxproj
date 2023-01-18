@@ -29,6 +29,7 @@
 		32387F3A296D340600B78C3B /* SettingsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32387F39296D340600B78C3B /* SettingsUITests.swift */; };
 		324B002429783F890087CAB7 /* TestableUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 324B002329783F890087CAB7 /* TestableUI.swift */; };
 		324B0026297843650087CAB7 /* TabbedPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 324B0025297843650087CAB7 /* TabbedPage.swift */; };
+		324B00292978502D0087CAB7 /* UITestCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 324B00282978502D0087CAB7 /* UITestCase.swift */; };
 		325653D3295E43BA00EBA450 /* MainUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 325653D2295E43BA00EBA450 /* MainUITests.swift */; };
 		3289790527BEF65D00651ADE /* DemoButtonStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3289790427BEF65D00651ADE /* DemoButtonStyle.swift */; };
 		3289790827BF2D5400651ADE /* CartButtonViewState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3289790727BF2D5400651ADE /* CartButtonViewState.swift */; };
@@ -105,6 +106,7 @@
 		32387F39296D340600B78C3B /* SettingsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsUITests.swift; sourceTree = "<group>"; };
 		324B002329783F890087CAB7 /* TestableUI.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TestableUI.swift; sourceTree = "<group>"; };
 		324B0025297843650087CAB7 /* TabbedPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabbedPage.swift; sourceTree = "<group>"; };
+		324B00282978502D0087CAB7 /* UITestCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestCase.swift; sourceTree = "<group>"; };
 		325653D2295E43BA00EBA450 /* MainUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainUITests.swift; sourceTree = "<group>"; };
 		3289790427BEF65D00651ADE /* DemoButtonStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoButtonStyle.swift; sourceTree = "<group>"; };
 		3289790727BF2D5400651ADE /* CartButtonViewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CartButtonViewState.swift; sourceTree = "<group>"; };
@@ -191,6 +193,15 @@
 				324B002329783F890087CAB7 /* TestableUI.swift */,
 			);
 			path = TestPages;
+			sourceTree = "<group>";
+		};
+		324B002A2978521D0087CAB7 /* Helpers */ = {
+			isa = PBXGroup;
+			children = (
+				32387F35296D021C00B78C3B /* XCUIElement+waitForExistence.swift */,
+				324B00282978502D0087CAB7 /* UITestCase.swift */,
+			);
+			path = Helpers;
 			sourceTree = "<group>";
 		};
 		329F66D428297FE10089DD70 /* Settings */ = {
@@ -372,13 +383,13 @@
 		32EEC70A27B482B7001AB9C7 /* ShoppingUITests */ = {
 			isa = PBXGroup;
 			children = (
+				324B002A2978521D0087CAB7 /* Helpers */,
 				32387F2A2969021100B78C3B /* TestPages */,
 				32387F282967221E00B78C3B /* CartUITests.swift */,
 				32387F262966280900B78C3B /* FavoritesUITests.swift */,
 				325653D2295E43BA00EBA450 /* MainUITests.swift */,
 				32387F2429661A3F00B78C3B /* ProductsUITests.swift */,
 				32387F39296D340600B78C3B /* SettingsUITests.swift */,
-				32387F35296D021C00B78C3B /* XCUIElement+waitForExistence.swift */,
 			);
 			path = ShoppingUITests;
 			sourceTree = "<group>";
@@ -605,6 +616,7 @@
 				32387F32296915EF00B78C3B /* ProductDetailPage.swift in Sources */,
 				32387F342969167000B78C3B /* FavoritesPage.swift in Sources */,
 				32387F302969159F00B78C3B /* CartPage.swift in Sources */,
+				324B00292978502D0087CAB7 /* UITestCase.swift in Sources */,
 				324B002429783F890087CAB7 /* TestableUI.swift in Sources */,
 				32387F3A296D340600B78C3B /* SettingsUITests.swift in Sources */,
 				32387F292967221E00B78C3B /* CartUITests.swift in Sources */,

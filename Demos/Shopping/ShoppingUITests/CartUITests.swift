@@ -7,27 +7,11 @@
 
 import XCTest
 
-class CartUITests: XCTestCase {
-    var app: XCUIApplication!
-    
-    override func setUp() {
-        super.setUp()
-        
-        continueAfterFailure = false
-
-        app = XCUIApplication()
-        app.launchEnvironment = ["UITEST_DISABLE_ANIMATIONS" : "YES"]
-        app.launch()
-    }
-    
-    override func tearDown() {
-        super.tearDown()
-        app = nil
-    }
+class CartUITests: UITestCase {
     
     func testSynchronizedCartState() {
         // Test that adding and removing items from the cart updates the cart button badge
-        MainPage(app: app)
+        mainPage
             .defaultTab()
             .tapProduct("Ottoman")
             .tapAddToCart()
@@ -55,7 +39,7 @@ class CartUITests: XCTestCase {
     
     func testAddAndRemoveFromCart() {
         // Test that adding and removing products from the cart in the Products view works as expected
-        MainPage(app: app)
+        mainPage
             .defaultTab()
             .tapProduct("Ottoman")
             .tapAddToCart()
@@ -82,7 +66,7 @@ class CartUITests: XCTestCase {
     
     func testOrder() {
         // Test that adding a product to cart and ordering shows the receipt view
-        MainPage(app: app)
+        mainPage
             .defaultTab()
             .tapProduct("Ottoman")
             .tapAddToCart()

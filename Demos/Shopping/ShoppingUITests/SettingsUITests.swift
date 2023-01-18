@@ -8,30 +8,11 @@
 import XCTest
 @testable import Shopping
 
-final class SettingsUITests: XCTestCase {
-    var app: XCUIApplication!
-    
-    override func setUp() {
-        super.setUp()
-        
-        continueAfterFailure = false
-
-        app = XCUIApplication()
-        app.launchEnvironment = [
-            "UITEST_DISABLE_ANIMATIONS" : "YES",
-            "RESET_USER_DEFAULTS": "YES"
-        ]
-        app.launch()
-    }
-    
-    override func tearDown() {
-        super.tearDown()
-        app = nil
-    }
+final class SettingsUITests: UITestCase {
     
     func testToggleStates() {
         // Tests that each of the toggles work and hold their values between navigations
-        MainPage(app: app)
+        mainPage
             .tapAccountsTab()
             .tapSettings()
             .assert(app.switches["Custom Binding Toggle"].value as? String, equals: "0")

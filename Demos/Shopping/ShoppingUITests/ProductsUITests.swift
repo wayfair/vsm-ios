@@ -7,27 +7,11 @@
 
 import XCTest
 
-class ProductsUITests: XCTestCase {
-    var app: XCUIApplication!
-    
-    override func setUp() {
-        super.setUp()
-        
-        continueAfterFailure = false
-
-        app = XCUIApplication()
-        app.launchEnvironment = ["UITEST_DISABLE_ANIMATIONS" : "YES"]
-        app.launch()
-    }
-    
-    override func tearDown() {
-        super.tearDown()
-        app = nil
-    }
+class ProductsUITests: UITestCase {
     
     func testProducts() {
         // Tests that each product displays the appropriate information in the list
-        MainPage(app: app)
+        mainPage
             .defaultTab()
             .tapProduct("Ottoman")
             .assert(app.navigationBars["Ottoman"].exists)

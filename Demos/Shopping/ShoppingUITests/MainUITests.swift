@@ -7,27 +7,11 @@
 
 import XCTest
 
-class MainUITests: XCTestCase {
-    var app: XCUIApplication!
-
-    override func setUp() {
-        super.setUp()
-        
-        continueAfterFailure = false
-
-        app = XCUIApplication()
-        app.launchEnvironment = ["UITEST_DISABLE_ANIMATIONS" : "YES"]
-        app.launch()
-    }
-    
-    override func tearDown() {
-        super.tearDown()
-        app = nil
-    }
+class MainUITests: UITestCase {
     
     func testTabs() {
         // Tests that the products tab is defaulted and that the inter-tab navigation works
-        MainPage(app: app)
+        mainPage
             .defaultTab()
             .tapAccountsTab()
             .tapProductsTab()
