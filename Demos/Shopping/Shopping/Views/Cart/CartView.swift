@@ -23,10 +23,11 @@ struct CartView: View, ViewStateRendering {
     var body: some View {
         NavigationView {
             ZStack {
-                cartView(title: container.state.isOrderComplete ? "Reciept" : "Cart", cart: container.state.cart)
+                cartView(title: container.state.isOrderComplete ? "Receipt" : "Cart", cart: container.state.cart)
                 switch container.state {
                 case .initialized, .loading:
                     ProgressView()
+                        .accessibilityIdentifier("Loading Cart...")
                 case .loadedEmpty:
                     Text("Your cart is empty.")
                 case .loaded:
@@ -66,6 +67,7 @@ struct CartView: View, ViewStateRendering {
         ZStack {
             Color.white.opacity(0.5).edgesIgnoringSafeArea(.all)
             ProgressView()
+                .accessibilityIdentifier("Processing...")
         }
     }
     
@@ -74,8 +76,11 @@ struct CartView: View, ViewStateRendering {
             HStack {
                 Text(title).font(.largeTitle)
                 Spacer()
-                Text(cart.total, format: .currency(code: "USD")).font(.largeTitle)
-            }.padding()
+                Text(cart.total, format: .currency(code: "USD"))
+                    .font(.largeTitle)
+                    .accessibilityLabel(Text("Total: \(cart.total.formatted(.currency(code: "USD")))"))
+            }
+            .padding()
             List(cart.products, id: \.cartId) { product in
                 HStack {
                     Text(product.name)
@@ -83,7 +88,7 @@ struct CartView: View, ViewStateRendering {
                     Text(product.price, format: .currency(code: "USD"))
                 }
                 .frame(height: 44)
-                .swipeActions {
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     switch container.state {
                     case .loaded(let loadedModel), .removingProductError(_, let loadedModel), .checkoutError(_, let loadedModel):
                         Button(role: .destructive) {
@@ -91,6 +96,7 @@ struct CartView: View, ViewStateRendering {
                         } label : {
                             Label("Delete", systemImage: "trash.fill")
                         }
+                        .accessibilityIdentifier("Remove \(product.name)")
                     default:
                         EmptyView()
                     }

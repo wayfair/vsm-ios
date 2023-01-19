@@ -1,5 +1,5 @@
 //
-//  MockBindableStateModel.swift
+//  MockBindableState.swift
 //  
 //
 //  Created by Albert Bori on 5/11/22.
@@ -8,8 +8,8 @@
 import Combine
 import VSM
 
-/// A pre-defined mock for testing State-Model binding and progression
-struct MockBindableStateModel: MutatingCopyable {
+/// A pre-defined mock for testing a State that also functions as a Model for binding and progression
+struct MockBindableState: MutatingCopyable {
     var isEnabled: Bool
     
     func toggleSync(_ enabled: Bool) -> Self {

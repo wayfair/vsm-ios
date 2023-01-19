@@ -51,7 +51,7 @@ class CartDatabase: CartRepository {
     func getCartProducts() -> AnyPublisher<Cart, Error> {
         // Pretend get from database or API
         return Future<Cart, Error> { promise in
-            DispatchQueue.global().asyncAfter(deadline: .now() + 1) {
+            DispatchQueue.global().asyncAfter(deadline: AppConstants.simulatedNetworkDelay) {
                 // Pretend to sync fetched cart products with ones in memory
                 promise(.success(self.cart))
             }
@@ -87,7 +87,7 @@ class CartDatabase: CartRepository {
     
     func removeProductFromCart(cartId: Int) async throws -> Cart {
         return await withCheckedContinuation { continuation in
-            DispatchQueue.global().asyncAfter(deadline: .now() + 1) {
+            DispatchQueue.global().asyncAfter(deadline: AppConstants.simulatedNetworkDelay) {
                 var cartProducts = self.cart.products
                 cartProducts.removeAll(where: { $0.cartId == cartId })
                 self.cart = Cart(products: cartProducts)
@@ -101,7 +101,7 @@ class CartDatabase: CartRepository {
             case insufficientFunds
         }
         return try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global().asyncAfter(deadline: .now() + 1) {
+            DispatchQueue.global().asyncAfter(deadline: AppConstants.simulatedNetworkDelay) {
                 if self.cart.total >= 600 {
                     continuation.resume(with: .failure(Errors.insufficientFunds))
                 } else {

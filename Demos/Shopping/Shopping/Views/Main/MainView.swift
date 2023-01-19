@@ -47,7 +47,8 @@ struct MainView: View, ViewStateRendering {
                 Text("Account")
             }
             .navigationViewStyle(.stack) // Fixes Layout Constraint errors
-        }.font(.headline)
+        }
+        .font(.headline)
     }
 }
 

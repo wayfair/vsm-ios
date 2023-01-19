@@ -33,7 +33,7 @@ struct FavoritesView: View, ViewStateRendering {
             case .loadingError(let errorModel):
                 errorView(errorModel)
             case .deleting:
-                deleteingFavoritedProductView()
+                deletingFavoritedProductView()
             case .deletingError(let deletingErrorModel):
                 deletingErrorView(deletingErrorModel)
             }
@@ -58,15 +58,18 @@ struct FavoritesView: View, ViewStateRendering {
                         } label : {
                             Label("Delete", systemImage: "trash.fill")
                         }
+                        .accessibilityIdentifier("Delete \(favorite.name)")
                     }
                 }
+                .accessibilityIdentifier(favorite.name + " Row")
         }
     }
     
-    func deleteingFavoritedProductView() -> some View {
+    func deletingFavoritedProductView() -> some View {
         ProgressView()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.white.opacity(0.75))
+            .accessibilityIdentifier("Processing...")
     }
     
     func errorView(_ errorModel: FavoritesViewErrorModeling) -> some View {

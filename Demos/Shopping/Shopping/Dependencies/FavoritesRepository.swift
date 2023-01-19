@@ -40,7 +40,7 @@ class FavoritesDatabase: FavoritesRepository {
         
     func updateFromServer() {
         // Pretend to get products from the server
-        DispatchQueue.global().asyncAfter(deadline: .now() + 1) {
+        DispatchQueue.global().asyncAfter(deadline: AppConstants.simulatedNetworkDelay) {
             switch self.favoriteProductsDatabase {
             case .loading:
                 self.favoriteProductsDatabase = .loaded([:])
@@ -80,7 +80,7 @@ class FavoritesDatabase: FavoritesRepository {
         }
         //Pretend to send this to the server asynchronously
         return Future { promise in
-            DispatchQueue.global().asyncAfter(deadline: .now() + 1) {
+            DispatchQueue.global().asyncAfter(deadline: AppConstants.simulatedNetworkDelay) {
                 promise(.success(Void()))
             }
         }.eraseToAnyPublisher()
@@ -97,7 +97,7 @@ class FavoritesDatabase: FavoritesRepository {
         }
         //Pretend to send this to the server asynchronously
         return Future { promise in
-            DispatchQueue.global().asyncAfter(deadline: .now() + 1) {
+            DispatchQueue.global().asyncAfter(deadline: AppConstants.simulatedNetworkDelay) {
                 promise(.success(Void()))
             }
         }.eraseToAnyPublisher()

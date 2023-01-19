@@ -59,13 +59,16 @@ struct CartLoaderModel: CartLoaderModeling {
     func loadCart() -> AnyPublisher<CartViewState, Never> {
         let statePublisher = Just(CartViewState.loading)
         let cartLoadingPublisher = dependencies.cartRepository.getCartProducts()
-            .map({ cart in
+            .map { cart in
                 if cart.products.isEmpty {
                     return CartViewState.loadedEmpty
                 }
                 return CartViewState.loaded(CartLoadedModel(dependencies: dependencies, cart: cart))
-            })
-            .catch({ error in Just(CartViewState.loadingError(CartLoadingErrorModel(message: "Failed to load cart: \(error)", retry: { loadCart() }))) })
+            }
+            .catch { error in
+                Just(CartViewState.loadingError(CartLoadingErrorModel(message: "Failed to load cart: \(error)",
+                                                                      retry: { loadCart() })))
+            }
         return statePublisher
             .merge(with: cartLoadingPublisher)
             .eraseToAnyPublisher()
@@ -78,11 +81,16 @@ struct CartLoadedModel: CartLoadedModeling {
     let cart: Cart
     
     func removeProduct(id: Int) -> AnyPublisher<CartViewState, Never> {
-        let statePublisher = CurrentValueSubject<CartViewState, Never>(CartViewState.removingProduct(CartRemovingProductModel(dependencies: dependencies, cart: cart)))
+        let loadingCart = Cart(products: cart.products.filter({ $0.cartId != id }))
+        let statePublisher = CurrentValueSubject<CartViewState, Never>(CartViewState.removingProduct(CartRemovingProductModel(dependencies: dependencies, cart: loadingCart)))
         Task {
             do {
                 let cart = try await dependencies.cartRepository.removeProductFromCart(cartId: id)
-                statePublisher.value = .loaded(CartLoadedModel(dependencies: dependencies, cart: cart))
+                if cart.products.isEmpty {
+                    statePublisher.value = CartViewState.loadedEmpty
+                } else {
+                    statePublisher.value = .loaded(CartLoadedModel(dependencies: dependencies, cart: cart))
+                }
             } catch {
                 statePublisher.value = .removingProductError(message: "Failed to remove cart item: \(error)", self)
             }
