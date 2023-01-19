@@ -38,7 +38,7 @@ struct ProductsTabPage: TabbedPage, CartButtonProviding {
     @discardableResult
     func tapProductCell(for product: TestProduct, file: StaticString = #file, line: UInt = #line) -> ProductDetailPage {
         let productButton = button(for: product)
-        find(productButton, file: file, line: line)
+        waitFor(productButton, hittable: true, enabled: true, file: file, line: line)
             .perform(productButton.tap())
         return .init(app: app, previousView: self, product: product, file: file, line: line)
     }
@@ -64,14 +64,14 @@ struct AccountTabPage: TabbedPage, CartButtonProviding {
     
     @discardableResult
     func tapFavorites(file: StaticString = #file, line: UInt = #line) -> FavoritesPage {
-        find(favoritesButton, file: file, line: line)
+        find(favoritesButton, hittable: true, enabled: true, file: file, line: line)
             .perform(favoritesButton.tap())
         return .init(app: app, previousView: self, file: file, line: line)
     }
     
     @discardableResult
     func tapSettings(file: StaticString = #file, line: UInt = #line) -> SettingsPage {
-        find(settingsButton, file: file, line: line)
+        find(settingsButton, hittable: true, enabled: true, file: file, line: line)
             .perform(settingsButton.tap())
         return .init(app: app, previousView: self, file: file, line: line)
     }

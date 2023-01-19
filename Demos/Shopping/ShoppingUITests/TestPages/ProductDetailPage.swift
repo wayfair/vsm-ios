@@ -43,21 +43,21 @@ struct ProductDetailPage: PushedPage, TabbedPage, CartButtonProviding {
     
     @discardableResult
     func tapFavoriteButton(file: StaticString = #file, line: UInt = #line) -> Self {
-        find(favoriteButton, file: file, line: line)
+        find(favoriteButton, hittable: true, enabled: true, file: file, line: line)
             .perform(favoriteButton.tap())
             .find(unfavoriteButton, file: file, line: line)
     }
     
     @discardableResult
     func tapUnfavoriteButton(file: StaticString = #file, line: UInt = #line) -> Self {
-        find(unfavoriteButton, file: file, line: line)
+        find(unfavoriteButton, hittable: true, enabled: true, file: file, line: line)
             .perform(unfavoriteButton.tap())
             .find(favoriteButton, file: file, line: line)
     }
     
     @discardableResult
     func tapAddToCartButton(file: StaticString = #file, line: UInt = #line) -> Self {
-        find(addToCartButton, file: file, line: line)
+        find(addToCartButton, hittable: true, enabled: true, file: file, line: line)
             .perform(addToCartButton.tap())
             .find(addingToCartButton, file: file, line: line)
             .waitFor(addToCartConfirmation, file: file, line: line)

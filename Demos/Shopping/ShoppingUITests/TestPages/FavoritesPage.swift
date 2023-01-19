@@ -33,9 +33,9 @@ struct FavoritesPage: PushedPage, TabbedPage {
     func unfavorite(product: TestProduct, file: StaticString = #file, line: UInt = #line) -> Self {
         let productLabel = rowLabel(for: product)
         let deleteButton = deleteButton(for: product)
-        return find(productLabel, file: file, line: line)
+        return find(productLabel, hittable: true, enabled: true, file: file, line: line)
             .perform(productLabel.swipeLeft())
-            .find(deleteButton, file: file, line: line)
+            .find(deleteButton, hittable: true, enabled: true, file: file, line: line)
             .perform(deleteButton.tap())
             .waitForNo(processingIndicator, file: file, line: line)
     }

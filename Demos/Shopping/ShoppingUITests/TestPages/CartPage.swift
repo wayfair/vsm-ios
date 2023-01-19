@@ -58,9 +58,9 @@ struct CartPage<ParentView: TestableUI>: PresentedPage {
     func removeRow(for product: TestProduct, file: StaticString = #file, line: UInt = #line) -> Self {
         let productRow = row(for: product)
         let deleteButton = deleteButton(for: product)
-        return waitFor(productRow, message: "Can't find row containing '\(product.name)'", file: file, line: line)
+        return waitFor(productRow, hittable: true, enabled: true, message: "Can't find row containing '\(product.name)'", file: file, line: line)
             .perform(productRow.swipeLeft())
-            .find(deleteButton, file: file, line: line)
+            .find(deleteButton, hittable: true, enabled: true, file: file, line: line)
             .perform(deleteButton.tap())
             .find(processingIndicator, file: file, line: line)
             .waitForNo(processingIndicator, file: file, line: line)
@@ -68,7 +68,7 @@ struct CartPage<ParentView: TestableUI>: PresentedPage {
     
     @discardableResult
     func tapPlaceOrder(file: StaticString = #file, line: UInt = #line) -> Self {
-        waitFor(placeOrderButton, file: file, line: line)
+        waitFor(placeOrderButton, hittable: true, enabled: true, file: file, line: line)
             .perform(placeOrderButton.tap())
     }
 }

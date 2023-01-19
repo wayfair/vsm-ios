@@ -25,7 +25,7 @@ struct SettingsPage: TestableUI, PushedPage {
     @discardableResult
     func toggleSetting(_ setting: Setting, file: StaticString = #file, line: UInt = #line) -> Self {
         let toggle = toggle(for: setting)
-        return find(toggle, file: file, line: line)
+        return find(toggle, hittable: true, enabled: true, file: file, line: line)
             .perform(toggle.tap())
     }
     

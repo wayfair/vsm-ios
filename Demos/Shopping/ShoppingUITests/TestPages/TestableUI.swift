@@ -101,7 +101,7 @@ extension PushedPage {
     
     @discardableResult
     func tapBackButton(file: StaticString = #file, line: UInt = #line) -> PreviousPage {
-        find(backButton, file: file, line: line)
+        find(backButton, hittable: true, enabled: true, file: file, line: line)
             .perform(backButton.tap())
         return previousView
     }
@@ -119,7 +119,7 @@ extension PresentedPage {
     
     @discardableResult
     func tapCloseButton(file: StaticString = #file, line: UInt = #line) -> ParentPage {
-        find(closeButton, file: file, line: line)
+        find(closeButton, hittable: true, enabled: true, file: file, line: line)
             .perform(closeButton.tap())
         return parentView
     }
