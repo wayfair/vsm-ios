@@ -19,11 +19,13 @@ extension XCUIElement {
     /// - Parameter enabled: Conditionally require if the item should be enabled (defaults to `true`)
     /// - Parameter timeout: The maximum amount of time to wait. Defaults to 5 seconds
     /// - Returns: Returns true if the element was found and is appropriately hittable (if specified). Otherwise returns false
-    func waitForExistence(hittable: Bool = true,
-                          enabled: Bool = true,
+    func waitForExistence(hittable: Bool? = nil,
+                          enabled: Bool? = nil,
                           timeout: TimeInterval = Constants.defaultTimeout) -> Bool {
         for _ in 1...Int((timeout/Constants.waitInterval).rounded(.up)) {
-            if exists && (!hittable || isHittable) && (!enabled || isEnabled) { return true }
+            if exists && (hittable == nil || isHittable == hittable) && (enabled == nil || isEnabled == enabled) {
+                return true
+            }
             Thread.sleep(forTimeInterval: Constants.waitInterval)
         }
         return false

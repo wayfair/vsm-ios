@@ -12,22 +12,26 @@ struct SettingsPage: TestableUI, PushedPage {
     let app: XCUIApplication
     let previousView: AccountTabPage
     
+    private var navBarTitle: XCUIElement { app.navigationBars["Settings"] }
+    private func toggle(for setting: Setting) -> XCUIElement { app.switches[setting.rawValue] }
+    
+    
     init(app: XCUIApplication, previousView: AccountTabPage, file: StaticString = #file, line: UInt = #line) {
         self.app = app
         self.previousView = previousView
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(), "Can't find Favorites nav bar item", file: file, line: line)
+        waitFor(navBarTitle, file: file, line: line)
     }
     
     @discardableResult
     func toggleSetting(_ setting: Setting, file: StaticString = #file, line: UInt = #line) -> Self {
-        XCTAssertTrue(app.switches[setting.rawValue].waitForExistence(), "Can't find '\(setting.rawValue)' switch", file: file, line: line)
-        app.switches[setting.rawValue].tap()
-        return self
+        let toggle = toggle(for: setting)
+        return find(toggle, file: file, line: line)
+            .perform(toggle.tap())
     }
     
     @discardableResult
     func assertSetting(_ setting: Setting, isOn: Bool, file: StaticString = #file, line: UInt = #line) -> Self {
-        assert(app.switches[setting.rawValue].value as? String, equals: isOn ? "1" : "0", message: "'\(setting.rawValue)' is not \(isOn ? "on" : "off")", file: file, line: line)
+        assert(toggle(for: setting).value as? String, equals: isOn ? "1" : "0", message: "'\(setting.rawValue)' is not \(isOn ? "on" : "off")", file: file, line: line)
     }
     
     enum Setting: String {

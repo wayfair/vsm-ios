@@ -12,56 +12,64 @@ struct CartPage<ParentView: TestableUI>: PresentedPage {
     let app: XCUIApplication
     var parentView: ParentView
     
+    private var emptyCartMessage: XCUIElement { app.staticTexts["Your cart is empty."] }
+    private var receiptTitle: XCUIElement { app.staticTexts["Receipt"] }
+    private func totalLabel(price: String) -> XCUIElement { app.staticTexts["Total: \(price)"] }
+    private var insufficientFunds: XCUIElement { app.staticTexts["Insufficient funds!"] }
+    private func row(for product: TestProduct) -> XCUIElement { app.collectionViews.cells.containing(.staticText, identifier: product.name).firstMatch }
+    private func price(for product: TestProduct) -> XCUIElement { row(for: product).staticTexts[product.price] }
+    private func deleteButton(for product: TestProduct) -> XCUIElement { app.buttons["Remove \(product.name)"] }
+    private var placeOrderButton: XCUIElement { app.buttons["Place Order"] }
+    private var processingIndicator: XCUIElement { app.activityIndicators["Processing..."] }
+    
     init(app: XCUIApplication, parentView: ParentView, file: StaticString = #file, line: UInt = #line) {
         self.app = app
         self.parentView = parentView
-        XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(), "Cart didn't finish loading", file: file, line: line)
+        waitFor(app.collectionViews.firstMatch, file: file, line: line)
     }
     
     @discardableResult
     func assertEmptyCart(file: StaticString = #file, line: UInt = #line) -> Self {
-        assert(app.staticTexts["Your cart is empty."].waitForExistence(), message: "Cart is not empty", file: file, line: line)
+        waitFor(emptyCartMessage, file: file, line: line)
     }
     
     @discardableResult
     func assertReceiptExists(file: StaticString = #file, line: UInt = #line) -> Self {
-        assert(app.staticTexts["Receipt"].waitForExistence(), message: "Can't find 'Receipt' view", file: file, line: line)
+        waitFor(receiptTitle, file: file, line: line)
     }
     
     @discardableResult
     func assertTotal(price: String, file: StaticString = #file, line: UInt = #line) -> Self {
-        assert(app.staticTexts["Total: \(price)"].waitForExistence(), message: "Can't find 'Total: \(price)' text", file: file, line: line)
+        waitFor(totalLabel(price: price), file: file, line: line)
     }
     
     @discardableResult
     func assertInsufficientFunds(file: StaticString = #file, line: UInt = #line) -> Self {
-        assert(app.staticTexts["Insufficient funds!"].waitForExistence(), message: "Can't find 'Insufficient funds!'", file: file, line: line)
+        waitFor(insufficientFunds, file: file, line: line)
     }
     
     @discardableResult
     func assertRowExists(for product: TestProduct, file: StaticString = #file, line: UInt = #line) -> Self {
-        let row = app.collectionViews.cells.containing(.staticText, identifier: product.name).firstMatch
-        return assert(row.waitForExistence(), message: "Can't find row with '\(product.name)' text", file: file, line: line)
-            .assert(row.staticTexts[product.price].exists, message: "Can't find '\(product.price)' text in row", file: file, line: line)
+        waitFor(row(for: product), message: "Can't find row containing '\(product.name)'", file: file, line: line)
+            .find(price(for: product), file: file, line: line)
     }
         
     @discardableResult
     func removeRow(for product: TestProduct, file: StaticString = #file, line: UInt = #line) -> Self {
-        let row = app.collectionViews.cells.containing(.staticText, identifier: product.name).firstMatch
-        let deleteButton = app.buttons["Remove \(product.name)"]
-        XCTAssertTrue(row.waitForExistence(), "Can't find '\(product.name) Row'", file: file, line: line)
-        row.swipeLeft()
-        XCTAssertTrue(deleteButton.waitForExistence(), "Can't find 'Remove \(product.name)'", file: file, line: line)
-        deleteButton.tap()
-        XCTAssertTrue(app.activityIndicators["Processing..."].waitForNonexistence(), "'Processing...' is stuck", file: file, line: line)
-        return self
+        let productRow = row(for: product)
+        let deleteButton = deleteButton(for: product)
+        return waitFor(productRow, message: "Can't find row containing '\(product.name)'", file: file, line: line)
+            .perform(productRow.swipeLeft())
+            .find(deleteButton, file: file, line: line)
+            .perform(deleteButton.tap())
+            .find(processingIndicator, file: file, line: line)
+            .waitForNo(processingIndicator, file: file, line: line)
     }
     
     @discardableResult
     func tapPlaceOrder(file: StaticString = #file, line: UInt = #line) -> Self {
-        XCTAssertTrue(app.buttons["Place Order"].waitForExistence(), "Can't find 'Place Order' button", file: file, line: line)
-        app.buttons["Place Order"].tap()
-        return self
+        waitFor(placeOrderButton, file: file, line: line)
+            .perform(placeOrderButton.tap())
     }
 }
 
@@ -70,19 +78,22 @@ protocol CartButtonProviding: TestableUI { }
 
 extension CartButtonProviding {
     
+    var showCartButton: XCUIElement { app.navigationBars.buttons["Show Cart"] }
+    var countBadge: XCUIElement { app.staticTexts["Cart Item Count"] }
+    
     @discardableResult
     func assertCartButtonCount(is count: Int, file: StaticString = #file, line: UInt = #line) -> Self {
         guard count != 0 else {
-            return assert(app.staticTexts["Cart Item Count"].waitForNonexistence(), message: "'Cart Item Count' is not empty.", file: file, line: line)
+            return waitForNo(countBadge, file: file, line: line)
         }
-        assert(app.staticTexts["Cart Item Count"].exists, message: "Can't find 'Cart Item Count'", file: file, line: line)
-        return assert(app.staticTexts["Cart Item Count"].label, equals: "\(count)", message: "Incorrect cart item count: \(count)", file: file, line: line)
+        return find(countBadge, file: file, line: line)
+            .assert(countBadge.label, equals: "\(count)", message: "Incorrect cart item count: \(count)", file: file, line: line)
     }
     
     @discardableResult
     func tapCartButton(file: StaticString = #file, line: UInt = #line) -> CartPage<Self> {
-        XCTAssertTrue(app.navigationBars.buttons["Show Cart"].exists, file: file, line: line)
-        app.navigationBars.buttons["Show Cart"].tap()
+        find(showCartButton, file: file, line: line)
+        showCartButton.tap()
         return .init(app: app, parentView: self, file: file, line: line)
     }
 }

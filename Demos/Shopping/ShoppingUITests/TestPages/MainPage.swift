@@ -21,20 +21,25 @@ struct MainPage: TabbedPage {
 struct ProductsTabPage: TabbedPage, CartButtonProviding {
     let app: XCUIApplication
     
+    private var navBarTitle: XCUIElement { app.navigationBars["Products"] }
+    private func button(for product: TestProduct) -> XCUIElement { app.buttons[product.name] }
+    
     init(app: XCUIApplication, file: StaticString = #file, line: UInt = #line) {
         self.app = app
-        XCTAssertTrue(app.scrollViews.element(boundBy: 0).waitForExistence(), "Can't find Products scroll view", file: file, line: line)
+        // XCUIApplication doesn't support LazyVGrids yet, so we have to look for the content of a cell to ensure it's finished loading
+        waitFor(button(for: .couch), file: file, line: line)
     }
     
     @discardableResult
     func assertProductsPageIsVisible(file: StaticString = #file, line: UInt = #line) -> Self {
-        assert(app.navigationBars["Products"].exists, message: "Can't find 'Products' nav bar", file: file, line: line)
+        find(navBarTitle, hittable: true, file: file, line: line)
     }
     
     @discardableResult
     func tapProductCell(for product: TestProduct, file: StaticString = #file, line: UInt = #line) -> ProductDetailPage {
-        XCTAssertTrue(app.buttons[product.name].exists, "Can't find product cell '\(product.name)' button", file: file, line: line)
-        app.buttons[product.name].tap()
+        let productButton = button(for: product)
+        find(productButton, file: file, line: line)
+            .perform(productButton.tap())
         return .init(app: app, previousView: self, product: product, file: file, line: line)
     }
 }
@@ -43,27 +48,31 @@ struct ProductsTabPage: TabbedPage, CartButtonProviding {
 struct AccountTabPage: TabbedPage, CartButtonProviding {
     let app: XCUIApplication
     
+    private var navBarTitle: XCUIElement { app.navigationBars["Account"] }
+    private var favoritesButton: XCUIElement { app.buttons["Favorites"] }
+    private var settingsButton: XCUIElement { app.buttons["Settings"] }
+    
     init(app: XCUIApplication, file: StaticString = #file, line: UInt = #line) {
         self.app = app
-        XCTAssertTrue(app.navigationBars["Account"].waitForExistence(), "Can't find Account nav bar item", file: file, line: line)
+        find(navBarTitle, file: file, line: line)
     }
     
     @discardableResult
     func assertAccountPageIsVisible(file: StaticString = #file, line: UInt = #line) -> Self {
-        assert(app.navigationBars["Account"].exists, message: "Can't find 'Account' nav bar", file: file, line: line)
+        find(navBarTitle, hittable: true, file: file, line: line)
     }
     
     @discardableResult
     func tapFavorites(file: StaticString = #file, line: UInt = #line) -> FavoritesPage {
-        XCTAssertTrue(app.buttons["Favorites"].exists, "Can't find Favorites button", file: file, line: line)
-        app.buttons["Favorites"].tap()
+        find(favoritesButton, file: file, line: line)
+            .perform(favoritesButton.tap())
         return .init(app: app, previousView: self, file: file, line: line)
     }
     
     @discardableResult
     func tapSettings(file: StaticString = #file, line: UInt = #line) -> SettingsPage {
-        XCTAssertTrue(app.buttons["Settings"].exists, "Can't find Settings button", file: file, line: line)
-        app.buttons["Settings"].tap()
+        find(settingsButton, file: file, line: line)
+            .perform(settingsButton.tap())
         return .init(app: app, previousView: self, file: file, line: line)
     }
 }

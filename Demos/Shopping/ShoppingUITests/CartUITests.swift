@@ -71,7 +71,7 @@ class CartUITests: UITestCase {
             .assertRowExists(for: .couch)
             .assertTotal(price: "$599.99")
             .tapCloseButton()
-            .assertContentExists()
+            .assertProductDetailPageIsVisible()
     }
     
     func testInsufficientFunds() {
@@ -93,6 +93,6 @@ class CartUITests: UITestCase {
             .assertReceiptExists()
             .assertTotal(price: "$199.99")
             .tapCloseButton()
-            .assertContentExists()
+            .assertProductDetailPageIsVisible()
     }
 }

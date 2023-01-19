@@ -13,55 +13,54 @@ struct ProductDetailPage: PushedPage, TabbedPage, CartButtonProviding {
     var previousView: ProductsTabPage
     var product: TestProduct
     
+    private var navigationBar: XCUIElement { app.navigationBars[product.name] }
+    private var productPrice: XCUIElement { app.staticTexts[product.price] }
+    private var productImage: XCUIElement { app.images["\(product.name) Image"] }
+    private var favoriteButton: XCUIElement { app.buttons["Favorite Button"] }
+    private var unfavoriteButton: XCUIElement { app.buttons["Unfavorite Button"] }
+    private var addToCartButton: XCUIElement { app.buttons["Add to Cart"] }
+    private var addingToCartButton: XCUIElement { app.buttons["Adding to Cart..."] }
+    private var addToCartConfirmation: XCUIElement { app.staticTexts["✅ Added \(product.name) to cart."] }
+    
     init(app: XCUIApplication, previousView: ProductsTabPage, product: TestProduct, file: StaticString = #file, line: UInt = #line) {
         self.app = app
         self.previousView = previousView
         self.product = product
-        assertContentExists(file: file, line: line)
+        assertProductDetailPageIsVisible(file: file, line: line)
     }
     
     @discardableResult
-    func assertContentExists(file: StaticString = #file, line: UInt = #line) -> Self {
-        return assert(app.navigationBars[product.name].waitForExistence(), message: "Can't find '\(product.name)' nav bar", file: file, line: line)
-            .assert(app.staticTexts[product.price].exists, message: "Can't find price '\(product.price)' text", file: file, line: line)
-            .assert(app.images["\(product.name) Image"].exists, message: "Can't find '\(product.name) Image' image", file: file, line: line)
+    func assertProductDetailPageIsVisible(file: StaticString = #file, line: UInt = #line) -> Self {
+        waitFor(navigationBar, file: file, line: line)
+            .find(productPrice, file: file, line: line)
+            .find(productImage, file: file, line: line)
     }
     
     @discardableResult
-    func assertFavoriteButtonExists(file: StaticString = #file, line: UInt = #line) -> Self {
-        assert(app.buttons["Favorite Button"].exists, message: "Can't find 'Favorite Button'", file: file, line: line)
-    }
-    
-    @discardableResult
-    func assertUnfavoriteButtonExists(file: StaticString = #file, line: UInt = #line) -> Self {
-        assert(app.buttons["Unfavorite Button"].exists, message: "Can't find 'Unfavorite Button'", file: file, line: line)
+    func assertProduct(isFavorited: Bool, file: StaticString = #file, line: UInt = #line) -> Self {
+        isFavorited ? find(unfavoriteButton, file: file, line: line) : find(favoriteButton, file: file, line: line)
     }
     
     @discardableResult
     func tapFavoriteButton(file: StaticString = #file, line: UInt = #line) -> Self {
-        assertFavoriteButtonExists(file: file, line: line)
-        app.buttons["Favorite Button"].tap()
-        return assertUnfavoriteButtonExists(file: file, line: line)
+        find(favoriteButton, file: file, line: line)
+            .perform(favoriteButton.tap())
+            .find(unfavoriteButton, file: file, line: line)
     }
     
     @discardableResult
     func tapUnfavoriteButton(file: StaticString = #file, line: UInt = #line) -> Self {
-        assertUnfavoriteButtonExists(file: file, line: line)
-        app.buttons["Unfavorite Button"].tap()
-        return assertFavoriteButtonExists(file: file, line: line)
-    }
-    
-    @discardableResult
-    func assertAddToCartButtonExists(file: StaticString = #file, line: UInt = #line) -> Self {
-        assert(app.buttons["Add to Cart"].exists, message: "Can't find 'Add to Cart' button", file: file, line: line)
+        find(unfavoriteButton, file: file, line: line)
+            .perform(unfavoriteButton.tap())
+            .find(favoriteButton, file: file, line: line)
     }
     
     @discardableResult
     func tapAddToCartButton(file: StaticString = #file, line: UInt = #line) -> Self {
-        assertAddToCartButtonExists(file: file, line: line)
-        app.buttons["Add to Cart"].tap()
-        return assert(app.buttons["Adding to Cart..."].exists, message: "Can't find 'Adding to Cart...' progress indicator", file: file, line: line)
-            .assert(app.staticTexts["✅ Added \(product.name) to cart."].waitForExistence(), message: "Can't find '✅ Added \(product.name) to cart.' confirmation text", file: file, line: line)
-            .assertAddToCartButtonExists(file: file, line: line)
+        find(addToCartButton, file: file, line: line)
+            .perform(addToCartButton.tap())
+            .find(addingToCartButton, file: file, line: line)
+            .waitFor(addToCartConfirmation, file: file, line: line)
+            .find(addToCartButton, file: file, line: line)
     }
 }

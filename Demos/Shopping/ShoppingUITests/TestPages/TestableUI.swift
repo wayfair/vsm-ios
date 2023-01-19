@@ -41,6 +41,52 @@ extension TestableUI {
         statement()
         return self
     }
+    
+    /// Locates the element ensuring it exists
+    /// - Parameters:
+    ///   - element: The element to locate
+    ///   - hittable: If the element should be hittable to qualify as found
+    ///   - enabled: If the element should be enabled to qualify as found
+    ///   - file: The file of the caller
+    ///   - line: The line of the caller
+    /// - Returns: self, if successful
+    @discardableResult
+    func find(_ element: XCUIElement, hittable: Bool? = nil, enabled: Bool? = nil, message: String? = nil, file: StaticString = #file, line: UInt) -> Self {
+        assert(element.exists, message: message ?? "Can't find \(element.description)", file: file, line: line)
+            .assert(hittable == nil || element.isHittable == hittable, message: message ?? "Can't hit \(element.description)", file: file, line: line)
+            .assert(enabled == nil || element.isEnabled == enabled, message: message ?? "\(element.description) isn't enabled", file: file, line: line)
+    }
+    
+    /// Waits the minimum amount of time for an element to come into existence
+    /// - Parameters:
+    ///   - element: The element to locate
+    ///   - hittable: If the element should be hittable to qualify as found
+    ///   - enabled: If the element should be enabled to qualify as found
+    ///   - timeout: The maximum amount of time to wait (Defaults to 5 seconds)
+    ///   - file: The file of the caller
+    ///   - line: The line of the caller
+    /// - Returns: self, if successful
+    @discardableResult
+    func waitFor(_ element: XCUIElement, hittable: Bool? = nil, enabled: Bool? = nil, timeout: TimeInterval = 5, message: String? = nil, file: StaticString = #file, line: UInt = #line) -> Self {
+        assert(element.waitForExistence(hittable: hittable, enabled: enabled, timeout: timeout), message: message ?? "Can't find \(element.description)", file: file, line: line)
+    }
+    
+    /// Waits the minimum amount of time for an element to no longer exist
+    /// - Parameters:
+    ///   - element: The element to locate
+    ///   - file: The file of the caller
+    ///   - line: The line of the caller
+    /// - Returns: self, if successful
+    @discardableResult
+    func waitForNo(_ element: XCUIElement, timeout: TimeInterval = 5, file: StaticString = #file, line: UInt = #line) -> Self {
+        assert(element.waitForNonexistence(timeout: timeout), message: "\(element.description) still exists", file: file, line: line)
+    }
+    
+    /// Allows functions to be called without breaking fluent API chains. Does nothing with the result.
+    @discardableResult
+    func perform<IgnoredResult>(_ result: IgnoredResult) -> Self {
+        self
+    }
 }
 
 /// Provides back button navigation to test views that are pushed onto the navigation stack
@@ -50,9 +96,13 @@ protocol PushedPage<PreviousPage>: TestableUI {
 }
 
 extension PushedPage {
+    
+    var backButton: XCUIElement { app.navigationBars.buttons.element(boundBy: 0) }
+    
     @discardableResult
-    func tapBackButton() -> PreviousPage {
-        app.navigationBars.buttons.element(boundBy: 0).tap()
+    func tapBackButton(file: StaticString = #file, line: UInt = #line) -> PreviousPage {
+        find(backButton, file: file, line: line)
+            .perform(backButton.tap())
         return previousView
     }
 }
@@ -64,9 +114,13 @@ protocol PresentedPage<ParentPage>: TestableUI {
 }
 
 extension PresentedPage {
+    
+    var closeButton: XCUIElement { app.buttons["Close"] }
+    
     @discardableResult
-    func tapCloseButton() -> ParentPage {
-        app.buttons["Close"].tap()
+    func tapCloseButton(file: StaticString = #file, line: UInt = #line) -> ParentPage {
+        find(closeButton, file: file, line: line)
+            .perform(closeButton.tap())
         return parentView
     }
 }

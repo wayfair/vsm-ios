@@ -22,7 +22,7 @@ class FavoritesUITests: UITestCase {
             .tapUnfavoriteButton()
             .tapBackButton()
             .tapProductCell(for: .ottoman)
-            .assertFavoriteButtonExists()
+            .assertProduct(isFavorited: false)
     }
     
     func testSynchronizedFavoriteState() {
@@ -38,7 +38,7 @@ class FavoritesUITests: UITestCase {
             .unfavorite(product: .ottoman)
             .assertEmptyFavorites()
             .tapProductsTab(expectingView: productView)
-            .assertFavoriteButtonExists()
+            .assertProduct(isFavorited: false)
     }
     
     func testAddAndRemoveManyFavorites() {
