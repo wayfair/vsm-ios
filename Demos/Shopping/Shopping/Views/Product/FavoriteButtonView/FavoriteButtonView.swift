@@ -61,7 +61,7 @@ struct FavoriteButtonView: View {
     }
     
     func getAccessibilityId() -> String {
-        switch container.state {
+        switch state {
         case .initialized, .loading:
             return "Inactive Favorite Button"
         case .loaded(let loadedModel):
