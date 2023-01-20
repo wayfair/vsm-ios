@@ -9,7 +9,7 @@ import Combine
 /// SwiftUI Example
 /// ```swift
 /// struct UserProfileView: View, ViewStateRendering {
-///     var container = StateContainer<UserProfileViewState>(state: .initialized(LoaderModel()))
+///     @StateObject var container = StateContainer<UserProfileViewState>(state: .initialized(LoaderModel()))
 ///     var body: some View {
 ///         switch state {
 ///         case .initialized, .loading:
