@@ -15,7 +15,7 @@ jobs:
       - name: Prepare Xcode
         uses: maxim-lobanov/setup-xcode@v1 # https://github.com/marketplace/actions/setup-xcode-version
         with:
-          xcode-version: 14.0
+          xcode-version: 14.2
 
       - name: Checkout
         uses: actions/checkout@v3
@@ -25,7 +25,7 @@ jobs:
         with:
           spm-package: ./
           scheme: VSM
-          destination: platform=iOS Simulator,OS=16.0,name=iPhone 14
+          destination: platform=iOS Simulator,OS=latest,name=iPhone 14
           action: test
       
       - name: Build and Test Demo App
@@ -33,5 +33,5 @@ jobs:
         with:
           project: ./Demos/Shopping/Shopping.xcodeproj
           scheme: Shopping
-          destination: platform=iOS Simulator,OS=16.0,name=iPhone 14
+          destination: platform=iOS Simulator,OS=latest,name=iPhone 14
           action: test

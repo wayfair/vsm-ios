@@ -23,10 +23,11 @@ struct CartView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                cartView(title: state.isOrderComplete ? "Reciept" : "Cart", cart: state.cart)
+                cartView(title: state.isOrderComplete ? "Receipt" : "Cart", cart: state.cart)
                 switch state {
                 case .initialized, .loading:
                     ProgressView()
+                        .accessibilityIdentifier("Loading Cart...")
                 case .loadedEmpty:
                     Text("Your cart is empty.")
                 case .loaded:
@@ -66,6 +67,7 @@ struct CartView: View {
         ZStack {
             Color.white.opacity(0.5).edgesIgnoringSafeArea(.all)
             ProgressView()
+                .accessibilityIdentifier("Processing...")
         }
     }
     
@@ -74,8 +76,11 @@ struct CartView: View {
             HStack {
                 Text(title).font(.largeTitle)
                 Spacer()
-                Text(cart.total, format: .currency(code: "USD")).font(.largeTitle)
-            }.padding()
+                Text(cart.total, format: .currency(code: "USD"))
+                    .font(.largeTitle)
+                    .accessibilityLabel(Text("Total: \(cart.total.formatted(.currency(code: "USD")))"))
+            }
+            .padding()
             List(cart.products, id: \.cartId) { product in
                 HStack {
                     Text(product.name)
@@ -83,7 +88,7 @@ struct CartView: View {
                     Text(product.price, format: .currency(code: "USD"))
                 }
                 .frame(height: 44)
-                .swipeActions {
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     switch state {
                     case .loaded(let loadedModel), .removingProductError(_, let loadedModel), .checkoutError(_, let loadedModel):
                         Button(role: .destructive) {
@@ -91,6 +96,7 @@ struct CartView: View {
                         } label : {
                             Label("Delete", systemImage: "trash.fill")
                         }
+                        .accessibilityIdentifier("Remove \(product.name)")
                     default:
                         EmptyView()
                     }

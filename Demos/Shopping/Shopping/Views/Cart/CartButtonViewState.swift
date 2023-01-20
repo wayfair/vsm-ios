@@ -42,18 +42,3 @@ extension CartButtonViewState {
         }
     }
 }
-
-// MARK: - Alternative approach using a simple single-state view model:
-
-protocol Alt_CartButtonViewStateProviding {
-    var cartItemCount: Int { get }
-}
-
-class Alt_CartButtonViewState: Alt_CartButtonViewStateProviding, ObservableObject {
-    typealias Dependencies = CartRepositoryDependency
-    @Published private(set) var cartItemCount: Int = 0
-    
-    init(dependencies: Dependencies) {
-        dependencies.cartRepository.cartItemCountPublisher.assign(to: &$cartItemCount)
-    }
-}

@@ -23,9 +23,11 @@ struct ProductGridItemView: View {
                 } placeholder: {
                     ProgressView()
                 }
+                .accessibilityIdentifier("\(product.name) Image")
                 Text(product.name).bold()
             }
         }
+        .accessibilityIdentifier(product.name)
     }
     
     @ViewBuilder

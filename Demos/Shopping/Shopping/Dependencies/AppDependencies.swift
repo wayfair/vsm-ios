@@ -7,6 +7,10 @@
 
 import Foundation
 
+enum AppConstants {
+    static var simulatedNetworkDelay: DispatchTime { .now() + 1 }
+}
+
 class AppDependencies: MainView.Dependencies {
     var productRepository: ProductRepository
     var cartRepository: CartRepository
@@ -38,16 +42,20 @@ extension AppDependencies {
     static func buildProvider() -> AsyncResource<MainView.Dependencies> {
         return AsyncResource<MainView.Dependencies>({
             try await withCheckedThrowingContinuation({ continuation in
-                DispatchQueue.global().asyncAfter(deadline: .now() + 1) {
+                DispatchQueue.global().asyncAfter(deadline: AppConstants.simulatedNetworkDelay) {
                     let productRepository = ProductDatabase()
                     let cartRepository = CartDatabase(dependencies: CartDatabaseDependencies(productRepository: productRepository))
                     let favoritesRepository = FavoritesDatabase(dependencies: FavoritesDatabaseDependencies(productRepository: productRepository))
+                    
+                    // Stub user defaults with an ephemeral implementation if this is a UI test
+                    let userDefaults = ShoppingApp.isUITesting ? StubbedUserDefaults() : UserDefaults.standard
+                    
                     let appDependencies = AppDependencies(
                         productRepository: productRepository,
                         cartRepository: cartRepository,
                         favoritesRepository: favoritesRepository,
                         dispatchQueue: DispatchQueueScheduler(),
-                        userDefaults: UserDefaults.standard,
+                        userDefaults: userDefaults,
                         frameworkProvider: UIFrameworkProvider(dependencies: UIFrameworkProviderDependencies(userDefaults: UserDefaults.standard))
                     )
                     continuation.resume(returning: appDependencies)

@@ -50,7 +50,8 @@ struct MainView: View {
                 Text("Account")
             }
             .navigationViewStyle(.stack) // Fixes Layout Constraint errors
-        }.font(.headline)
+        }
+        .font(.headline)
     }
 }
 

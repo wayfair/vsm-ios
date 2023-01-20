@@ -9,10 +9,10 @@ import Foundation
 import VSM
 
 // Note that in this example, the "S" in "VSM" is silent, because the corresponding view has a single state, which is implied by a single State-Model type
-struct SettingsViewStateModel: MutatingCopyable {
+struct SettingsViewState: MutatingCopyable {
     typealias Dependencies = UserDefaultsDependency
     
-    private enum SettingKey {
+    enum SettingKey {
         static var isCustomBindingExampleEnabled = "isCustomBindingExampleEnabled"
         static var isStateBindingExampleEnabled = "isStateBindingExampleEnabled"
         static var isConvenienceBindingExampleEnabled1 = "isConvenienceBindingExampleEnabled1"
@@ -27,6 +27,7 @@ struct SettingsViewStateModel: MutatingCopyable {
         
     init(dependencies: Dependencies) {
         self.dependencies = dependencies
+        
         isCustomBindingExampleEnabled = dependencies.userDefaults.bool(forKey: SettingKey.isCustomBindingExampleEnabled)
         isStateBindingExampleEnabled = dependencies.userDefaults.bool(forKey: SettingKey.isStateBindingExampleEnabled)
         isConvenienceBindingExampleEnabled1 = dependencies.userDefaults.bool(forKey: SettingKey.isConvenienceBindingExampleEnabled1)

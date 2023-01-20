@@ -40,6 +40,7 @@ struct FavoriteButtonView: View {
                 .foregroundColor(isLoading ? .gray : .blue)
                 .opacity(isLoading ? 0.5 : 1)
         }
+        .accessibilityIdentifier(getAccessibilityId())
         .disabled(isLoading)
         .onAppear {
             if case .initialized(let loaderModel) = state {
@@ -56,6 +57,17 @@ struct FavoriteButtonView: View {
             return loadedModel.isFavorite ? "heart.fill" : "heart"
         case .error:
             return "exclamationmark.triangle"
+        }
+    }
+    
+    func getAccessibilityId() -> String {
+        switch container.state {
+        case .initialized, .loading:
+            return "Inactive Favorite Button"
+        case .loaded(let loadedModel):
+            return loadedModel.isFavorite ? "Unfavorite Button" : "Favorite Button"
+        case .error:
+            return "Error Loading Favorite Button"
         }
     }
 }

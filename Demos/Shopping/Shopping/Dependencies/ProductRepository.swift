@@ -54,7 +54,7 @@ class ProductDatabase: ProductRepository {
     
     func getGridProducts() -> AnyPublisher<[GridProduct], Error> {
         return Future { promise in
-            DispatchQueue.global().asyncAfter(deadline: .now() + 1) {
+            DispatchQueue.global().asyncAfter(deadline: AppConstants.simulatedNetworkDelay) {
                 promise(.success(Self.allProducts.map({ .init(id: $0.id, name: $0.name, imageURL: $0.imageURL) })))
             }
         }.eraseToAnyPublisher()
@@ -63,7 +63,7 @@ class ProductDatabase: ProductRepository {
     func getProductDetail(id: Int) -> AnyPublisher<ProductDetail, Error> {
         struct NotFoundError: Error { }
         return Future { promise in
-            DispatchQueue.global().asyncAfter(deadline: .now() + 1) {
+            DispatchQueue.global().asyncAfter(deadline: AppConstants.simulatedNetworkDelay) {
                 guard let productDetail = Self.allProducts.first(where: { $0.id == id }) else {
                     return promise(.failure(NotFoundError()))
                 }
