@@ -27,13 +27,13 @@ The following are code excerpts of a feature that shows a blog entry from a data
 
 ### State Definition
 
-The state is usually defined as an enum or a struct and represents the states that the view can have. It also declares the data and actions available for each model. Actions return one or more new states.
+The state is usually defined as an enum or a struct and represents the states that the view can have. It also declares the data and actions available to the view for each model. Actions return one or more new states.
 
 ```swift
 enum BlogEntryViewState {
     case initialized(loaderModel: LoaderModeling)
     case loading(errorModel: ErrorModeling?)
-    case loaded(blogModel: LoadedModeling)
+    case loaded(blogModel: BlogModeling)
 }
 
 protocol LoaderModeling {
@@ -45,15 +45,16 @@ protocol ErrorModeling {
     func retry() -> AnyPublisher<BlogArticleViewState, Never>
 }
 
-protocol LoadedModeling {
+protocol BlogModeling {
     var title: String { get }
     var text: String { get }
+    func refresh() -> AnyPublisher<BlogArticleViewState, Never>
 }
 ```
 
 ### Model Definition
 
-The models provide the data for a given view state and implement the business logic.
+The discrete models provide the data for a given view state and implement the business logic within the actions.
 
 ```swift
 struct LoaderModel: LoaderModeling {
@@ -69,32 +70,41 @@ struct ErrorModel: ErrorModeling {
     }
 }
 
-struct LoadedModel: LoadedModeling {
+struct BlogModel: BlogModeling {
     var title: String
     var body: String
+    func refresh() -> AnyPublisher<BlogArticleViewState, Never> {
+        ...
+    }
 }
 ```
 
 ### View Definition
 
-The view observes and renders the state using the `StateContainer` type. State changes will automatically update the view.
+The view observes and renders the state using the `ViewState` property wrapper. State changes will automatically update the view.
 
 ```swift
-struct BlogEntryView: View, ViewStateRendering {
-    @StateObject var container: StateContainer<BlogEntryViewState>
-
+struct BlogEntryView: View {
+    @ViewState var state: BlogEntryViewState
+    
     init() {
-        _container = .init(state: .initialized(LoaderModel()))
+        _state = .init(wrappedValue: .initialized(LoaderModel()))
     }
 
     var body: some View {
         switch state {
         case .initialized(loaderModel: let loaderModel):            
             ...
+            .onAppear { 
+                $state.observe(loaderModel.load())
+            }
         case .loading(errorModel: let errorModel):
             ...
-        case .loaded(loadedModel: let loadedModel)
+        case .loaded(blogModel: let blogModel)
             ...
+            Button("Reload") {
+                $state.observe(blogModel.refresh())
+            }
         }
     }
 }

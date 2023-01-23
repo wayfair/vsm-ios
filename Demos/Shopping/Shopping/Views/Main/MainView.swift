@@ -13,12 +13,10 @@ struct MainView: View {
     @ViewState var state: MainViewState
     
     init(appDependenciesProvider: AsyncResource<MainView.Dependencies>) {
-        // Enable the following debug-only flag to view all state changes in all `StateContainer`s
-        // StateContainer._debug()
         let loaderModel = DependenciesLoaderModel(appDependenciesProvider: appDependenciesProvider)
         _state = .init(wrappedValue: .initialized(loaderModel))
-        // Enable the following debug-only flag to view all state changes in _this_ `StateContainer`
-        // container._debug(options: [.conciseEnum, .container, .memory])
+        // Enable the following debug-only flag to view all state changes in _this_ view
+        // $state._debug(options: [.conciseEnum, .container, .memory])
         $state.observe(loaderModel.loadDependencies())
     }
     

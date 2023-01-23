@@ -86,7 +86,7 @@
     
     @Section(title: "Building the View") {
         @ContentAndMedia {
-            Now that we've defined our Feature Shape, we can start building the view. We will utilize two VSM framework types to make it easier to follow the pattern: <doc:ViewStateRendering> and <doc:StateContainer>.
+            Now that we've defined our Feature Shape, we can start building the view. We will utilize the <doc:ViewState> property wrapper to make it easier to follow the pattern.
             
             > Note: This example covers only SwiftUI, but UIKit is fully supported by VSM. To learn more about building views in VSM, see <doc:ViewDefinition-SwiftUI> or <doc:ViewDefinition-UIKit>.
             
@@ -101,9 +101,7 @@
             }
             
             @Step {
-                Next, conform your view to the `ViewStateRendering` protocol. You are required to add a `StateContainer` property which manages the view’s state for you.
-                
-                Wrap that property with the `@StateObject` property wrapper so that the view state is persisted between view updates.
+                Next, add a your view property and decorate it with `@ViewState`. The ``ViewState`` property wrapper will persist and manage the view's state for you.
                 
                 @Code(name: "BlogEntryView.swift", file: quickstart-view-conformance)
             }

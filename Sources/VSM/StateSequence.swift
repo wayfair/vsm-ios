@@ -9,7 +9,7 @@ import Foundation
 
 /// Emits multiple `State`s as an `AsyncSequence`
 ///
-/// Usable with ``StateContainer/observe(_:)-4pebt`` (found in ``StateContainer`` or ``ViewStateRendering``)
+/// Usable with ``StateContainer/observe(_:)-4pebt`` (found in ``StateContainer``)
 ///
 /// Example Usage
 ///

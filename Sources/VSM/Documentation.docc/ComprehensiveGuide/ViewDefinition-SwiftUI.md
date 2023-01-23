@@ -15,8 +15,8 @@ The basic structure of a SwiftUI VSM view is as follows:
 ```swift
 import VSM
 
-struct LoadUserProfileView: View, ViewStateRendering {
-    @StateObject var container: StateContainer<LoadUserProfileViewState>
+struct LoadUserProfileView: View {
+    @ViewState var state: LoadUserProfileViewState
 
     var body: some View {
         // View definitions go here
@@ -24,19 +24,19 @@ struct LoadUserProfileView: View, ViewStateRendering {
 }
 ```
 
-We are required by the ``ViewStateRendering`` protocol to define a ``StateContainer`` property and specify what the view state's type will be. In these examples, we will use the `LoadUserProfileViewState` and `EditUserProfileViewState` types from <doc:StateDefinition> to build two related VSM views.
+To turn any view into a "VSM View", we only need to define a property that holds our current state and decorate it with the ``ViewState`` (`@ViewState`) property wrapper.
 
-In SwiftUI, the `view` property is evaluated and the view is redrawn _every time the state changes_. In addition, any time a dynamic property changes, the `view` property will be reevaluated and redrawn. This includes properties wrapped with `@StateObject`, `@State`, `@ObservedObject`, and `@Binding`.
+**The `@ViewState` property wrapper will cause the view to update every time the state changes**. It works in the same way as other SwiftUI property wrappers (i.e., `@StateObject`, `@State`, `@ObservedObject`, and `@Binding`).
+
+As with other SwiftUI property wrappers, when the wrapped value (state) changes, the view's `body` property is reevaluated and the result is drawn on the screen.
 
 > Note: In SwiftUI, a view's initializer is called every time its parent view is updated and redrawn.
 >
-> The `@StateObject` property wrapper is the safest choice for declaring your `StateContainer` property. A `StateObject`'s current value is maintained by SwiftUI between redraws of the parent view. In contrast, `@ObservedObject`'s value is not maintained between redraws of the parent view, so it should only be used in scenarios where the view state can be safely recovered every time the parent view is redrawn.
+> Performing any operations in the view's initializer may cause undesired behavior if this is not considered.
+
+In the following examples, we will use the `LoadUserProfileViewState` and `EditUserProfileViewState` types from <doc:StateDefinition> to build two related VSM views.
 
 ## Displaying the State
-
-The ``ViewStateRendering`` protocol provides a few properties and functions that help with displaying the current state, accessing the state data, and invoking actions.
-
-The first of these members is the ``ViewStateRendering/state`` property, which is always set to the current state.
 
 As a refresher, the following flow chart expresses the requirements that we wish to draw in the view.
 
@@ -64,11 +64,11 @@ protocol LoadingErrorModeling {
 }
 ```
 
-In SwiftUI, we simply write a switch statement within the `view` property to evaluate the current state and return the most appropriate view(s) for it.
+In SwiftUI, we simply write a switch statement within the `body` property to evaluate the current state and draw the most appropriate content for it.
 
 Note that if you avoid using a `default` case in your switch statement, the compiler will enforce any future changes to the shape of your feature. This is good because it will help you avoid bugs when maintaining the feature.
 
-The resulting `view` property implementation takes this shape:
+The resulting `body` property implementation takes this shape:
 
 ```swift
 var body: some View {
@@ -117,17 +117,17 @@ protocol SavingErrorModeling {
 }
 ```
 
-To render this editing form, we require an extra property be added to the SwiftUI view to keep track of what the user types for the "Username" field.
+To render this editing form, we need a property that keeps track of what the user types for the "Username" field. A `@State` property called "username" will do nicely.
 
 ```swift
-struct EditUserProfileView: View, ViewStateRendering {
-    @StateObject var container: StateContainer<EditUserProfileViewState>
+struct EditUserProfileView: View {
+    @ViewState var state: EditUserProfileViewState
     @State var username: String = ""
     
     init(userData: UserData) {
         let editingModel = EditUserProfileViewState.EditingModel(userData: userData)
         let state = EditUserProfileViewState(data: userData, editingState: .editing(editingModel))
-        _container = .init(state: state)
+        _state = .init(wrappedValue: state)
     }
 
     var body: some View {
@@ -166,7 +166,7 @@ struct EditUserProfileView: View, ViewStateRendering {
 }
 ```
 
-Since the root type of this view state is a struct instead of an enum, and this view has a more complicated hierarchy, you'll notice that we don't use a switch statement. Instead, we place components where they need to go and sprinkle in logic within areas of the view, as necessary.
+Since the root type of this view state is a `struct` instead of an `enum`, and this view has a more complicated hierarchy, you'll notice that we don't use a switch statement. Instead, we place components where they need to go and sprinkle in logic within areas of the view, as necessary.
 
 Additionally, you'll notice that there is a reference to a previously unknown view state member in the property wrapper `.disabled(state.isSaving)`. Due to the programming style used in SwiftUI APIs, we sometimes have to extend our view state to transform its shape to work better with SwiftUI views. We define these in view state extensions so that we can preserve the type safety of our feature shape, while reducing the friction when working with specific view APIs.
 
@@ -204,17 +204,17 @@ extension EditUserProfileViewState {
 
 Now that we have our view states rendering correctly, we need to wire up the various actions in our views so that they are appropriately and safely invoked by the environment or the user.
 
-VSM's ``ViewStateRendering`` protocol provides a critically important function called ``ViewStateRendering/observe(_:)-7vht3``. This function updates the current state with all view states emitted by the action parameter, as they are emitted in real-time.
+VSM's ``ViewState`` property wrapper provides a critically important function called ``StateContainer/observe(_:)-1emeh`` through its projected value (`$`). This function updates the current state with all view states emitted by an action, as they are emitted in real-time.
 
 It is called like so:
 
 ```swift
-observe(someState.someAction())
+$state.observe(someState.someAction())
 // or
-observe(someState.someAction)
+$state.observe(someState.someAction)
 ```
 
-The only way to update the current view state is to use the `observe(_:)` function.
+The only way to update the current view state is to use the `ViewState`'s `observe(_:)` function.
 
 When `observe(_:)` is called, it cancels any existing Combine publisher subscriptions or Swift Concurrency tasks and ignores view state updates from any previously called actions. This prevents future view state corruption from previous actions and frees up device resources.
 
@@ -241,13 +241,13 @@ var body: some View {
         case .loadingError(let errorModel):
             Text(errorModel.message)
             Button("Retry") {
-                observe(errorModel.retry())
+                $state.observe(errorModel.retry())
             }
         }
     }
     .onAppear {
         if case .initialized(let loaderModel) = state {
-            observe(loaderModel.load())
+            $state.observe(loaderModel.load())
         }
     }
 }
@@ -271,7 +271,7 @@ var body: some View {
                 .textFieldStyle(.roundedBorder)
             Button("Save") {
                 if case .editing(let editingModel) = state.editingState {
-                    observe(editingModel.save(username: username))
+                    $state.observe(editingModel.save(username: username))
                 }
             }
         }
@@ -285,10 +285,10 @@ var body: some View {
                 Text(errorModel.message)
                 HStack {
                     Button("Retry") {
-                        observe(errorModel.retry())
+                        $state.observe(errorModel.retry())
                     }
                     Button("Cancel") {
-                        observe(errorModel.cancel())
+                        $state.observe(errorModel.cancel())
                     }
                 }
             }
@@ -343,13 +343,13 @@ var body: some View {
     ZStack {
         ...
     }
-    .onReceive(container.$state) { newState in 
+    .onReceive($state.publisher) { newState in 
         username = newState.data.username
     }
 }
 ```
 
-We have to use the `ViewStateRendering`'s ``ViewStateRendering/container`` property because it gives us access to the underlying `StateContainer`'s observable `@Published` ``StateContainer/state`` property which can be observed by `onReceive`.
+We have to use the `ViewState`'s projected value (`$`) because it gives us access to the underlying `StateContainer`'s ``StateContainer/statePublisher`` property which can be observed by `onReceive`.
 
 #### Custom Two-Way Bindings
 
@@ -363,7 +363,7 @@ var body: some View {
         get: { state.data.username },
         set: { newValue in
             if case .editing(let editingModel) = state.editingState {
-                observe(editingModel.save(username: newValue),
+                $state.observe(editingModel.save(username: newValue),
                     debounced: .seconds(1))
             }
         }
@@ -373,7 +373,7 @@ var body: some View {
 }
 ```
 
-Notice how our call to ``ViewStateRendering/observe(_:debounced:file:line:)-7ihyy`` includes a `debounced` property. This allows us to prevent thrashing the `save(username:)` call if the user is typing quickly. It will only call the action a maximum of once per second (or whatever time delay is given).
+Notice how our call to ``StateContainer/observe(_:debounced:identifier:)-6tnnd`` includes a `debounced` property. This allows us to prevent thrashing the `save(username:)` call if the user is typing quickly. It will only call the action a maximum of once per second (or whatever time delay is given).
 
 ## View Construction
 
@@ -391,16 +391,16 @@ The dependent initializer has one upside and one downside when compared to the e
 The initializers for the `LoadUserProfileView` are as follows:
 
 ```swift
-// Dependent
-init(state: LoadUserProfileViewState) {
-    _container = .init(state: state)
-}
+// Dependent (A default struct initializer is provided for you automatically)
+let loaderModel = LoadUserProfileViewState.LoaderModel(userId: userId)
+let state = .initialized(loaderModel)
+LoadUserProfileView(state: state)
 
 // Encapsulated
 init(userId: Int) {
     let loaderModel = LoadUserProfileViewState.LoaderModel(userId: userId)
     let state = .initialized(loaderModel)
-    _container = .init(state: state)
+    _state = .init(wrappedValue: state)
 }
 ```
 
@@ -409,16 +409,16 @@ init(userId: Int) {
 The initializers for the `EditUserProfileView` are as follows:
 
 ```swift
-// Dependent
-init(state: EditUserProfileViewState) {
-    _container = .init(state: state)
-}
+// Dependent (A default struct initializer is provided for you automatically)
+let editingModel = EditUserProfileViewState.EditingModel(userData: userData)
+let state = EditUserProfileViewState(data: userData, editingState: .editing(editingModel))
+EditUserProfileView(state: state)
 
 // Encapsulated
 init(userData: UserData) {
     let editingModel = EditUserProfileViewState.EditingModel(userData: userData)
     let state = EditUserProfileViewState(data: userData, editingState: .editing(editingModel))
-    _container = .init(state: state)
+    _state = .init(wrappedValue: state)
 }
 ```
 

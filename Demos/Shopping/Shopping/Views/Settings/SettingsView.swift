@@ -22,7 +22,8 @@ struct SettingsView: View {
             },
             set: { enabled in
                 $state.observe(state.toggleIsCustomBindingExampleEnabled(enabled))
-            })
+            }
+        )
     }
     
     // b. Value Observation & Synchronization
@@ -62,9 +63,9 @@ struct SettingsView: View {
                 .onChange(of: isStateBindingExampleEnabled) { enabled in
                     $state.observe(state.toggleIsStateBindingExampleEnabled(enabled))
                 }
-                .onReceive($state.publisher.map(\.isStateBindingExampleEnabled), perform: { enabled in
+                .onReceive($state.publisher.map(\.isStateBindingExampleEnabled)) { enabled in
                     isStateBindingExampleEnabled = enabled
-                })
+                }
                 .accessibilityIdentifier("State Binding Toggle")
             
             // c.1

@@ -15,47 +15,29 @@ The basic structure of a UIKit VSM view is as follows:
 ```swift
 import VSM
 
-class UserProfileViewController: UIViewController, ViewStateRendering {
-    var container: StateContainer<LoadUserProfileViewState>
-    var stateSubscription: AnyCancellable?
+class UserProfileViewController: UIViewController {
+    @RenderedViewState var state: LoadUserProfileViewState
 
     required init?(state: LoadUserProfileViewState, coder: NSCoder) {
-        container = .init(state: state)
+        _state = .init(wrappedValue: state, render: Self.render)
         super.init(coder: coder)
     }
 
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
+    ...
 
-    override func viewDidLoad() {
-        stateSubscription = container.$state
-            .sink { [weak self] newState in
-                self?.render(newState)
-            }
-        super.viewDidLoad()
-    }
-
-    func render(state: LoadUserProfileViewState) {
+    func render() {
         // View configuration goes here
     }
 }
 ```
 
-We are required by the ``ViewStateRendering`` protocol to define a ``StateContainer`` property and specify what the view state's type will be. In these examples, we will use the `LoadUserProfileViewState` and `EditUserProfileViewState` types from <doc:StateDefinition> to build two related VSM views.
+To turn any UIView or UIViewController into a "VSM View", we only need to define a property that holds our current state and decorate it with the `@RenderedViewState` property wrapper.
+
+**The `@RenderedViewState` is a UIKit-only property wrapper that will cause the view to update every time the state changes**. `@RenderedViewState` requires a `render` _function type_ parameter to call when the state changes. You must define this function in your UIView or UIViewController. 
 
 > Note: In the examples found in this article, we will be using Storyboards. As a result, you can see that we used a custom `NSCoder` initializer above. If you are using a code-first approach to UIKit, you can use whichever initialization mechanism is most appropriate.
 
-In UIKit, we have to manually `sink` the state changes to a `render(state:)` function. This render function will be called any time the state changes and can be used to create, destroy, or configure views or components within the view controller. Make sure your reference to `self` is weak. Make sure that you subscribe to the state publisher after the view has been created (in `viewDidLoad()` or later) because the render function will be fired immediately and will crash if the `UIViewController`'s `view` property is not yet initialized.
-
 ## Displaying the State
-
-The ``ViewStateRendering`` protocol provides a few properties and functions that help with displaying the current state, accessing the state data, and invoking actions.
-
-The first of these members is the ``ViewStateRendering/state`` property, which reflects the current state of the view.
-
-> Important: In UIKit, the ``StateContainer/state`` publisher will call `render(state:)` on the state's `willChange` event. Therefore, any evaluations of `self.state` will give you the previous state's value. If you want the current state, use the state parameter that is passed into the render function.
 
 As a refresher, the following flow chart expresses the requirements that we wish to draw in the view.
 
@@ -83,11 +65,11 @@ protocol LoadingErrorModeling {
 }
 ```
 
-In UIKit, we simply write a switch statement within the `render(state:)` function to evaluate the current state and configure the views for each state.
+In UIKit, we simply write a switch statement within the `render()` function to evaluate the current state and configure the views for each state.
 
 Note that if you avoid using a `default` case in your switch statement, the compiler will enforce any future changes to the shape of your feature. This is good because it will help you avoid bugs when maintaining the feature.
 
-The resulting `render(state:)` function implementation takes this shape:
+The resulting `render()` function implementation takes this shape:
 
 ```swift
 @IBOutlet weak var loadingView: UIActivityIndicatorView!
@@ -96,7 +78,7 @@ The resulting `render(state:)` function implementation takes this shape:
 @IBOutlet weak var errorLabel: UILabel!
 @IBOutlet weak var retryButton: UIButton!
 
-func render(_ state: LoadUserProfileViewState) {
+func render() {
     switch state {
     case .initialized, .loading:
         errorView.isHidden = true
@@ -193,7 +175,7 @@ The following code renders each of the states for `EditUserProfileViewState` by 
 @IBOutlet weak var retryButton: UIButton!
 @IBOutlet weak var cancelButton: UIButton!
 
-func render(_ state: EditUserProfileViewState) {
+func render() {
     switch state.editingState {
     case .editing:
         errorView.isHidden = true
@@ -217,17 +199,17 @@ As in our first example, you can see that the various views are connected to the
 
 Now that we have our view states rendering correctly, we need to wire up the various actions in our views so that they are appropriately and safely invoked by the environment or the user.
 
-VSM's ``ViewStateRendering`` protocol provides a critically important function called ``ViewStateRendering/observe(_:)-7vht3``. This function updates the current state with all view states emitted by the action parameter, as they are emitted in real-time.
+VSM's ``ViewState`` property wrapper provides a critically important function called ``StateContainer/observe(_:)-1emeh`` through its projected value (`$`). This function updates the current state with all view states emitted by an action, as they are emitted in real-time.
 
 It is called like so:
 
 ```swift
-observe(someState.someAction())
+$state.observe(someState.someAction())
 // or
-observe(someState.someAction)
+$state.observe(someState.someAction)
 ```
 
-The only way to update the current view state is to use the `observe(_:)` function.
+The only way to update the current view state is to use the `RenderedViewState`'s `observe(_:)` function.
 
 When `observe(_:)` is called, it cancels any existing Combine publisher subscriptions or Swift Concurrency tasks and ignores view state updates from any previously called actions. This prevents future view state corruption from previous actions and frees up device resources.
 
@@ -252,7 +234,7 @@ override func viewDidLoad() {
 
 override func viewDidAppear(_ animated: Bool) {
     if case .initialized(let loaderModel) = state {
-        observe(loaderModel.load())
+        $state.observe(loaderModel.load())
     }
     super.viewDidAppear(animated)
 }
@@ -264,7 +246,7 @@ func setUpViews() {
             handler: { [weak self] action in
                 guard let strongSelf = self else { return }
                 if case .loadingError(let errorModel) = strongSelf.state {
-                    strongSelf.observe(errorModel.retry())
+                    strongSelf.$state.observe(errorModel.retry())
                 }
             }
         ),
@@ -285,7 +267,7 @@ func setUpViews() {
             handler: { [weak self] action in
                 guard let strongSelf = self else { return }
                 if case .editing(let editingModel) = strongSelf.state.editingState {
-                    strongSelf.observe(
+                    strongSelf.$state.observe(
                         editingModel.save(username: strongSelf.usernameTextField.text ?? "")
                     )
                 }
@@ -300,7 +282,7 @@ func setUpViews() {
             handler: { [weak self] action in
                 guard let strongSelf = self else { return }
                 if case .savingError(let errorModel) = strongSelf.state.editingState {
-                    strongSelf.observe(errorModel.retry())
+                    strongSelf.$state.observe(errorModel.retry())
                 }
             }
         ),
@@ -313,7 +295,7 @@ func setUpViews() {
             handler: { [weak self] action in
                 guard let strongSelf = self else { return }
                 if case .savingError(let errorModel) = strongSelf.state.editingState {
-                    strongSelf.observe(errorModel.cancel())
+                    strongSelf.$state.observe(errorModel.cancel())
                 }
             }
         ),
@@ -324,7 +306,7 @@ func setUpViews() {
 
 You can see that based on the type-system constraints, _these actions can never be called from the wrong state_, and the feature code indicates this very clearly.
 
-> Note: There is a special observe overload ``ViewStateRendering/observe(_:debounced:file:line:)-7ihyy`` which includes a `debounced` property. This allows us to avoid calling an action too many times when tied to user input that may be triggered rapidly, like typing in a text field. It will only call the action a maximum of once per second (or whatever time delay is given).
+> Note: There is a special observe overload ``StateContainer/observe(_:debounced:identifier:)-6tnnd`` which includes a `debounced` property. This allows us to avoid calling an action too many times when tied to user input that may be triggered rapidly, like typing in a text field. It will only call the action a maximum of once per second (or whatever time delay is given).
 
 ## View Construction
 
@@ -344,7 +326,7 @@ The initializers for the `LoadUserProfileViewController` are as follows:
 ```swift
 // Dependent
 required init?(state: LoadUserProfileViewState, coder: NSCoder) {
-    container = .init(state: state)
+    _state = .init(wrappedValue: state, render: Self.render)
     super.init(coder: coder)
 }
 
@@ -352,7 +334,7 @@ required init?(state: LoadUserProfileViewState, coder: NSCoder) {
 required init?(userId: Int, coder: NSCoder) {
     let loaderModel = LoadUserProfileViewState.LoaderModel(userId: userId)
     let state = .initialized(loaderModel)
-    container = .init(state: state)
+    _state = .init(wrappedValue: state, render: Self.render)
     super.init(coder: coder)
 }
 ```
@@ -364,7 +346,7 @@ The initializers for the `EditUserProfileViewController` are as follows:
 ```swift
 // Dependent
 init?(state: EditUserProfileViewState, coder: NSCoder) {
-    container = .init(state: state)
+    _state = .init(wrappedValue: state, render: Self.render)
     super.init(coder: coder)
 }
 
@@ -372,7 +354,7 @@ init?(state: EditUserProfileViewState, coder: NSCoder) {
 init?(userData: UserData, coder: NSCoder) {
     let savingModel = EditUserProfileViewState.EditingModel(userData: userData)
     let state = EditUserProfileViewState(data: userData, editingState: .editing(savingModel))
-    container = .init(state: state)
+    _state = .init(wrappedValue: state, render: Self.render)
     super.init(coder: coder)
 }
 ```

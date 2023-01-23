@@ -8,7 +8,7 @@
 import Combine
 import SwiftUI
 
-/// **(SwiftUI Only)** Manages the view state for a SwiftUI View. Automatically updates the view when the state changes. Used in VSM features.
+/// **(SwiftUI Only)** Manages the view state for a SwiftUI View in VSM. Automatically updates the view when the state changes.
 ///
 /// This property wrapper encapsulates a view's state property with an underlying `StateContainer` to provide the current view state .
 /// A subset of `StateContainer` members are available through the `$` prefix, such as `observe(...)` and `bind(...)`.
