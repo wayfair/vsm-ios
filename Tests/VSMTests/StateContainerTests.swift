@@ -45,6 +45,17 @@ class StateContainerTests: XCTestCase {
         test(subject, expect: [.foo, .bar, .baz], when: { $0.observe(mockAction()) })
     }
     
+    /// Asserts that synchronous actions update the state on the same (main) thread. Prevents "extra-frame render" view initialization bugs.
+    func testStatePublisherAction_MainThreadConsistency() throws {
+        let mockAction: () -> AnyPublisher<MockState, Never> = {
+            Just(MockState.bar).eraseToAnyPublisher()
+        }
+        XCTAssertTrue(Thread.isMainThread, "Unit test did not run on the main thread.")
+        let subject = StateContainer<MockState>(state: .foo)
+        subject.observe(mockAction())
+        XCTAssertEqual(subject.state, .bar, "State was not updated synchronously by the synchronous action")
+    }
+    
     // MARK: - Async Actions
     
     /// Tests that observing state-emitting async actions will progress the state appropriately
