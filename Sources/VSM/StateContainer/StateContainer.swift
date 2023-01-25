@@ -38,6 +38,20 @@ final public class StateContainer<State>: ObservableObject {
         registerForDebugLogging()
     }
     
+    /// This function exists to ensure that state is set synchronously if on main, or asynchronously if not on main.
+    /// This prevents accidental frame-draws early in the view lifecycle in both SwiftUI and UIKit.
+    /// Detail: `.receive(on: DispatchQueue.main)` queues asynchronously, always causing a thread-hop even if the subscription and send were performed on the main thread. TBD whether a runtime optimized Tasks (MainActor) would have the same problem
+    /// In a future iOS 15+ version, this class will be converted fully to the `MainActor` paradigm
+    private func setStateOnMainThread(to newState: State) {
+        if Thread.isMainThread {
+            state = newState
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.state = newState
+            }
+        }
+    }
+    
     /// Cancels any Combine `Subscriber`s that are being observed or Swift Concurrency `Task`s that are being run
     func cancelRunningObservations() {
         cancellable?.cancel()
@@ -58,9 +72,8 @@ public extension StateContainer {
     func observe(_ stateChangePublisher: AnyPublisher<State, Never>) {
         cancelRunningObservations()
         cancellable = stateChangePublisher
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] newState in
-                self?.state = newState
+                self?.setStateOnMainThread(to: newState)
             }
     }
     
@@ -99,13 +112,7 @@ public extension StateContainer {
     func observe(_ nextState: @autoclosure @escaping () -> State) {
         cancelRunningObservations()
         let newState = nextState()
-        if Thread.isMainThread {
-            state = newState
-        } else {
-            DispatchQueue.main.async { [weak self] in
-                self?.state = newState
-            }
-        }
+        setStateOnMainThread(to: newState)
     }
 }
 
