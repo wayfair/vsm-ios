@@ -18,7 +18,6 @@ struct CartButtonView: View {
         self.dependencies = dependencies
         let loaderModel = CartCountLoaderModel(dependencies: dependencies)
         _state = .init(wrappedValue: .initialized(loaderModel))
-        $state.observe(loaderModel.loadCount())
     }
     
     var body: some View {
@@ -29,6 +28,11 @@ struct CartButtonView: View {
         .overlay(Badge(count: state.cartItemCount))
         .fullScreenCover(isPresented: $showCart) {
             CartView(dependencies: dependencies, showModal: $showCart)
+        }
+        .onAppear {
+            if case .initialized(let loaderModel) = state {
+                $state.observe(loaderModel.loadCount())
+            }
         }
     }
 }

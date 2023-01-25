@@ -17,13 +17,17 @@ struct MainView: View {
         _state = .init(wrappedValue: .initialized(loaderModel))
         // Enable the following debug-only flag to view all state changes in _this_ view
         // $state._debug(options: [.conciseEnum, .container, .memory])
-        $state.observe(loaderModel.loadDependencies())
     }
     
     var body: some View {
         switch state {
         case .loading, .initialized:
             ProgressView()
+                .onAppear {
+                    if case .initialized(let loaderModel) = state {
+                        $state.observe(loaderModel.loadDependencies())
+                    }
+                }
         case .loaded(let loadedModel):
             loadedView(loadedModel)
         }

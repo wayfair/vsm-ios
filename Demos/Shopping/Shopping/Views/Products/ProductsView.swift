@@ -17,7 +17,6 @@ struct ProductsView: View {
         self.dependencies = dependencies
         let loaderModel = ProductsLoaderModel(dependencies: dependencies)
         _state = .init(wrappedValue: .initialized(loaderModel))
-        $state.observe(loaderModel.loadProducts())
     }
     
     var body: some View {
@@ -35,6 +34,11 @@ struct ProductsView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 CartButtonView(dependencies: dependencies)
+            }
+        }
+        .onAppear {
+            if case .initialized(let loaderModel) = state {
+                $state.observe(loaderModel.loadProducts())
             }
         }
     }

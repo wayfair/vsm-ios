@@ -17,7 +17,6 @@ struct FavoritesView: View {
         let loaderModel = FavoritesLoaderModel(dependencies: dependencies,
                                                              modelBuilder: FavoritesViewModelBuilder(dependencies: dependencies))
         _state = .init(wrappedValue: .initialized(loaderModel))
-        $state.observe(loaderModel.loadFavorites())
     }
     
     var body: some View {
@@ -42,6 +41,11 @@ struct FavoritesView: View {
         .onReceive($state.publisher) { state in
             if case .deletingError = state {
                 showErrorAlert = true
+            }
+        }
+        .onAppear {
+            if case .initialized(let loaderModel) = state {
+                $state.observe(loaderModel.loadFavorites())
             }
         }
     }
