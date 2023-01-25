@@ -56,7 +56,6 @@ import Foundation
 public struct RenderedViewState<State> {
     
     let container: StateContainer<State>
-    let wrapper: StateContainer<State>.Wrapper
     /// Tracks state changes for invoking `render` when the state changes
     let stateDidChangeSubscriber: AtomicStateChangeSubscriber<State> = .init()
     /// Implicitly used by UIKit views to automatically call the provided function when the state changes
@@ -68,8 +67,8 @@ public struct RenderedViewState<State> {
         get { container.state }
     }
 
-    public var projectedValue: StateContainer<State>.Wrapper {
-        wrapper
+    public var projectedValue: some StateContaining<State> {
+        container
     }
     
     // MARK: - Initializers
@@ -80,7 +79,6 @@ public struct RenderedViewState<State> {
     ///   - render: The function to call when the view state changes.
     public init<Parent: AnyObject>(container: StateContainer<State>, render: @escaping (Parent) -> () -> ()) {
         self.container = container
-        self.wrapper = .init(container: container)
         let anyRender: (Any, State) -> () = { parent, state in
             guard let parent = parent as? Parent else { return }
             render(parent)()
@@ -137,7 +135,7 @@ public struct RenderedViewState<State> {
             let wrapper = instance[keyPath: storageKeyPath]
             wrapper
                 .stateDidChangeSubscriber
-                .subscribeOnce(to: wrapper.container.statePublisher) { [weak instance] newState in
+                .subscribeOnce(to: wrapper.container.publisher) { [weak instance] newState in
                     guard let instance else { return }
                     wrapper.render(instance, newState)
                 }

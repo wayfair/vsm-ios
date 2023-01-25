@@ -3,7 +3,7 @@ import Foundation
 
 /// Assists views by managing the current view state.
 /// Observes the output of actions called by the view.
-final public class StateContainer<State>: ObservableObject {
+final public class StateContainer<State>: ObservableObject, StateContaining {
     
     /// The current state, managed by this container.
     ///
@@ -15,7 +15,7 @@ final public class StateContainer<State>: ObservableObject {
     }
     
     /// Publishes the State on `didSet` (main thread). For a `willSet` publisher, use the `$state` projected value.
-    public lazy var statePublisher: AnyPublisher<State, Never> = {
+    public lazy var publisher: AnyPublisher<State, Never> = {
         stateDidChangeSubject.eraseToAnyPublisher()
     }()
     
@@ -277,7 +277,7 @@ public extension StateContainer {
     }
 }
 
-private struct DebounceIdentifier: Hashable {
+struct DebounceIdentifier: Hashable {
     let defaultId: UUID
     let file: String
     let line: UInt

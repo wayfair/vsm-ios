@@ -10,17 +10,20 @@
 import Combine
 import Foundation
 
-public extension StateContainer {
+public extension StateContaining {
     
     /// Prints all state changes in this `StateContainer`, starting with the current state. ⚠️ Requires DEBUG configuration.
     @available(*, deprecated, message: "This debug statement only compiles in DEBUG schemas.")
     @discardableResult
     func _debug(options: _StateContainerDebugOptions = .defaults) -> Self {
-        debugLogger.startLogging(for: self, options: options)
+        if let stateContainer = self as? StateContainer<State> {
+            stateContainer.debugLogger.startLogging(for: stateContainer, options: options)
+        }
         return self
     }
 }
 
+@available(iOS 14.0, *)
 public extension StateContainer where State == Any {
     
     /// Prints all state changes in every `StateContainer` created after this line. ⚠️ Requires DEBUG configuration.
@@ -31,14 +34,12 @@ public extension StateContainer where State == Any {
 }
 
 @available(iOS 14.0, *)
-public extension StateContainer.Wrapper {
+public extension ViewState where State == Any {
     
-    /// Prints all state changes in this `StateContainer`, starting with the current state. ⚠️ Requires DEBUG configuration.
+    /// Prints all state changes in every `StateContainer` created after this line. ⚠️ Requires DEBUG configuration.
     @available(*, deprecated, message: "This debug statement only compiles in DEBUG schemas.")
-    @discardableResult
-    func _debug(options: _StateContainerDebugOptions = .defaults) -> Self {
-        container.debugLogger.startLogging(for: container, options: options)
-        return self
+    static func _debug(options: _StateContainerDebugOptions = .defaults) {
+        StateContainerDebugLogger.defaultLoggingModes = options
     }
 }
 
@@ -81,7 +82,7 @@ class StateContainerDebugLogger {
         }
         if options.contains(.didSet) {
             publisher = publisher
-                .merge(with: container.statePublisher
+                .merge(with: container.publisher
                     .map({ .init(name: "didSet", state: $0, description: "\($0)") }))
                 .eraseToAnyPublisher()
         }

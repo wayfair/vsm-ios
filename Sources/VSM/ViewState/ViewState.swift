@@ -35,7 +35,6 @@ import SwiftUI
 public struct ViewState<State>: DynamicProperty {
     
     @StateObject var container: StateContainer<State>
-    @SwiftUI.State private(set) var wrapper: StateContainer<State>.Wrapper
     
     // MARK: - Encapsulating Properties
 
@@ -43,8 +42,8 @@ public struct ViewState<State>: DynamicProperty {
         get { container.state }
     }
 
-    public var projectedValue: StateContainer<State>.Wrapper {
-        wrapper
+    public var projectedValue: some StateContaining<State> {
+        container
     }
     
     // MARK: - Initializers
@@ -53,7 +52,6 @@ public struct ViewState<State>: DynamicProperty {
     /// - Parameter container: The state container that manages the view state.
     public init(container: StateContainer<State>) {
         self._container = .init(wrappedValue: container)
-        self._wrapper = SwiftUI.State(initialValue: .init(container: container))
     }
     
     /// **(SwiftUI only)** Instantiates the view state with an initial value.
