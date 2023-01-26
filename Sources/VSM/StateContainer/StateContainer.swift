@@ -22,13 +22,13 @@ final public class StateContainer<State>: ObservableObject, StateContaining {
     /// Used for debug logging. Inert in non-DEBUG schemas.
     lazy var debugLogger: StateContainerDebugLogger = StateContainerDebugLogger()
     
-    private var cancellable: AnyCancellable?
-    private var asyncTask: Task<Void, Error>?
+    private var stateSubscription: AnyCancellable?
+    private var stateTask: Task<Void, Error>?
     private var stateDidChangeSubject: CurrentValueSubject<State, Never>
     
     // Debounce Properties
     private var debounceSubscriptionQueue: DispatchQueue = DispatchQueue(label: #function, qos: .userInitiated)
-    private var debounceCancellables: [AnyHashable: AnyCancellable] = [:]
+    private var debounceSubscriptions: [AnyHashable: AnyCancellable] = [:]
     private var debouncePublisher: PassthroughSubject<DebounceableAction, Never> = .init()
     private var defaultDebounceId: UUID = .init() // Prevents accidental debounce collisions with custom identifiers
     
@@ -54,10 +54,10 @@ final public class StateContainer<State>: ObservableObject, StateContaining {
     
     /// Cancels any Combine `Subscriber`s that are being observed or Swift Concurrency `Task`s that are being run
     func cancelRunningObservations() {
-        cancellable?.cancel()
-        cancellable = nil
-        asyncTask?.cancel()
-        asyncTask = nil
+        stateSubscription?.cancel()
+        stateSubscription = nil
+        stateTask?.cancel()
+        stateTask = nil
     }
     
     deinit {
@@ -71,7 +71,7 @@ public extension StateContainer {
     /// Observes the state publisher emitted as a result of invoking some action
     func observe(_ statePublisher: AnyPublisher<State, Never>) {
         cancelRunningObservations()
-        cancellable = statePublisher
+        stateSubscription = statePublisher
             .sink { [weak self] newState in
                 self?.setStateOnMainThread(to: newState)
             }
@@ -81,7 +81,7 @@ public extension StateContainer {
     func observe(_ nextState: @escaping () async -> State) {
         cancelRunningObservations()
         // A weak-self declaration is required on the `Task` closure to break an unexpected strong self retention, despite not directly invoking self ¯\_(ツ)_/¯
-        asyncTask = Task(priority: .userInitiated) { [weak self] in
+        stateTask = Task(priority: .userInitiated) { [weak self] in
             let newState = await nextState()
             guard !Task.isCancelled else { return }
             // GCD is used here instead of `MainActor` to avoid back-ported Swift Concurrency crashes relating to `MainActor` usage
@@ -96,7 +96,7 @@ public extension StateContainer {
     func observe<SomeAsyncSequence: AsyncSequence>(_ stateSequence: @escaping () async -> SomeAsyncSequence) where SomeAsyncSequence.Element == State {
         cancelRunningObservations()
         // A weak-self declaration is required on the `Task` closure to break an unexpected strong self retention, despite not directly invoking self ¯\_(ツ)_/¯
-        asyncTask = Task(priority: .userInitiated) { [weak self] in
+        stateTask = Task(priority: .userInitiated) { [weak self] in
             for try await newState in await stateSequence() {
                 guard !Task.isCancelled else { break }
                 // GCD is used here instead of `MainActor` to avoid back-ported Swift Concurrency crashes relating to `MainActor` usage
@@ -127,8 +127,8 @@ public extension StateContainer {
     
     private func debounce(action: DebounceableAction) {
         debounceSubscriptionQueue.sync {
-            if debounceCancellables[action.identifier] == nil {
-                debounceCancellables[action.identifier] = debouncePublisher
+            if debounceSubscriptions[action.identifier] == nil {
+                debounceSubscriptions[action.identifier] = debouncePublisher
                     .filter({ $0.identifier == action.identifier })
                     .debounce(for: action.dueTime, scheduler: DispatchQueue.main)
                     .sink {
