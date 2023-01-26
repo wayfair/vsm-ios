@@ -69,20 +69,20 @@ final public class StateContainer<State>: ObservableObject, StateContaining {
 
 public extension StateContainer {
     /// Observes the state publisher emitted as a result of invoking some action
-    func observe(_ stateChangePublisher: AnyPublisher<State, Never>) {
+    func observe(_ statePublisher: AnyPublisher<State, Never>) {
         cancelRunningObservations()
-        cancellable = stateChangePublisher
+        cancellable = statePublisher
             .sink { [weak self] newState in
                 self?.setStateOnMainThread(to: newState)
             }
     }
     
     /// Observes the state emitted as a result of invoking some asynchronous action
-    func observe(_ awaitState: @escaping () async -> State) {
+    func observe(_ nextState: @escaping () async -> State) {
         cancelRunningObservations()
         // A weak-self declaration is required on the `Task` closure to break an unexpected strong self retention, despite not directly invoking self ¯\_(ツ)_/¯
         asyncTask = Task(priority: .userInitiated) { [weak self] in
-            let newState = await awaitState()
+            let newState = await nextState()
             guard !Task.isCancelled else { return }
             // GCD is used here instead of `MainActor` to avoid back-ported Swift Concurrency crashes relating to `MainActor` usage
             // In a future iOS 15+ version, this class will be converted fully to the `MainActor` paradigm
@@ -93,11 +93,11 @@ public extension StateContainer {
     }
     
     /// Observes the states emitted as a result of invoking some asynchronous action that returns an asynchronous sequence
-    func observe<SomeAsyncSequence: AsyncSequence>(_ awaitStateSequence: @escaping () async -> SomeAsyncSequence) where SomeAsyncSequence.Element == State {
+    func observe<SomeAsyncSequence: AsyncSequence>(_ stateSequence: @escaping () async -> SomeAsyncSequence) where SomeAsyncSequence.Element == State {
         cancelRunningObservations()
         // A weak-self declaration is required on the `Task` closure to break an unexpected strong self retention, despite not directly invoking self ¯\_(ツ)_/¯
         asyncTask = Task(priority: .userInitiated) { [weak self] in
-            for try await newState in await awaitStateSequence() {
+            for try await newState in await stateSequence() {
                 guard !Task.isCancelled else { break }
                 // GCD is used here instead of `MainActor` to avoid back-ported Swift Concurrency crashes relating to `MainActor` usage
                 // In a future iOS 15+ version, this class will be converted fully to the `MainActor` paradigm
@@ -109,10 +109,9 @@ public extension StateContainer {
     }
     
     /// Observes the state emitted as a result of invoking some synchronous action
-    func observe(_ nextState: @autoclosure @escaping () -> State) {
+    func observe(_ nextState: State) {
         cancelRunningObservations()
-        let newState = nextState()
-        setStateOnMainThread(to: newState)
+        setStateOnMainThread(to: nextState)
     }
 }
 
@@ -139,146 +138,76 @@ public extension StateContainer {
         }
         debouncePublisher.send(action)
     }
-        
-    /// Debounces the action calls by `dueTime`, then observes the `State` publisher emitted as a result of invoking the action.
-    /// Prevents actions from being excessively called when bound to noisy UI events.
-    /// Action calls are automatically grouped by call location. Use `observe(_:debounced:identifier:)` if you need custom debounce grouping.
-    /// - Parameters:
-    ///   - stateChangePublisherAction: The action to be debounced before invoking
-    ///   - dueTime: The amount of time required to pass before invoking the most recent action
-    func observe(
-        _ stateChangePublisherAction: @escaping @autoclosure () -> AnyPublisher<State, Never>,
-        debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
-        file: String = #file,
-        line: UInt = #line
-    ) {
-        let debounceGroupId = DebounceIdentifier(defaultId: defaultDebounceId, file: file, line: line)
-        observe(stateChangePublisherAction(), debounced: dueTime, identifier: debounceGroupId)
-    }
     
     /// Debounces the action calls by `dueTime`, then observes the `State` publisher emitted as a result of invoking the action.
     /// Prevents actions from being excessively called when bound to noisy UI events.
     /// Action calls are grouped by the provided `identifier`.
     /// - Parameters:
-    ///   - stateChangePublisherAction: The action to be debounced before invoking
+    ///   - statePublisher: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     ///   - identifier: The identifier for grouping actions for debouncing
     func observe(
-        _ stateChangePublisherAction: @escaping @autoclosure () -> AnyPublisher<State, Never>,
+        _ statePublisher: @escaping @autoclosure () -> AnyPublisher<State, Never>,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     ) {
         let debounceableAction = DebounceableAction(identifier: identifier, dueTime: dueTime) { [weak self] in
-            self?.observe(stateChangePublisherAction().eraseToAnyPublisher())
+            self?.observe(statePublisher().eraseToAnyPublisher())
         }
         debounce(action: debounceableAction)
     }
     
     /// Debounces the action calls by `dueTime`, then asynchronously observes the `State` returned as a result of invoking the action.
     /// Prevents actions from being excessively called when bound to noisy UI events.
-    /// Action calls are automatically grouped by call location. Use `observe(_:debounced:identifier:)` if you need custom debounce grouping.
-    /// - Parameters:
-    ///   - stateChangeAsyncAction: The action to be debounced before invoking
-    ///   - dueTime: The amount of time required to pass before invoking the most recent action
-    func observe(
-        _ stateChangeAsyncAction: @escaping () async -> State,
-        debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
-        file: String = #file,
-        line: UInt = #line
-    ) {
-        let debounceGroupId = DebounceIdentifier(defaultId: defaultDebounceId, file: file, line: line)
-        observe(stateChangeAsyncAction, debounced: dueTime, identifier: debounceGroupId)
-    }
-    
-    /// Debounces the action calls by `dueTime`, then asynchronously observes the `State` returned as a result of invoking the action.
-    /// Prevents actions from being excessively called when bound to noisy UI events.
     /// Action calls are grouped by the provided `identifier`.
     /// - Parameters:
-    ///   - stateChangeAsyncAction: The action to be debounced before invoking
+    ///   - nextState: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     ///   - identifier: The identifier for grouping actions for debouncing
     func observe(
-        _ stateChangeAsyncAction: @escaping () async -> State,
+        async nextState: @escaping () async -> State,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     ) {
         let debounceableAction = DebounceableAction(identifier: identifier, dueTime: dueTime) { [weak self] in
-            self?.observe({ await stateChangeAsyncAction() })
+            self?.observe({ await nextState() })
         }
         debounce(action: debounceableAction)
     }
     
     /// Debounces the action calls by `dueTime`, then observes the async sequence of `State`s returned as a result of invoking the action.
     /// Prevents actions from being excessively called when bound to noisy UI events.
-    /// Action calls are automatically grouped by call location. Use `observe(_:debounced:identifier:)` if you need custom debounce grouping.
-    /// - Parameters:
-    ///   - stateChangeAsyncSequenceAction: The action to be debounced before invoking
-    ///   - dueTime: The amount of time required to pass before invoking the most recent action
-    func observe<SomeAsyncSequence: AsyncSequence>(
-        _ stateChangeAsyncSequenceAction: @escaping () async -> SomeAsyncSequence,
-        debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
-        file: String = #file,
-        line: UInt = #line
-    ) where SomeAsyncSequence.Element == State {
-        let debounceGroupId = DebounceIdentifier(defaultId: defaultDebounceId, file: file, line: line)
-        observe(stateChangeAsyncSequenceAction, debounced: dueTime, identifier: debounceGroupId)
-    }
-    
-    /// Debounces the action calls by `dueTime`, then observes the async sequence of `State`s returned as a result of invoking the action.
-    /// Prevents actions from being excessively called when bound to noisy UI events.
     /// Action calls are grouped by the provided `identifier`.
     /// - Parameters:
-    ///   - stateChangeAsyncSequenceAction: The action to be debounced before invoking
+    ///   - stateSequence: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     ///   - identifier: The identifier for grouping actions for debouncing
     func observe<SomeAsyncSequence: AsyncSequence>(
-        _ stateChangeAsyncSequenceAction: @escaping () async -> SomeAsyncSequence,
+        _ stateSequence: @escaping () async -> SomeAsyncSequence,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     ) where SomeAsyncSequence.Element == State {
         let debounceableAction = DebounceableAction(identifier: identifier, dueTime: dueTime) { [weak self] in
-            self?.observe({ await stateChangeAsyncSequenceAction() })
+            self?.observe({ await stateSequence() })
         }
         debounce(action: debounceableAction)
     }
     
     /// Debounces the action calls by `dueTime`, then observes the `State` returned as a result of invoking the action.
     /// Prevents actions from being excessively called when bound to noisy UI events.
-    /// Action calls are automatically grouped by call location. Use `observe(_:debounced:identifier:)` if you need custom debounce grouping.
-    /// - Parameters:
-    ///   - stateChangeAction: The action to be debounced before invoking
-    ///   - dueTime: The amount of time required to pass before invoking the most recent action
-    func observe(
-        _ stateChangeAction: @escaping @autoclosure () -> State,
-        debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
-        file: String = #file,
-        line: UInt = #line
-    ) {
-        let debounceGroupId = DebounceIdentifier(defaultId: defaultDebounceId, file: file, line: line)
-        observe(stateChangeAction(), debounced: dueTime, identifier: debounceGroupId)
-    }
-    
-    /// Debounces the action calls by `dueTime`, then observes the `State` returned as a result of invoking the action.
-    /// Prevents actions from being excessively called when bound to noisy UI events.
     /// Action calls are grouped by the provided `identifier`.
     /// - Parameters:
-    ///   - stateChangeAction: The action to be debounced before invoking
+    ///   - nextState: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     ///   - identifier: The identifier for grouping actions for debouncing
     func observe(
-        _ stateChangeAction: @escaping @autoclosure () -> State,
+        _ nextState: @escaping @autoclosure () -> State,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     ) {
         let debounceableAction = DebounceableAction(identifier: identifier, dueTime: dueTime) { [weak self] in
-            self?.observe(stateChangeAction())
+            self?.observe(nextState())
         }
         debounce(action: debounceableAction)
     }
-}
-
-struct DebounceIdentifier: Hashable {
-    let defaultId: UUID
-    let file: String
-    let line: UInt
 }

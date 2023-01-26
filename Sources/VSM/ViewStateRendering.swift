@@ -1,6 +1,6 @@
 import Combine
 
-/// [⚠️ Deprecated] Conforms a SwiftUI or UIKit view to the VSM pattern.
+/// Conforms a SwiftUI or UIKit view to the VSM pattern.
 ///
 /// Conforming a SwiftUI `View`, `UIView`, or `UIViewController` to ``ViewStateRendering`` aids in adoption of the VSM pattern.
 /// This will provide the view with its own ``StateContainer`` by way of the ``container`` property.
@@ -272,71 +272,71 @@ public extension ViewStateRendering {
         file: String = #file,
         line: UInt = #line
     ) {
-        container.observe(stateChangeAsyncAction, debounced: dueTime, file: file, line: line)
+        container.observe(async: stateChangeAsyncAction, debounced: dueTime, file: file, line: line)
     }
     
     /// Debounces the action calls by `dueTime`, then asynchronously observes the `State` returned as a result of invoking the action.
     /// Prevents actions from being excessively called when bound to noisy UI events.
     /// Action calls are grouped by the provided `identifier`.
     /// - Parameters:
-    ///   - stateChangeAsyncAction: The action to be debounced before invoking
+    ///   - nextState: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     ///   - identifier: The identifier for grouping actions for debouncing
     @available(*, deprecated, message: "Use container.observe or adopt the @ViewState (or @RenderedViewState) pattern.")
     func observe(
-        _ stateChangeAsyncAction: @escaping () async -> SomeViewState,
+        async nextState: @escaping () async -> SomeViewState,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     ) {
-        container.observe(stateChangeAsyncAction, debounced: dueTime, identifier: identifier)
+        container.observe(async: nextState, debounced: dueTime, identifier: identifier)
     }
     
     /// Debounces the action calls by `dueTime`, then observes the async sequence of `State`s returned as a result of invoking the action.
     /// Prevents actions from being excessively called when bound to noisy UI events.
     /// Action calls are automatically grouped by call location. Use `observe(_:debounced:identifier:)` if you need custom debounce grouping.
     /// - Parameters:
-    ///   - stateChangeAsyncSequenceAction: The action to be debounced before invoking
+    ///   - stateSequence: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     @available(*, deprecated, message: "Use container.observe or adopt the @ViewState (or @RenderedViewState) pattern.")
     func observe<SomeAsyncSequence: AsyncSequence>(
-        _ stateChangeAsyncSequenceAction: @escaping () async -> SomeAsyncSequence,
+        _ stateSequence: @escaping () async -> SomeAsyncSequence,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         file: String = #file,
         line: UInt = #line
     ) where SomeAsyncSequence.Element == SomeViewState {
-        container.observe(stateChangeAsyncSequenceAction, debounced: dueTime, file: file, line: line)
+        container.observe(stateSequence, debounced: dueTime, file: file, line: line)
     }
     
     /// Debounces the action calls by `dueTime`, then observes the async sequence of `State`s returned as a result of invoking the action.
     /// Prevents actions from being excessively called when bound to noisy UI events.
     /// Action calls are grouped by the provided `identifier`.
     /// - Parameters:
-    ///   - stateChangeAsyncSequenceAction: The action to be debounced before invoking
+    ///   - stateSequence: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     ///   - identifier: The identifier for grouping actions for debouncing
     @available(*, deprecated, message: "Use container.observe or adopt the @ViewState (or @RenderedViewState) pattern.")
     func observe<SomeAsyncSequence: AsyncSequence>(
-        _ stateChangeAsyncSequenceAction: @escaping () async -> SomeAsyncSequence,
+        async stateSequence: @escaping () async -> SomeAsyncSequence,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     ) where SomeAsyncSequence.Element == SomeViewState {
-        container.observe(stateChangeAsyncSequenceAction, debounced: dueTime, identifier: identifier)
+        container.observe(stateSequence, debounced: dueTime, identifier: identifier)
     }
     
     /// Debounces the action calls by `dueTime`, then observes the `State` returned as a result of invoking the action.
     /// Prevents actions from being excessively called when bound to noisy UI events.
     /// Action calls are automatically grouped by call location. Use `observe(_:debounced:identifier:)` if you need custom debounce grouping.
     /// - Parameters:
-    ///   - stateChangeAction: The action to be debounced before invoking
+    ///   - nextState: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     @available(*, deprecated, message: "Use container.observe or adopt the @ViewState (or @RenderedViewState) pattern.")
     func observe(
-        _ stateChangeAction: @escaping @autoclosure () -> SomeViewState,
+        _ nextState: @escaping @autoclosure () -> SomeViewState,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         file: String = #file,
         line: UInt = #line
     ) {
-        container.observe(stateChangeAction(), debounced: dueTime, file: file, line: line)
+        container.observe(nextState, debounced: dueTime, file: file, line: line)
     }
     
     /// Debounces the action calls by `dueTime`, then observes the `State` returned as a result of invoking the action.

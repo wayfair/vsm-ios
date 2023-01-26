@@ -133,7 +133,7 @@ class ViewStateRenderingTests_ObserveDebounce: XCTestCase {
             .bar
         }
         let actionCallSite: () -> Void = {
-            self.subject.observe({ await countableAction.invoke() }, debounced: .seconds(0.5), identifier: "some_id")
+            self.subject.observe(async: { await countableAction.invoke() }, debounced: .seconds(0.5), identifier: "some_id")
         }
         
         actionCallSite()
@@ -167,7 +167,7 @@ class ViewStateRenderingTests_ObserveDebounce: XCTestCase {
             .init({ .bar })
         }
         let actionCallSite: () -> Void = {
-            self.subject.observe({ await countableAction.invoke() }, debounced: .seconds(0.5), identifier: "some_id")
+            self.subject.observe(async: { await countableAction.invoke() }, debounced: .seconds(0.5), identifier: "some_id")
         }
         
         actionCallSite()

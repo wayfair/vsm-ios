@@ -5,8 +5,6 @@
 //  Created by Albert Bori on 12/23/22.
 //
 
-import Foundation
-
 /// **(UIKit Only)** Manages the view state for a UIView or UIViewController in VSM. Automatically calls `render()` when the view state changes.
 ///
 /// This property wrapper encapsulates a view's state property with an underlying `StateContainer` to provide the current view state .

@@ -5,6 +5,7 @@
 //  Created by Albert Bori on 11/18/22.
 //
 
+#if canImport(SwiftUI)
 import Combine
 import SwiftUI
 
@@ -80,3 +81,4 @@ public struct ViewState<State>: DynamicProperty {
         self.init(container: StateContainer(state: wrappedValue))
     }
 }
+#endif
