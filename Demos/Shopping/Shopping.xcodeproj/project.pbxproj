@@ -35,6 +35,11 @@
 		3289790827BF2D5400651ADE /* CartButtonViewState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3289790727BF2D5400651ADE /* CartButtonViewState.swift */; };
 		329F66D628297FF40089DD70 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329F66D528297FF40089DD70 /* SettingsView.swift */; };
 		329F66D8282980050089DD70 /* SettingsViewState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329F66D7282980050089DD70 /* SettingsViewState.swift */; };
+		329FD10829847C9E00093A42 /* UIFrameworkDependency.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329FD10729847C9E00093A42 /* UIFrameworkDependency.swift */; };
+		329FD10D29847EFE00093A42 /* ProductDetail.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 329FD10B29847EFE00093A42 /* ProductDetail.storyboard */; };
+		329FD10E29847EFE00093A42 /* ProductDetailViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329FD10C29847EFE00093A42 /* ProductDetailViewController.swift */; };
+		329FD11029847F2700093A42 /* ProductViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329FD10F29847F2700093A42 /* ProductViewController.swift */; };
+		329FD112298480FF00093A42 /* ProductUIKitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329FD111298480FF00093A42 /* ProductUIKitView.swift */; };
 		32D32EEE282C5B74009DC857 /* UserDefaultsDependency.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32D32EED282C5B74009DC857 /* UserDefaultsDependency.swift */; };
 		32E5E76F27B484C9002E9C47 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32E5E76E27B484C9002E9C47 /* MainView.swift */; };
 		32E5E77327B4858C002E9C47 /* AccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32E5E77227B4858C002E9C47 /* AccountView.swift */; };
@@ -112,6 +117,11 @@
 		3289790727BF2D5400651ADE /* CartButtonViewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CartButtonViewState.swift; sourceTree = "<group>"; };
 		329F66D528297FF40089DD70 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		329F66D7282980050089DD70 /* SettingsViewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewState.swift; sourceTree = "<group>"; };
+		329FD10729847C9E00093A42 /* UIFrameworkDependency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIFrameworkDependency.swift; sourceTree = "<group>"; };
+		329FD10B29847EFE00093A42 /* ProductDetail.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; path = ProductDetail.storyboard; sourceTree = "<group>"; };
+		329FD10C29847EFE00093A42 /* ProductDetailViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ProductDetailViewController.swift; sourceTree = "<group>"; };
+		329FD10F29847F2700093A42 /* ProductViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ProductViewController.swift; sourceTree = "<group>"; };
+		329FD111298480FF00093A42 /* ProductUIKitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductUIKitView.swift; sourceTree = "<group>"; };
 		32D32EED282C5B74009DC857 /* UserDefaultsDependency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsDependency.swift; sourceTree = "<group>"; };
 		32E5E76E27B484C9002E9C47 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
 		32E5E77227B4858C002E9C47 /* AccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountView.swift; sourceTree = "<group>"; };
@@ -198,8 +208,8 @@
 		324B002A2978521D0087CAB7 /* Helpers */ = {
 			isa = PBXGroup;
 			children = (
-				32387F35296D021C00B78C3B /* XCUIElement+waitForExistence.swift */,
 				324B00282978502D0087CAB7 /* UITestCase.swift */,
+				32387F35296D021C00B78C3B /* XCUIElement+waitForExistence.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -228,6 +238,7 @@
 				322B21E527BAF50400D147A4 /* ProductGridItemView.swift */,
 				32E5E77427B48687002E9C47 /* ProductsView.swift */,
 				32E5E78927B49BAC002E9C47 /* ProductsViewState.swift */,
+				329FD111298480FF00093A42 /* ProductUIKitView.swift */,
 			);
 			path = Products;
 			sourceTree = "<group>";
@@ -255,6 +266,7 @@
 				322B21E927BB3F0C00D147A4 /* FavoriteButtonView */,
 				32F1B5EE27C5C3F300819F76 /* ProductDetailView */,
 				322B21E327B8482800D147A4 /* ProductView.swift */,
+				329FD10F29847F2700093A42 /* ProductViewController.swift */,
 				32F1B5EB27C5C3A500819F76 /* ProductViewState.swift */,
 			);
 			path = Product;
@@ -292,6 +304,7 @@
 				32F1B64027CAB10C00819F76 /* DispatchQueueSchedulerDependency.swift */,
 				32E5E78127B49323002E9C47 /* FavoritesRepository.swift */,
 				32E5E77D27B48EFF002E9C47 /* ProductRepository.swift */,
+				329FD10729847C9E00093A42 /* UIFrameworkDependency.swift */,
 				32D32EED282C5B74009DC857 /* UserDefaultsDependency.swift */,
 			);
 			path = Dependencies;
@@ -397,7 +410,9 @@
 		32F1B5EE27C5C3F300819F76 /* ProductDetailView */ = {
 			isa = PBXGroup;
 			children = (
+				329FD10B29847EFE00093A42 /* ProductDetail.storyboard */,
 				32F1B5EF27C5C40300819F76 /* ProductDetailView.swift */,
+				329FD10C29847EFE00093A42 /* ProductDetailViewController.swift */,
 				32F1B5F327C6E80100819F76 /* ProductDetailViewState.swift */,
 			);
 			path = ProductDetailView;
@@ -406,8 +421,8 @@
 		32F1B5FE27CA829B00819F76 /* Helpers */ = {
 			isa = PBXGroup;
 			children = (
-				32F1B5FF27CA82B500819F76 /* XCTestCase+WaitForPublisher.swift */,
 				32F1B63727CAA10C00819F76 /* MockError.swift */,
+				32F1B5FF27CA82B500819F76 /* XCTestCase+WaitForPublisher.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -530,6 +545,7 @@
 			files = (
 				32EEC6F827B482B7001AB9C7 /* Preview Assets.xcassets in Resources */,
 				32EEC6F527B482B7001AB9C7 /* Assets.xcassets in Resources */,
+				329FD10D29847EFE00093A42 /* ProductDetail.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -556,9 +572,13 @@
 			files = (
 				322B21EF27BC086700D147A4 /* FavoriteButtonViewState.swift in Sources */,
 				32E5E78027B4930B002E9C47 /* CartRepository.swift in Sources */,
+				329FD10E29847EFE00093A42 /* ProductDetailViewController.swift in Sources */,
+				329FD112298480FF00093A42 /* ProductUIKitView.swift in Sources */,
 				32E5E77327B4858C002E9C47 /* AccountView.swift in Sources */,
 				32F1B5EA27C07C9D00819F76 /* FavoritesView.swift in Sources */,
 				32E5E78A27B49BAC002E9C47 /* ProductsViewState.swift in Sources */,
+				329FD11029847F2700093A42 /* ProductViewController.swift in Sources */,
+				329FD10829847C9E00093A42 /* UIFrameworkDependency.swift in Sources */,
 				322B21EB27BB3F2B00D147A4 /* FavoriteButtonView.swift in Sources */,
 				32E5E77A27B48D7B002E9C47 /* MainViewState.swift in Sources */,
 				32E5E77E27B48EFF002E9C47 /* ProductRepository.swift in Sources */,

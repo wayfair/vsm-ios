@@ -69,7 +69,7 @@ struct ProductDetailView: View, ViewStateRendering {
             switch container.state {
             case .viewing(let addToCartModel), .addedToCart(let addToCartModel), .addToCartError(_, let addToCartModel):
                 container.observe(addToCartModel.addToCart())
-            case .addingToCart, .initialized:
+            case .addingToCart:
                 break
             }
         }
@@ -114,8 +114,6 @@ struct ProductDetailView_Previews: PreviewProvider {
     static var someProduct: ProductDetail { ProductDatabase.allProducts.first! }
     
     static var previews: some View {
-        ProductDetailView(productDetail: someProduct, state: .initialized)
-            .previewDisplayName("initialized State")
         
         ProductDetailView(productDetail: someProduct, state: .viewing(AddToCartModel(dependencies: MockAppDependencies.noOp, productId: 1)))
             .previewDisplayName("viewing State")

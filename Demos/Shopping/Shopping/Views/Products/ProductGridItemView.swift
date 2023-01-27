@@ -8,13 +8,13 @@
 import SwiftUI
 
 struct ProductGridItemView: View {
-    typealias Dependencies = ProductView.Dependencies
+    typealias Dependencies = ProductView.Dependencies & UIFrameworkDependency
     let dependencies: Dependencies
     let product: GridProduct
     @State private(set) var showProductDetailView: Bool = false
         
     var body: some View {
-        NavigationLink(destination: ProductView(dependencies: dependencies, productId: product.id), isActive: $showProductDetailView) {
+        NavigationLink(destination: productView(for: product.id), isActive: $showProductDetailView) {
             VStack {
                 AsyncImage(url: product.imageURL) { image in
                     image
@@ -28,6 +28,16 @@ struct ProductGridItemView: View {
             }
         }
         .accessibilityIdentifier(product.name)
+    }
+    
+    @ViewBuilder
+    func productView(for id: Int) -> some View {
+        switch dependencies.frameworkProvider.framework {
+        case .swiftUI:
+            ProductView(dependencies: dependencies, productId: product.id)
+        case .uiKit:
+            ProductUIKitView(dependencies: dependencies, productId: product.id)
+        }
     }
 }
 
