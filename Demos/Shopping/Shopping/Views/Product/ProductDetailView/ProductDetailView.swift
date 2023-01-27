@@ -18,9 +18,6 @@ struct ProductDetailView: View {
         self.dependencies = dependencies
         self.productDetail = productDetail
         _state = .init(wrappedValue: .viewing(AddToCartModel(dependencies: dependencies, productId: productDetail.id)))
-        //    .debug()
-        // Uncomment this line to see state changes printed to the console for this view.
-        // NOTE: The line above will produce a compiler warning in DEBUG, and will break any non-DEBUG build.
     }
     
     var body: some View {        
@@ -70,7 +67,7 @@ struct ProductDetailView: View {
             switch state {
             case .viewing(let addToCartModel), .addedToCart(let addToCartModel), .addToCartError(_, let addToCartModel):
                 $state.observe(addToCartModel.addToCart())
-            case .addingToCart, .initialized:
+            case .addingToCart:
                 break
             }
         }
@@ -115,9 +112,6 @@ struct ProductDetailView_Previews: PreviewProvider {
     static var someProduct: ProductDetail { ProductDatabase.allProducts.first! }
     
     static var previews: some View {
-        ProductDetailView(productDetail: someProduct, state: .initialized)
-            .previewDisplayName("initialized State")
-        
         ProductDetailView(productDetail: someProduct, state: .viewing(AddToCartModel(dependencies: MockAppDependencies.noOp, productId: 1)))
             .previewDisplayName("viewing State")
         

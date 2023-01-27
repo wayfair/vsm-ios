@@ -40,6 +40,10 @@
 		329FD0F62982EDE600093A42 /* ProfileViewState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329FD0F52982EDE600093A42 /* ProfileViewState.swift */; };
 		329FD0FC298352DB00093A42 /* ProfilePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329FD0FB298352DB00093A42 /* ProfilePage.swift */; };
 		329FD0FE2983585E00093A42 /* ProfileUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329FD0FD2983585E00093A42 /* ProfileUITests.swift */; };
+		329FD100298411CB00093A42 /* ProductViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329FD0FF298411CB00093A42 /* ProductViewController.swift */; };
+		329FD1022984137800093A42 /* ProductDetail.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 329FD1012984137800093A42 /* ProductDetail.storyboard */; };
+		329FD1042984139200093A42 /* ProductDetailViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329FD1032984139200093A42 /* ProductDetailViewController.swift */; };
+		329FD10629845FC300093A42 /* ProductUIKitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329FD10529845FC300093A42 /* ProductUIKitView.swift */; };
 		32D32EEE282C5B74009DC857 /* UserDefaultsDependency.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32D32EED282C5B74009DC857 /* UserDefaultsDependency.swift */; };
 		32E5E76F27B484C9002E9C47 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32E5E76E27B484C9002E9C47 /* MainView.swift */; };
 		32E5E77327B4858C002E9C47 /* AccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32E5E77227B4858C002E9C47 /* AccountView.swift */; };
@@ -123,6 +127,10 @@
 		329FD0F52982EDE600093A42 /* ProfileViewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViewState.swift; sourceTree = "<group>"; };
 		329FD0FB298352DB00093A42 /* ProfilePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilePage.swift; sourceTree = "<group>"; };
 		329FD0FD2983585E00093A42 /* ProfileUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileUITests.swift; sourceTree = "<group>"; };
+		329FD0FF298411CB00093A42 /* ProductViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductViewController.swift; sourceTree = "<group>"; };
+		329FD1012984137800093A42 /* ProductDetail.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = ProductDetail.storyboard; sourceTree = "<group>"; };
+		329FD1032984139200093A42 /* ProductDetailViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductDetailViewController.swift; sourceTree = "<group>"; };
+		329FD10529845FC300093A42 /* ProductUIKitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductUIKitView.swift; sourceTree = "<group>"; };
 		32D32EED282C5B74009DC857 /* UserDefaultsDependency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsDependency.swift; sourceTree = "<group>"; };
 		32E5E76E27B484C9002E9C47 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
 		32E5E77227B4858C002E9C47 /* AccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountView.swift; sourceTree = "<group>"; };
@@ -250,6 +258,7 @@
 				322B21E527BAF50400D147A4 /* ProductGridItemView.swift */,
 				32E5E77427B48687002E9C47 /* ProductsView.swift */,
 				32E5E78927B49BAC002E9C47 /* ProductsViewState.swift */,
+				329FD10529845FC300093A42 /* ProductUIKitView.swift */,
 			);
 			path = Products;
 			sourceTree = "<group>";
@@ -277,6 +286,7 @@
 				322B21E927BB3F0C00D147A4 /* FavoriteButtonView */,
 				32F1B5EE27C5C3F300819F76 /* ProductDetailView */,
 				322B21E327B8482800D147A4 /* ProductView.swift */,
+				329FD0FF298411CB00093A42 /* ProductViewController.swift */,
 				32F1B5EB27C5C3A500819F76 /* ProductViewState.swift */,
 			);
 			path = Product;
@@ -423,7 +433,9 @@
 		32F1B5EE27C5C3F300819F76 /* ProductDetailView */ = {
 			isa = PBXGroup;
 			children = (
+				329FD1012984137800093A42 /* ProductDetail.storyboard */,
 				32F1B5EF27C5C40300819F76 /* ProductDetailView.swift */,
+				329FD1032984139200093A42 /* ProductDetailViewController.swift */,
 				32F1B5F327C6E80100819F76 /* ProductDetailViewState.swift */,
 			);
 			path = ProductDetailView;
@@ -556,6 +568,7 @@
 			files = (
 				32EEC6F827B482B7001AB9C7 /* Preview Assets.xcassets in Resources */,
 				32EEC6F527B482B7001AB9C7 /* Assets.xcassets in Resources */,
+				329FD1022984137800093A42 /* ProductDetail.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -596,6 +609,8 @@
 				329FD0F22982EB5800093A42 /* ProfileView.swift in Sources */,
 				32F1B64127CAB10C00819F76 /* DispatchQueueSchedulerDependency.swift in Sources */,
 				32D32EEE282C5B74009DC857 /* UserDefaultsDependency.swift in Sources */,
+				329FD100298411CB00093A42 /* ProductViewController.swift in Sources */,
+				329FD1042984139200093A42 /* ProductDetailViewController.swift in Sources */,
 				329FD0F42982EB7C00093A42 /* ProfileRepository.swift in Sources */,
 				32F1B5EC27C5C3A500819F76 /* ProductViewState.swift in Sources */,
 				32E5E77827B48C45002E9C47 /* Badge.swift in Sources */,
@@ -613,6 +628,7 @@
 				322B21E627BAF50400D147A4 /* ProductGridItemView.swift in Sources */,
 				322B21E027B815C500D147A4 /* AsyncResource.swift in Sources */,
 				32E5E78227B49323002E9C47 /* FavoritesRepository.swift in Sources */,
+				329FD10629845FC300093A42 /* ProductUIKitView.swift in Sources */,
 				322B21DE27B4B1E500D147A4 /* AnyPublisher+JustEmptyFail.swift in Sources */,
 				329F66D628297FF40089DD70 /* SettingsView.swift in Sources */,
 				32F1B5F027C5C40300819F76 /* ProductDetailView.swift in Sources */,

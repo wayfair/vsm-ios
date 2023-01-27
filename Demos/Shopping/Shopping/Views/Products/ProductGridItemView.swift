@@ -41,18 +41,6 @@ struct ProductGridItemView: View {
     }
 }
 
-struct ProductUIKitView: UIViewControllerRepresentable {
-    typealias Dependencies = ProductView.Dependencies
-    let dependencies: Dependencies
-    let productId: Int
-    
-    func makeUIViewController(context: Context) -> ProductViewController {
-        return ProductViewController(dependencies: dependencies, productId: productId)
-    }
-    
-    func updateUIViewController(_ uiViewController: ProductViewController, context: Context) { }
-}
-
 struct ProductGridItemView_Previews: PreviewProvider {
     static var previews: some View {
         ProductGridItemView(dependencies: MockAppDependencies.noOp, product: GridProduct(id: 1, name: "Test", imageURL: ProductDatabase.allProducts.first!.imageURL))

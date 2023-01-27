@@ -18,6 +18,9 @@ open class UITestCase: XCTestCase {
 
         app = XCUIApplication()
         app.launchArguments += ["-UITesting"]
+        
+        let frameworkArgs: Set<String> = ["-ui-framework", "uikit"]
+        app.launchArguments += ProcessInfo.processInfo.arguments.filter({ frameworkArgs.contains($0) })
         app.launch()
     }
     
