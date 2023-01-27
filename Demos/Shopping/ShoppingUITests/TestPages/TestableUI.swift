@@ -51,7 +51,7 @@ extension TestableUI {
     ///   - line: The line of the caller
     /// - Returns: self, if successful
     @discardableResult
-    func find(_ element: XCUIElement, hittable: Bool? = nil, enabled: Bool? = nil, message: String? = nil, file: StaticString = #file, line: UInt) -> Self {
+    func find(_ element: XCUIElement, hittable: Bool? = nil, enabled: Bool? = nil, message: String? = nil, file: StaticString = #file, line: UInt = #line) -> Self {
         assert(element.exists, message: message ?? "Can't find \(element.description)", file: file, line: line)
             .assert(hittable == nil || element.isHittable == hittable, message: message ?? "Can't hit \(element.description)", file: file, line: line)
             .assert(enabled == nil || element.isEnabled == enabled, message: message ?? "\(element.description) isn't enabled", file: file, line: line)

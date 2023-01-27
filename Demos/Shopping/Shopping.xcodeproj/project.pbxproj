@@ -35,6 +35,11 @@
 		3289790827BF2D5400651ADE /* CartButtonViewState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3289790727BF2D5400651ADE /* CartButtonViewState.swift */; };
 		329F66D628297FF40089DD70 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329F66D528297FF40089DD70 /* SettingsView.swift */; };
 		329F66D8282980050089DD70 /* SettingsViewState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329F66D7282980050089DD70 /* SettingsViewState.swift */; };
+		329FD0F22982EB5800093A42 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329FD0F12982EB5800093A42 /* ProfileView.swift */; };
+		329FD0F42982EB7C00093A42 /* ProfileRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329FD0F32982EB7C00093A42 /* ProfileRepository.swift */; };
+		329FD0F62982EDE600093A42 /* ProfileViewState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329FD0F52982EDE600093A42 /* ProfileViewState.swift */; };
+		329FD0FC298352DB00093A42 /* ProfilePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329FD0FB298352DB00093A42 /* ProfilePage.swift */; };
+		329FD0FE2983585E00093A42 /* ProfileUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329FD0FD2983585E00093A42 /* ProfileUITests.swift */; };
 		32D32EEE282C5B74009DC857 /* UserDefaultsDependency.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32D32EED282C5B74009DC857 /* UserDefaultsDependency.swift */; };
 		32E5E76F27B484C9002E9C47 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32E5E76E27B484C9002E9C47 /* MainView.swift */; };
 		32E5E77327B4858C002E9C47 /* AccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32E5E77227B4858C002E9C47 /* AccountView.swift */; };
@@ -113,6 +118,11 @@
 		3289790727BF2D5400651ADE /* CartButtonViewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CartButtonViewState.swift; sourceTree = "<group>"; };
 		329F66D528297FF40089DD70 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		329F66D7282980050089DD70 /* SettingsViewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewState.swift; sourceTree = "<group>"; };
+		329FD0F12982EB5800093A42 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		329FD0F32982EB7C00093A42 /* ProfileRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileRepository.swift; sourceTree = "<group>"; };
+		329FD0F52982EDE600093A42 /* ProfileViewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViewState.swift; sourceTree = "<group>"; };
+		329FD0FB298352DB00093A42 /* ProfilePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilePage.swift; sourceTree = "<group>"; };
+		329FD0FD2983585E00093A42 /* ProfileUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileUITests.swift; sourceTree = "<group>"; };
 		32D32EED282C5B74009DC857 /* UserDefaultsDependency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsDependency.swift; sourceTree = "<group>"; };
 		32E5E76E27B484C9002E9C47 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
 		32E5E77227B4858C002E9C47 /* AccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountView.swift; sourceTree = "<group>"; };
@@ -190,6 +200,7 @@
 				32387F332969167000B78C3B /* FavoritesPage.swift */,
 				32387F2B2969048400B78C3B /* MainPage.swift */,
 				32387F31296915EF00B78C3B /* ProductDetailPage.swift */,
+				329FD0FB298352DB00093A42 /* ProfilePage.swift */,
 				32387F37296D32FA00B78C3B /* SettingsPage.swift */,
 				324B0025297843650087CAB7 /* TabbedPage.swift */,
 				324B002329783F890087CAB7 /* TestableUI.swift */,
@@ -213,6 +224,15 @@
 				329F66D7282980050089DD70 /* SettingsViewState.swift */,
 			);
 			path = Settings;
+			sourceTree = "<group>";
+		};
+		329FD0F02982EB3F00093A42 /* Profile */ = {
+			isa = PBXGroup;
+			children = (
+				329FD0F12982EB5800093A42 /* ProfileView.swift */,
+				329FD0F52982EDE600093A42 /* ProfileViewState.swift */,
+			);
+			path = Profile;
 			sourceTree = "<group>";
 		};
 		32E5E76827B483BB002E9C47 /* Main */ = {
@@ -296,6 +316,7 @@
 				32E5E77D27B48EFF002E9C47 /* ProductRepository.swift */,
 				32E729652948BD950065942E /* UIFrameworkDependency.swift */,
 				32D32EED282C5B74009DC857 /* UserDefaultsDependency.swift */,
+				329FD0F32982EB7C00093A42 /* ProfileRepository.swift */,
 			);
 			path = Dependencies;
 			sourceTree = "<group>";
@@ -309,6 +330,7 @@
 				32E5E76827B483BB002E9C47 /* Main */,
 				32E5E76C27B483F3002E9C47 /* Product */,
 				32E5E76927B483CF002E9C47 /* Products */,
+				329FD0F02982EB3F00093A42 /* Profile */,
 				329F66D428297FE10089DD70 /* Settings */,
 			);
 			path = Views;
@@ -393,6 +415,7 @@
 				325653D2295E43BA00EBA450 /* MainUITests.swift */,
 				32387F2429661A3F00B78C3B /* ProductsUITests.swift */,
 				32387F39296D340600B78C3B /* SettingsUITests.swift */,
+				329FD0FD2983585E00093A42 /* ProfileUITests.swift */,
 			);
 			path = ShoppingUITests;
 			sourceTree = "<group>";
@@ -565,12 +588,15 @@
 				32E729662948BD950065942E /* UIFrameworkDependency.swift in Sources */,
 				322B21EB27BB3F2B00D147A4 /* FavoriteButtonView.swift in Sources */,
 				32E5E77A27B48D7B002E9C47 /* MainViewState.swift in Sources */,
+				329FD0F62982EDE600093A42 /* ProfileViewState.swift in Sources */,
 				32E5E77E27B48EFF002E9C47 /* ProductRepository.swift in Sources */,
 				32F1B5F427C6E80100819F76 /* ProductDetailViewState.swift in Sources */,
 				322B21F327BC55D400D147A4 /* CartViewState.swift in Sources */,
 				32F1B5E027C0383700819F76 /* FavoritesViewState.swift in Sources */,
+				329FD0F22982EB5800093A42 /* ProfileView.swift in Sources */,
 				32F1B64127CAB10C00819F76 /* DispatchQueueSchedulerDependency.swift in Sources */,
 				32D32EEE282C5B74009DC857 /* UserDefaultsDependency.swift in Sources */,
+				329FD0F42982EB7C00093A42 /* ProfileRepository.swift in Sources */,
 				32F1B5EC27C5C3A500819F76 /* ProductViewState.swift in Sources */,
 				32E5E77827B48C45002E9C47 /* Badge.swift in Sources */,
 				322B21DC27B4AABB00D147A4 /* AppConfigRepository.swift in Sources */,
@@ -611,6 +637,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				32387F272966280900B78C3B /* FavoritesUITests.swift in Sources */,
+				329FD0FE2983585E00093A42 /* ProfileUITests.swift in Sources */,
 				32387F38296D32FA00B78C3B /* SettingsPage.swift in Sources */,
 				325653D3295E43BA00EBA450 /* MainUITests.swift in Sources */,
 				32387F36296D021C00B78C3B /* XCUIElement+waitForExistence.swift in Sources */,
@@ -622,6 +649,7 @@
 				32387F302969159F00B78C3B /* CartPage.swift in Sources */,
 				324B00292978502D0087CAB7 /* UITestCase.swift in Sources */,
 				324B002429783F890087CAB7 /* TestableUI.swift in Sources */,
+				329FD0FC298352DB00093A42 /* ProfilePage.swift in Sources */,
 				32387F3A296D340600B78C3B /* SettingsUITests.swift in Sources */,
 				32387F292967221E00B78C3B /* CartUITests.swift in Sources */,
 			);

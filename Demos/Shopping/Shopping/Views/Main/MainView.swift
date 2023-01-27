@@ -15,8 +15,6 @@ struct MainView: View {
     init(appDependenciesProvider: AsyncResource<MainView.Dependencies>) {
         let loaderModel = DependenciesLoaderModel(appDependenciesProvider: appDependenciesProvider)
         _state = .init(wrappedValue: .initialized(loaderModel))
-        // Enable the following debug-only flag to view all state changes in _this_ view
-        // $state._debug(options: [.conciseEnum, .container, .memory])
     }
     
     var body: some View {
@@ -24,6 +22,9 @@ struct MainView: View {
         case .loading, .initialized:
             ProgressView()
                 .onAppear {
+                    // Enable the following debug-only flag to view all state changes in _this_ view
+                    // $state._debug()
+                    
                     if case .initialized(let loaderModel) = state {
                         $state.observe(loaderModel.loadDependencies())
                     }

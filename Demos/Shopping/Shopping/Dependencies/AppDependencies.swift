@@ -8,7 +8,9 @@
 import Foundation
 
 enum AppConstants {
-    static var simulatedNetworkDelay: DispatchTime { .now() + 1 }
+    static var simulatedNetworkDuration: TimeInterval = 1
+    static var simulatedNetworkNanoseconds: UInt64 { UInt64(simulatedNetworkDuration * 1_000_000_000) }
+    static var simulatedNetworkDelay: DispatchTime { .now() + simulatedNetworkDuration }
 }
 
 class AppDependencies: MainView.Dependencies {
@@ -18,6 +20,7 @@ class AppDependencies: MainView.Dependencies {
     var dispatchQueue: DispatchQueueScheduling
     var userDefaults: UserDefaults
     var frameworkProvider: UIFrameworkProviding
+    var profileRepository: ProfileRepository
     
     init(
         productRepository: ProductRepository,
@@ -25,7 +28,8 @@ class AppDependencies: MainView.Dependencies {
         favoritesRepository: FavoritesRepository,
         dispatchQueue: DispatchQueueScheduling,
         userDefaults: UserDefaults,
-        frameworkProvider: UIFrameworkProviding
+        frameworkProvider: UIFrameworkProviding,
+        profileRepository: ProfileRepository
     ) {
         self.productRepository = productRepository
         self.cartRepository = cartRepository
@@ -33,6 +37,7 @@ class AppDependencies: MainView.Dependencies {
         self.dispatchQueue = dispatchQueue
         self.userDefaults = userDefaults
         self.frameworkProvider = frameworkProvider
+        self.profileRepository = profileRepository
     }
 }
 
@@ -56,7 +61,8 @@ extension AppDependencies {
                         favoritesRepository: favoritesRepository,
                         dispatchQueue: DispatchQueueScheduler(),
                         userDefaults: userDefaults,
-                        frameworkProvider: UIFrameworkProvider(dependencies: UIFrameworkProviderDependencies(userDefaults: UserDefaults.standard))
+                        frameworkProvider: UIFrameworkProvider(dependencies: UIFrameworkProviderDependencies(userDefaults: UserDefaults.standard)),
+                        profileRepository: ProfileDatabase()
                     )
                     continuation.resume(returning: appDependencies)
                 }
@@ -75,7 +81,8 @@ struct MockAppDependencies: MainView.Dependencies {
             mockFavoritesRepository: MockFavoritesRepository.noOp,
             mockDispatchQueue: MockDispatchQueueScheduler.immediate,
             mockUserDefaults: UserDefaults(),
-            mockUIFrameworkProvider: MockUIFrameworkProvider.noOp
+            mockUIFrameworkProvider: MockUIFrameworkProvider.noOp,
+            mockProfileRepository: MockProfileRepository.noOp
         )
     }
     
@@ -85,6 +92,7 @@ struct MockAppDependencies: MainView.Dependencies {
     var mockDispatchQueue: MockDispatchQueueScheduler
     var mockUserDefaults: UserDefaults
     var mockUIFrameworkProvider: MockUIFrameworkProvider
+    var mockProfileRepository: MockProfileRepository
     
     var productRepository: ProductRepository {
         mockProductRepository
@@ -108,5 +116,9 @@ struct MockAppDependencies: MainView.Dependencies {
     
     var frameworkProvider: UIFrameworkProviding {
         mockUIFrameworkProvider
+    }
+    
+    var profileRepository: ProfileRepository {
+        mockProfileRepository
     }
 }

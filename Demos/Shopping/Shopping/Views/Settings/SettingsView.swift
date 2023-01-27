@@ -12,7 +12,7 @@ import VSM
 // Note that in this example, the "S" in "VSM" is silent, because the corresponding view has a single state, which is implied by a single State-Model type
 struct SettingsView: View {
     typealias Dependencies = SettingsViewState.Dependencies
-    @ViewState var state: SettingsViewState
+    @ViewState var state: SettingsViewStating
     
     // a. Custom Binding Approach (generally recommended)
     var isCustomBindingExampleEnabled: Binding<Bool> {
@@ -43,7 +43,7 @@ struct SettingsView: View {
     
     // c.2
     var isConvenienceBindingExampleEnabled2: Binding<Bool> {
-        $state.bind(\.isConvenienceBindingExampleEnabled2, to: SettingsViewState.toggleIsConvenienceBindingExampleEnabled2)
+        $state.bind(\.isConvenienceBindingExampleEnabled2, to: SettingsViewStating.toggleIsConvenienceBindingExampleEnabled2)
     }
     
     init(dependencies: Dependencies) {
