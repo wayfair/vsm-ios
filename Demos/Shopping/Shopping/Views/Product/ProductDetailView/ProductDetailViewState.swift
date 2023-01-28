@@ -11,7 +11,6 @@ import Foundation
 // MARK: - State & Model Definitions
 
 enum ProductDetailViewState {
-    case initialized
     case viewing(AddToCartModeling)
     case addingToCart
     case addedToCart(AddToCartModeling)
@@ -56,7 +55,7 @@ extension ProductDetailViewState {
         switch self {
         case .viewing, .addedToCart, .addToCartError:
             return true
-        case .addingToCart, .initialized:
+        case .addingToCart:
             return false
         }
     }
