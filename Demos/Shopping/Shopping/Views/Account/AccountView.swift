@@ -8,11 +8,15 @@
 import SwiftUI
 
 struct AccountView: View {
-    typealias Dependencies = FavoritesView.Dependencies & CartButtonView.Dependencies & SettingsView.Dependencies
+    typealias Dependencies = CartButtonView.Dependencies
+                             & ProfileView.Dependencies
+                             & FavoritesView.Dependencies
+                             & SettingsView.Dependencies
     let dependencies: Dependencies
     
     var body: some View {
         List {
+            NavigationLink("Profile", destination: ProfileView(dependencies: dependencies))
             NavigationLink("Favorites", destination: FavoritesView(dependencies: dependencies))
             NavigationLink("Settings", destination: SettingsView(dependencies: dependencies))
         }
