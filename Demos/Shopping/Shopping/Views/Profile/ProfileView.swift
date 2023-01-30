@@ -11,7 +11,7 @@ import VSM
 struct ProfileView: View, ViewStateRendering {
     typealias Dependencies = ProfileLoaderModel.Dependencies
     @StateObject var container: StateContainer<ProfileViewState>
-    @State private var username: String = ""
+    @State private var username: String?
     
     init(dependencies: Dependencies) {
         let loaderModel = ProfileLoaderModel(dependencies: dependencies, error: nil)
@@ -30,7 +30,7 @@ struct ProfileView: View, ViewStateRendering {
                 loadedView(editingModel: editingModel)
             }
         }
-        .padding(.all)
+        .padding()
         .navigationTitle("Profile")
     }
     
@@ -57,14 +57,13 @@ struct ProfileView: View, ViewStateRendering {
     func loadedView(editingModel: ProfileEditingModeling) -> some View {
         VStack(alignment: .leading) {
             HStack {
-                TextField("User Name", text: $username)
+                TextField("User Name", text: .init(get: {
+                    username ?? editingModel.username
+                }, set: { newValue in
+                    username = newValue
+                    container.observe({ await editingModel.save(username: newValue)}, debounced: .seconds(0.5))
+                }))
                     .textFieldStyle(.roundedBorder)
-                    .onAppear {
-                        username = editingModel.username
-                    }
-                    .onChange(of: username) { newUsername in
-                        container.observe({ await editingModel.save(username: newUsername)}, debounced: .seconds(0.5))
-                    }
                 if case .saving = editingModel.editingState {
                     ProgressView()
                         .padding(.leading, 4)
