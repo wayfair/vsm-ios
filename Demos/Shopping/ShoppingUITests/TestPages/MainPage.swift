@@ -49,6 +49,7 @@ struct AccountTabPage: TabbedPage, CartButtonProviding {
     let app: XCUIApplication
     
     private var navBarTitle: XCUIElement { app.navigationBars["Account"] }
+    private var profileButton: XCUIElement { app.buttons["Profile"] }
     private var favoritesButton: XCUIElement { app.buttons["Favorites"] }
     private var settingsButton: XCUIElement { app.buttons["Settings"] }
     
@@ -60,6 +61,13 @@ struct AccountTabPage: TabbedPage, CartButtonProviding {
     @discardableResult
     func assertAccountPageIsVisible(file: StaticString = #file, line: UInt = #line) -> Self {
         find(navBarTitle, hittable: true, file: file, line: line)
+    }
+    
+    @discardableResult
+    func tapProfile(file: StaticString = #file, line: UInt = #line) -> ProfilePage {
+        find(profileButton, hittable: true, enabled: true, file: file, line: line)
+            .perform(profileButton.tap())
+        return .init(app: app, previousView: self, file: file, line: line)
     }
     
     @discardableResult
