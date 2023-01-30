@@ -35,3 +35,11 @@ jobs:
           scheme: Shopping
           destination: platform=iOS Simulator,OS=latest,name=iPhone 14
           action: test
+      
+      - name: (UIKit) Build and Test Demo App
+        uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
+        with:
+          project: ./Demos/Shopping/Shopping.xcodeproj
+          scheme: Shopping - UIKit
+          destination: platform=iOS Simulator,OS=latest,name=iPhone 14
+          action: test

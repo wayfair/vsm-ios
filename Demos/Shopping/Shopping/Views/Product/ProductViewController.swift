@@ -35,9 +35,7 @@ class ProductViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        if case .initialized(let initializedModel) = state {
-            $state.observe(initializedModel.loadProductDetail())
-        }
+        
         view.addSubview(activityIndicatorView)
         activityIndicatorView.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
