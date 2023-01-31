@@ -71,7 +71,7 @@ public extension StateContainer {
                 return self.state[keyPath: stateKeyPath]
             },
             set: { newValue in
-                self.observe({ await observedSetter(self.state, newValue) })
+                self.observeAsync({ await observedSetter(self.state, newValue) })
             })
     }
     
@@ -88,7 +88,7 @@ public extension StateContainer {
                 return self.state[keyPath: stateKeyPath]
             },
             set: { newValue in
-                self.observe({ await observedSetter(self.state)(newValue) })
+                self.observeAsync({ await observedSetter(self.state)(newValue) })
             })
     }
 }

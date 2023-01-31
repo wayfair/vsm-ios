@@ -30,14 +30,14 @@ class ViewStateRenderingTests_Observe: XCTestCase {
         let asyncAction: () async -> MockState = {
             .bar
         }
-        test(subject.container, expect: [.bar], when: { _ in subject.observe({ await asyncAction() }) })
+        test(subject.container, expect: [.bar], when: { _ in subject.observeAsync({ await asyncAction() }) })
     }
     
     func testObserveAsynchronousSequence() throws {
         let asyncAction: () async -> StateSequence<MockState> = {
             .init({ .bar })
         }
-        test(subject.container, expect: [.bar], when: { _ in subject.observe({ await asyncAction() }) })
+        test(subject.container, expect: [.bar], when: { _ in subject.observeAsync({ await asyncAction() }) })
     }
     
     func testObservePublisher() throws {

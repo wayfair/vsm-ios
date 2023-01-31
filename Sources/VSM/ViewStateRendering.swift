@@ -105,20 +105,20 @@ public extension ViewStateRendering {
 
     /// Convenience accessor for the `StateContainer`'s `observe` function.
     /// Observes the state emitted as a result of invoking some asynchronous action
-    func observe(_ awaitState: @escaping () async -> ViewState) {
-        container.observe(awaitState)
+    func observeAsync(_ awaitState: @escaping () async -> ViewState) {
+        container.observeAsync(awaitState)
     }
     
     /// Convenience accessor for the `StateContainer`'s `observe` function.
     /// Observes the states emitted as a result of invoking some asynchronous action that returns an asynchronous sequence
-    func observe<StateSequence: AsyncSequence>(_ awaitStateSequence: @escaping () async -> StateSequence) where StateSequence.Element == ViewState {
-        container.observe(awaitStateSequence)
+    func observeAsync<StateSequence: AsyncSequence>(_ awaitStateSequence: @escaping () async -> StateSequence) where StateSequence.Element == ViewState {
+        container.observeAsync(awaitStateSequence)
     }
 
     /// Convenience accessor for the `StateContainer`'s `observe` function.
     /// Observes the state emitted as a result of invoking some synchronous action
     func observe(_ nextState: @autoclosure @escaping () -> ViewState) {
-        container.observe(nextState)
+        container.observe(nextState())
     }
 }
 
@@ -252,13 +252,13 @@ public extension ViewStateRendering {
     /// - Parameters:
     ///   - stateChangeAsyncAction: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
-    func observe(
+    func observeAsync(
         _ stateChangeAsyncAction: @escaping () async -> ViewState,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         file: String = #file,
         line: UInt = #line
     ) {
-        container.observe(async: stateChangeAsyncAction, debounced: dueTime, file: file, line: line)
+        container.observeAsync(stateChangeAsyncAction, debounced: dueTime, file: file, line: line)
     }
     
     /// Debounces the action calls by `dueTime`, then asynchronously observes the `State` returned as a result of invoking the action.
@@ -268,12 +268,12 @@ public extension ViewStateRendering {
     ///   - nextState: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     ///   - identifier: The identifier for grouping actions for debouncing
-    func observe(
-        async nextState: @escaping () async -> ViewState,
+    func observeAsync(
+        _ nextState: @escaping () async -> ViewState,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     ) {
-        container.observe(async: nextState, debounced: dueTime, identifier: identifier)
+        container.observeAsync(nextState, debounced: dueTime, identifier: identifier)
     }
     
     /// Debounces the action calls by `dueTime`, then observes the async sequence of `State`s returned as a result of invoking the action.
@@ -282,13 +282,13 @@ public extension ViewStateRendering {
     /// - Parameters:
     ///   - stateSequence: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
-    func observe<SomeAsyncSequence: AsyncSequence>(
+    func observeAsync<SomeAsyncSequence: AsyncSequence>(
         _ stateSequence: @escaping () async -> SomeAsyncSequence,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         file: String = #file,
         line: UInt = #line
     ) where SomeAsyncSequence.Element == ViewState {
-        container.observe(stateSequence, debounced: dueTime, file: file, line: line)
+        container.observeAsync(stateSequence, debounced: dueTime, file: file, line: line)
     }
     
     /// Debounces the action calls by `dueTime`, then observes the async sequence of `State`s returned as a result of invoking the action.
@@ -298,12 +298,12 @@ public extension ViewStateRendering {
     ///   - stateSequence: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     ///   - identifier: The identifier for grouping actions for debouncing
-    func observe<SomeAsyncSequence: AsyncSequence>(
-        async stateSequence: @escaping () async -> SomeAsyncSequence,
+    func observeAsync<SomeAsyncSequence: AsyncSequence>(
+        _ stateSequence: @escaping () async -> SomeAsyncSequence,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     ) where SomeAsyncSequence.Element == ViewState {
-        container.observe(stateSequence, debounced: dueTime, identifier: identifier)
+        container.observeAsync(stateSequence, debounced: dueTime, identifier: identifier)
     }
     
     /// Debounces the action calls by `dueTime`, then observes the `State` returned as a result of invoking the action.

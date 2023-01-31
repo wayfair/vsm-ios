@@ -1,6 +1,6 @@
 //
 //  StatePublishing.swift
-//  
+//
 //
 //  Created by Albert Bori on 1/26/23.
 //

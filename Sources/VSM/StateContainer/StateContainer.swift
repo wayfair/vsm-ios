@@ -78,32 +78,28 @@ public extension StateContainer {
     }
     
     /// Observes the state emitted as a result of invoking some asynchronous action
-    func observe(_ nextState: @escaping () async -> State) {
+    func observeAsync(_ nextState: @escaping () async -> State) {
         cancelRunningObservations()
         // A weak-self declaration is required on the `Task` closure to break an unexpected strong self retention, despite not directly invoking self ¯\_(ツ)_/¯
-        stateTask = Task(priority: .userInitiated) { [weak self] in
+        stateTask = Task { [weak self] in
             let newState = await nextState()
             guard !Task.isCancelled else { return }
             // GCD is used here instead of `MainActor` to avoid back-ported Swift Concurrency crashes relating to `MainActor` usage
             // In a future iOS 15+ version, this class will be converted fully to the `MainActor` paradigm
-            DispatchQueue.main.async { [weak self] in
-                self?.state = newState
-            }
+            self?.setStateOnMainThread(to: newState)
         }
     }
     
     /// Observes the states emitted as a result of invoking some asynchronous action that returns an asynchronous sequence
-    func observe<SomeAsyncSequence: AsyncSequence>(_ stateSequence: @escaping () async -> SomeAsyncSequence) where SomeAsyncSequence.Element == State {
+    func observeAsync<SomeAsyncSequence: AsyncSequence>(_ stateSequence: @escaping () async -> SomeAsyncSequence) where SomeAsyncSequence.Element == State {
         cancelRunningObservations()
         // A weak-self declaration is required on the `Task` closure to break an unexpected strong self retention, despite not directly invoking self ¯\_(ツ)_/¯
-        stateTask = Task(priority: .userInitiated) { [weak self] in
+        stateTask = Task { [weak self] in
             for try await newState in await stateSequence() {
                 guard !Task.isCancelled else { break }
                 // GCD is used here instead of `MainActor` to avoid back-ported Swift Concurrency crashes relating to `MainActor` usage
                 // In a future iOS 15+ version, this class will be converted fully to the `MainActor` paradigm
-                DispatchQueue.main.async { [weak self] in
-                    self?.state = newState
-                }
+                self?.setStateOnMainThread(to: newState)
             }
         }
     }
@@ -164,13 +160,13 @@ public extension StateContainer {
     ///   - nextState: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     ///   - identifier: The identifier for grouping actions for debouncing
-    func observe(
-        async nextState: @escaping () async -> State,
+    func observeAsync(
+        _ nextState: @escaping () async -> State,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     ) {
         let debounceableAction = DebounceableAction(identifier: identifier, dueTime: dueTime) { [weak self] in
-            self?.observe({ await nextState() })
+            self?.observeAsync({ await nextState() })
         }
         debounce(action: debounceableAction)
     }
@@ -182,13 +178,13 @@ public extension StateContainer {
     ///   - stateSequence: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     ///   - identifier: The identifier for grouping actions for debouncing
-    func observe<SomeAsyncSequence: AsyncSequence>(
+    func observeAsync<SomeAsyncSequence: AsyncSequence>(
         _ stateSequence: @escaping () async -> SomeAsyncSequence,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     ) where SomeAsyncSequence.Element == State {
         let debounceableAction = DebounceableAction(identifier: identifier, dueTime: dueTime) { [weak self] in
-            self?.observe({ await stateSequence() })
+            self?.observeAsync({ await stateSequence() })
         }
         debounce(action: debounceableAction)
     }

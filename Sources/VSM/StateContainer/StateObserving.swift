@@ -1,6 +1,6 @@
 //
 //  StateObserving.swift
-//  
+//
 //
 //  Created by Albert Bori on 1/26/23.
 //
@@ -19,10 +19,10 @@ public protocol StateObserving<State> {
     func observe(_ nextState: State)
     
     /// Observes the state emitted as a result of invoking some asynchronous action
-    func observe(_ nextState: @escaping () async -> State)
+    func observeAsync(_ nextState: @escaping () async -> State)
     
     /// Observes the states emitted as a result of invoking some asynchronous action that returns an asynchronous sequence
-    func observe<StateSequence: AsyncSequence>(_ stateSequence: @escaping () async -> StateSequence) where StateSequence.Element == State
+    func observeAsync<StateSequence: AsyncSequence>(_ stateSequence: @escaping () async -> StateSequence) where StateSequence.Element == State
     
     // MARK: - Debounce
     
@@ -59,8 +59,8 @@ public protocol StateObserving<State> {
     ///   - nextState: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     ///   - identifier: The identifier for grouping actions for debouncing
-    func observe(
-        async nextState: @escaping () async -> State, // "async" parameter name solves runtime closure disambiguation bug
+    func observeAsync(
+        _ nextState: @escaping () async -> State,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     )
@@ -72,7 +72,7 @@ public protocol StateObserving<State> {
     ///   - stateSequence: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     ///   - identifier: The identifier for grouping actions for debouncing
-    func observe<SomeAsyncSequence: AsyncSequence>(
+    func observeAsync<SomeAsyncSequence: AsyncSequence>(
         _ stateSequence: @escaping () async -> SomeAsyncSequence,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
@@ -117,13 +117,13 @@ public extension StateObserving {
     /// - Parameters:
     ///   - nextState: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
-    func observe(
-        async nextState: @escaping () async -> State, // "async" parameter name solves runtime closure disambiguation bug
+    func observeAsync(
+        _ nextState: @escaping () async -> State,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         file: String = #file,
         line: UInt = #line
     ) {
-        observe(async: nextState, debounced: dueTime, identifier: HashedIdentifier(file, line))
+        observeAsync(nextState, debounced: dueTime, identifier: HashedIdentifier(file, line))
     }
     
     /// Debounces the action calls by `dueTime`, then observes the async sequence of `State`s returned as a result of invoking the action.
@@ -132,12 +132,12 @@ public extension StateObserving {
     /// - Parameters:
     ///   - stateSequence: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
-    func observe<SomeAsyncSequence: AsyncSequence>(
+    func observeAsync<SomeAsyncSequence: AsyncSequence>(
         _ stateSequence: @escaping () async -> SomeAsyncSequence,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         file: String = #file,
         line: UInt = #line
     ) where SomeAsyncSequence.Element == State {
-        observe(stateSequence, debounced: dueTime, identifier: HashedIdentifier(file, line))
+        observeAsync(stateSequence, debounced: dueTime, identifier: HashedIdentifier(file, line))
     }
 }

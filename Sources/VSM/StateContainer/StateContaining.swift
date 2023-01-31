@@ -1,6 +1,6 @@
 //
 //  StateContaining.swift
-//  
+//
 //
 //  Created by Albert Bori on 1/23/23.
 //
