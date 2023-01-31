@@ -14,7 +14,7 @@ public protocol StateBinding<State> {
     associatedtype State
     
     /// Creates a unidirectional, auto-observing `Binding<Value>` for the `ViewState` using a `KeyPath` and a basic closure.
-    /// **Not intended for use when`ViewState` is an enum.**
+    /// **Not intended for use when `ViewState` is an enum.**
     /// - Parameters:
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
     ///   - observedSetter: Converts the new `Value` to a new `ViewState`, which is automatically observed
@@ -22,7 +22,7 @@ public protocol StateBinding<State> {
     func bind<Value>(_ stateKeyPath: KeyPath<State, Value>, to observedSetter: @escaping (State, Value) -> State) -> Binding<Value>
     
     /// Creates a unidirectional, auto-observing `Binding<Value>` for the `ViewState` using a `KeyPath` and a *method signature*
-    /// **This doesn't work when`ViewState` is an enum**
+    /// **This doesn't work when `ViewState` is an enum**
     /// Example usage: `bind(\.someModelProperty, to: ViewState.someModelMethod)`
     /// - Parameters:
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
@@ -31,7 +31,7 @@ public protocol StateBinding<State> {
     func bind<Value>(_ stateKeyPath: KeyPath<State, Value>, to observedSetter: @escaping (State) -> (Value) -> State) -> Binding<Value>
     
     /// Creates a unidirectional, auto-observing `Binding<Value>` for the `ViewState` using a `KeyPath` and a basic closure.
-    /// **Not intended for use when`ViewState` is an enum.**
+    /// **Not intended for use when `ViewState` is an enum.**
     /// - Parameters:
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
     ///   - observedSetter: Converts the new `Value` to a new `ViewState`, which is automatically observed
@@ -39,7 +39,7 @@ public protocol StateBinding<State> {
     func bind<Value>(_ stateKeyPath: KeyPath<State, Value>, to observedSetter: @escaping (State, Value) -> AnyPublisher<State, Never>) -> Binding<Value>
     
     /// Creates a unidirectional, auto-observing `Binding<Value>` for the `ViewState` using a `KeyPath` and a *method signature*
-    /// **Not intended for use when`ViewState` is an enum.**
+    /// **Not intended for use when `ViewState` is an enum.**
     /// Example usage: `bind(\.someModelProperty, to: ViewState.someModelMethod)`
     /// - Parameters:
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
