@@ -52,7 +52,7 @@ struct HashedIdentifier: Hashable {
     let uniqueValues: [AnyHashable]
     
     /// Prevents accidental key collisions between auto-generated identifiers and manually generated identifiers
-    private static var uniqueKey: AnyHashable = UUID()
+    private static let uniqueKey: AnyHashable = UUID()
     
     init(_ values: AnyHashable ...) {
         uniqueValues = [Self.uniqueKey] + values
