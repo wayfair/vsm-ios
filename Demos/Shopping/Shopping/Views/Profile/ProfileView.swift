@@ -38,7 +38,7 @@ struct ProfileView: View, ViewStateRendering {
     func initializedView(loaderModel: ProfileLoaderModeling) -> some View {
         ProgressView()
             .onAppear {
-                container.observe({ await loaderModel.load() })
+                container.observeAsync({ await loaderModel.load() })
             }
             .alert(
                 "Oops!",
@@ -46,7 +46,7 @@ struct ProfileView: View, ViewStateRendering {
                 presenting: loaderModel.error
             ) { error in
                 Button("Retry") {
-                    container.observe({ await loaderModel.load() })
+                    container.observeAsync({ await loaderModel.load() })
                 }
             } message: { error in
                 Text(error)
@@ -61,7 +61,7 @@ struct ProfileView: View, ViewStateRendering {
                     username ?? editingModel.username
                 }, set: { newValue in
                     username = newValue
-                    container.observe({ await editingModel.save(username: newValue)}, debounced: .seconds(0.5))
+                    container.observeAsync({ await editingModel.save(username: newValue)}, debounced: .seconds(0.5))
                 }))
                     .textFieldStyle(.roundedBorder)
                 if case .saving = editingModel.editingState {

@@ -110,13 +110,13 @@ class ViewStateRenderingTests_ObserveDebounce: XCTestCase {
         XCTAssertEqual(1, countableAction.count)
     }
     
-    /// Tests the asyncrhonous debounce action overloads
+    /// Tests the asynchronous debounce action overloads
     func testDebounce_AsyncOverload_DefaultId() async throws {
         let countableAction = CountableAsyncAction<MockState> {
             .bar
         }
         let actionCallSite: () -> Void = {
-            self.subject.observe({ await countableAction.invoke() }, debounced: .seconds(0.5))
+            self.subject.observeAsync({ await countableAction.invoke() }, debounced: .seconds(0.5))
         }
         
         actionCallSite()
@@ -127,13 +127,13 @@ class ViewStateRenderingTests_ObserveDebounce: XCTestCase {
         XCTAssertEqual(1, countableAction.count)
     }
     
-    /// Tests the asyncrhonous debounce action overloads
+    /// Tests the asynchronous debounce action overloads
     func testDebounce_AsyncOverload_CustomId() async throws {
         let countableAction = CountableAsyncAction<MockState> {
             .bar
         }
         let actionCallSite: () -> Void = {
-            self.subject.observe({ await countableAction.invoke() }, debounced: .seconds(0.5), identifier: "some_id")
+            self.subject.observeAsync({ await countableAction.invoke() }, debounced: .seconds(0.5), identifier: "some_id")
         }
         
         actionCallSite()
@@ -150,7 +150,7 @@ class ViewStateRenderingTests_ObserveDebounce: XCTestCase {
             .init({ .bar })
         }
         let actionCallSite: () -> Void = {
-            self.subject.observe({ await countableAction.invoke() }, debounced: .seconds(0.5))
+            self.subject.observeAsync({ await countableAction.invoke() }, debounced: .seconds(0.5))
         }
         
         actionCallSite()
@@ -161,13 +161,13 @@ class ViewStateRenderingTests_ObserveDebounce: XCTestCase {
         XCTAssertEqual(1, countableAction.count)
     }
     
-    /// Tests the asyncrhonous sequence debounce action overloads
+    /// Tests the asynchronous sequence debounce action overloads
     func testDebounce_AsyncSequenceOverload_CustomId() async throws {
         let countableAction = CountableAsyncSequenceAction<StateSequence<MockState>> {
             .init({ .bar })
         }
         let actionCallSite: () -> Void = {
-            self.subject.observe({ await countableAction.invoke() }, debounced: .seconds(0.5), identifier: "some_id")
+            self.subject.observeAsync({ await countableAction.invoke() }, debounced: .seconds(0.5), identifier: "some_id")
         }
         
         actionCallSite()
@@ -178,7 +178,7 @@ class ViewStateRenderingTests_ObserveDebounce: XCTestCase {
         XCTAssertEqual(1, countableAction.count)
     }
     
-    /// Tests the syncrhonous debounce action overloads
+    /// Tests the synchronous debounce action overloads
     func testDebounce_SynchronousOverload_DefaultId() async throws {
         let countableAction = CountableSynchronousAction<MockState> {
             .bar
@@ -195,7 +195,7 @@ class ViewStateRenderingTests_ObserveDebounce: XCTestCase {
         XCTAssertEqual(1, countableAction.count)
     }
     
-    /// Tests the syncrhonous debounce action overloads
+    /// Tests the synchronous debounce action overloads
     func testDebounce_SynchronousOverload_CustomId() async throws {
         let countableAction = CountableSynchronousAction<MockState> {
             .bar
