@@ -45,6 +45,17 @@ class StateContainerTests: XCTestCase {
         test(subject, expect: [.foo, .bar, .baz], when: { $0.observe(mockAction()) })
     }
     
+    /// Asserts that synchronous actions update the state on the same (main) thread. Prevents "extra-frame render" view initialization bugs.
+    func testStatePublisherAction_MainThreadConsistency() throws {
+        let mockAction: () -> AnyPublisher<MockState, Never> = {
+            Just(MockState.bar).eraseToAnyPublisher()
+        }
+        XCTAssertTrue(Thread.isMainThread, "Unit test did not run on the main thread.")
+        let subject = StateContainer<MockState>(state: .foo)
+        subject.observe(mockAction())
+        XCTAssertEqual(subject.state, .bar, "State was not updated synchronously by the synchronous action")
+    }
+    
     // MARK: - Async Actions
     
     /// Tests that observing state-emitting async actions will progress the state appropriately
@@ -53,7 +64,7 @@ class StateContainerTests: XCTestCase {
             .bar
         }
         let subject = StateContainer<MockState>(state: .foo)
-        test(subject, expect: [.foo, .bar], when: { $0.observe({ await mockAction() }) })
+        test(subject, expect: [.foo, .bar], when: { $0.observeAsync({ await mockAction() }) })
     }
     
     /// Tests that observing state-emitting async actions will progress the state appropriately
@@ -67,7 +78,7 @@ class StateContainerTests: XCTestCase {
             return .bar
         }
         let subject = StateContainer<MockState>(state: .foo)
-        test(subject, expect: [.foo, .bar], when: { $0.observe({ await mockAction() }) })
+        test(subject, expect: [.foo, .bar], when: { $0.observeAsync({ await mockAction() }) })
     }
     
     /// Tests that observing long-running, state-emitting async actions will cancel when the subject is deallocated
@@ -88,7 +99,7 @@ class StateContainerTests: XCTestCase {
             }
             let subject = StateContainer<MockState>(state: .foo)
             weakSubject = subject
-            subject.observe({ await mockAction() })
+            subject.observeAsync({ await mockAction() })
         }
         performActionOnMemoryScopedStateContainer()
         XCTAssertNil(weakSubject, "\(type(of: weakSubject)) leaked!")
@@ -103,7 +114,7 @@ class StateContainerTests: XCTestCase {
             .init({ .bar }, { .baz })
         }
         let subject = StateContainer<MockState>(state: .foo)
-        test(subject, expect: [.foo, .bar, .baz], when: { $0.observe({ await mockAction() }) })
+        test(subject, expect: [.foo, .bar, .baz], when: { $0.observeAsync({ await mockAction() }) })
     }
     
     /// Tests that observing state-emitting async actions will progress the state appropriately
@@ -122,7 +133,7 @@ class StateContainerTests: XCTestCase {
             )
         }
         let subject = StateContainer<MockState>(state: .foo)
-        test(subject, expect: [.foo, .bar, .baz], when: { $0.observe({ await mockAction() }) })
+        test(subject, expect: [.foo, .bar, .baz], when: { $0.observeAsync({ await mockAction() }) })
     }
     
     /// Tests that observing long-running, state-emitting async actions will cancel when the subject is deallocated
@@ -149,7 +160,7 @@ class StateContainerTests: XCTestCase {
             let subject = StateContainer<MockState>(state: .foo)
             weakSubject = subject
             let negativeTest = subject.$state.collect(3).expectNoValue()
-            test(subject, expect: [.foo, .bar], when: { $0.observe(mockAction) })
+            test(subject, expect: [.foo, .bar], when: { $0.observeAsync(mockAction) })
             negativeTest.waitForExpectations(timeout: 1)
             
         }
@@ -182,7 +193,7 @@ class StateContainerTests: XCTestCase {
             let subject = StateContainer<MockState>(state: .foo)
             weakSubject = subject
             let negativeTest = subject.$state.collect(3).expectNoValue() // Should not emit .baz
-            test(subject, expect: [.foo, .bar], when: { $0.observe({ await mockAction() }) })
+            test(subject, expect: [.foo, .bar], when: { $0.observeAsync({ await mockAction() }) })
             negativeTest.waitForExpectations(timeout: 1)
             
         }
@@ -244,9 +255,9 @@ class StateContainerTests: XCTestCase {
         let subject = StateContainer<MockState>(state: .foo)
         
         test(subject, expect: [.foo, .bar], when: { $0.observe(mockPublishedAction()) })
-        test(subject, expect: [.bar, .baz], when: { $0.observe({ await mockAsyncAction() }) })
+        test(subject, expect: [.bar, .baz], when: { $0.observeAsync({ await mockAsyncAction() }) })
         test(subject, expect: [.baz, .qux], when: { $0.observe(mockSyncAction()) })
-        test(subject, expect: [.qux, .baz], when: { $0.observe({ await mockAsyncAction() }) })
+        test(subject, expect: [.qux, .baz], when: { $0.observeAsync({ await mockAsyncAction() }) })
         test(subject, expect: [.baz, .bar], when: { $0.observe(mockPublishedAction()) })
     }
     
@@ -282,7 +293,7 @@ class StateContainerTests: XCTestCase {
             .expectNot(.grault)
         
         test(subject, expect: [.foo, .bar], when: { $0.observe(mockPublishedAction()) })
-        test(subject, expect: [.bar, .baz], when: { $0.observe({ await mockAsyncAction() }) })
+        test(subject, expect: [.bar, .baz], when: { $0.observeAsync({ await mockAsyncAction() }) })
         test(subject, expect: [.baz, .qux], when: { $0.observe(mockSyncAction()) })
         test(subject, expect: [.qux, .quux], when: { $0.observe(mockSyncAction2()) })
         
@@ -307,7 +318,7 @@ class StateContainerTests: XCTestCase {
         let subject = StateContainer<MockState>(state: .foo)
         let negativeTest = subject.$state.collect(3).expectNoValue()
         
-        subject.observe({ await mockAsyncAction() })
+        subject.observeAsync({ await mockAsyncAction() })
         test(subject, expect: [.foo, .baz], when: { $0.observe(mockSyncAction()) })
         
         negativeTest.waitForExpectations(timeout: 1)
@@ -348,8 +359,8 @@ class StateContainerTests: XCTestCase {
             .expectNot(.corge)
             .expectNot(.grault)
 
-        test(subject, expect: [.foo, .bar], when: { $0.observe(mockSequenceAction) })
-        test(subject, expect: [.bar, .baz], when: { $0.observe({ await mockAsyncAction() }) })
+        test(subject, expect: [.foo, .bar], when: { $0.observeAsync(mockSequenceAction) })
+        test(subject, expect: [.bar, .baz], when: { $0.observeAsync({ await mockAsyncAction() }) })
         test(subject, expect: [.baz, .qux], when: { $0.observe(mockSyncAction()) })
         test(subject, expect: [.qux, .quux], when: { $0.observe(mockSyncAction2()) })
 

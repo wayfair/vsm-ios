@@ -18,9 +18,6 @@ struct ProductDetailView: View, ViewStateRendering {
         self.dependencies = dependencies
         self.productDetail = productDetail
         container = .init(state: .viewing(AddToCartModel(dependencies: dependencies, productId: productDetail.id)))
-        //    .debug()
-        // Uncomment this line to see state changes printed to the console for this view.
-        // NOTE: The line above will produce a compiler warning in DEBUG, and will break any non-DEBUG build.
     }
     
     var body: some View {        
