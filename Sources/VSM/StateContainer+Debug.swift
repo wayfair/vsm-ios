@@ -5,16 +5,19 @@
 //  Created by Albert Bori on 5/12/22.
 //
 
-#if DEBUG
-
 import Combine
 import Foundation
 
+#if DEBUG
+
 public extension StateContaining {
     
-    /// Prints all state changes in this `StateContainer`, starting with the current state. ⚠️ Requires DEBUG configuration.
     @available(*, deprecated, message: "This debug statement only compiles in DEBUG schemas.")
     @discardableResult
+    /// Prints all state changes in this `StateContainer`, starting with the current state. ⚠️ Requires DEBUG configuration.
+    /// This can be used multiple times per state container with different options.
+    /// - Parameter options: Controls the type of information you want to see in each log. Defaults to `.default`
+    /// - Returns: Self
     func _debug(options: _StateContainerDebugOptions = .defaults) -> Self {
         if let stateContainer = self as? StateContainer<State> {
             stateContainer.debugLogger.startLogging(for: stateContainer, options: options)
@@ -26,6 +29,7 @@ public extension StateContaining {
 public extension StateContaining where State == Any {
     
     /// Prints all state changes in every `StateContainer` created after this line. ⚠️ Requires DEBUG configuration.
+    /// - Parameter options: Controls the type of information you want to see in each log. Defaults to `.default`
     @available(*, deprecated, message: "This debug statement only compiles in DEBUG schemas.")
     static func _debug(options: _StateContainerDebugOptions = .defaults) {
         StateContainerDebugLogger.defaultLoggingModes = options
@@ -35,6 +39,8 @@ public extension StateContaining where State == Any {
 #endif
 
 extension StateContainer {
+    
+    /// Registers this state container for debug logging if global debug options have been set
     func registerForDebugLogging() {
 #if DEBUG
         if !StateContainerDebugLogger.defaultLoggingModes.isEmpty {
@@ -55,7 +61,7 @@ class StateContainerDebugLogger {
         let description: String
     }
     
-    /// Registers debug logging once per mode per state container (to prevent duplicate logging from multiple calls)
+    /// Registers debug logging once per option-set per state container. Multiple messages per state change are possible, but duplicate messages are not possible.
     func startLogging<State>(for container: StateContainer<State>, options: _StateContainerDebugOptions) {
         guard subscriptions[options] == nil else { return }
         

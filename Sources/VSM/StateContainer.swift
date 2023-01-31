@@ -81,14 +81,12 @@ public extension StateContainer {
     func observeAsync(_ nextState: @escaping () async -> State) {
         cancelRunningObservations()
         // A weak-self declaration is required on the `Task` closure to break an unexpected strong self retention, despite not directly invoking self ¯\_(ツ)_/¯
-        stateTask = Task(priority: .userInitiated) { [weak self] in
+        stateTask = Task { [weak self] in
             let newState = await nextState()
             guard !Task.isCancelled else { return }
             // GCD is used here instead of `MainActor` to avoid back-ported Swift Concurrency crashes relating to `MainActor` usage
             // In a future iOS 15+ version, this class will be converted fully to the `MainActor` paradigm
-            DispatchQueue.main.async { [weak self] in
-                self?.state = newState
-            }
+            self?.setStateOnMainThread(to: newState)
         }
     }
     
@@ -96,14 +94,12 @@ public extension StateContainer {
     func observeAsync<SomeAsyncSequence: AsyncSequence>(_ stateSequence: @escaping () async -> SomeAsyncSequence) where SomeAsyncSequence.Element == State {
         cancelRunningObservations()
         // A weak-self declaration is required on the `Task` closure to break an unexpected strong self retention, despite not directly invoking self ¯\_(ツ)_/¯
-        stateTask = Task(priority: .userInitiated) { [weak self] in
+        stateTask = Task { [weak self] in
             for try await newState in await stateSequence() {
                 guard !Task.isCancelled else { break }
                 // GCD is used here instead of `MainActor` to avoid back-ported Swift Concurrency crashes relating to `MainActor` usage
                 // In a future iOS 15+ version, this class will be converted fully to the `MainActor` paradigm
-                DispatchQueue.main.async { [weak self] in
-                    self?.state = newState
-                }
+                self?.setStateOnMainThread(to: newState)
             }
         }
     }
