@@ -1,6 +1,6 @@
 //
-//  StateChangeSubscriber.swift
-//  
+//  AtomicStateChangeSubscriber.swift
+//
 //
 //  Created by Albert Bori on 12/8/22.
 //

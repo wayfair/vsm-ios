@@ -1,6 +1,6 @@
 //
 //  ViewState.swift
-//  
+//
 //
 //  Created by Albert Bori on 11/18/22.
 //

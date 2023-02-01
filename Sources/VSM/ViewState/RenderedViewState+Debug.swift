@@ -1,6 +1,6 @@
 //
 //  RenderedViewState+Debug.swift
-//  
+//
 //
 //  Created by Albert Bori on 1/31/23.
 //

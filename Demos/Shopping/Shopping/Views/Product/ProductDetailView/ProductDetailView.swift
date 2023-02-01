@@ -20,7 +20,7 @@ struct ProductDetailView: View {
         _state = .init(wrappedValue: .viewing(AddToCartModel(dependencies: dependencies, productId: productDetail.id)))
     }
     
-    var body: some View {        
+    var body: some View {
         ZStack {
             VStack {
                 productDetailsView()

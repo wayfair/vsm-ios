@@ -82,7 +82,7 @@ class ProductViewController: UIViewController {
                 contentViewController.view.centerXAnchor.constraint(equalTo: view.centerXAnchor)
             ])
             productDetailViewController = contentViewController
-            contentViewController.didMove(toParent: self)            
+            contentViewController.didMove(toParent: self)
         case .error(message: let message, retry: let retry):
             showErrorAlert(message: message,
                            button: (title: "Retry", action: { [weak self] in

@@ -1,6 +1,6 @@
 //
 //  RenderedViewState.swift
-//  
+//
 //
 //  Created by Albert Bori on 12/23/22.
 //
