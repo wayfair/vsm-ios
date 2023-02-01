@@ -322,7 +322,7 @@
             }
             
             @Step {
-                Finally, instantiate the `container` property with the state you just created. Your feature is now ready to use.
+                Finally, instantiate the `state` property with the state you just created. Your feature is now ready to use.
                 
                 > Note: To learn more about different ways for your feature to be initialized, see: <doc:ViewDefinition-SwiftUI> or <doc:ViewDefinition-UIKit>.
                 
