@@ -24,15 +24,11 @@ struct LoadUserProfileView: View {
 }
 ```
 
-To turn any view into a "VSM View", we only need to define a property that holds our current state and decorate it with the ``ViewState`` (`@ViewState`) property wrapper.
+To turn any view into a "VSM View", define a property that holds our current state and decorate it with the ``ViewState`` (`@ViewState`) property wrapper.
 
-**The `@ViewState` property wrapper will cause the view to update every time the state changes**. It works in the same way as other SwiftUI property wrappers (i.e., `@StateObject`, `@State`, `@ObservedObject`, and `@Binding`).
+**The `@ViewState` property wrapper updates the view every time the state changes**. It works in the same way as other SwiftUI property wrappers (i.e., `@StateObject`, `@State`, `@ObservedObject`, and `@Binding`).
 
 As with other SwiftUI property wrappers, when the wrapped value (state) changes, the view's `body` property is reevaluated and the result is drawn on the screen.
-
-> Note: In SwiftUI, a view's initializer is called every time its parent view is updated and redrawn.
->
-> Performing any operations in the view's initializer may cause undesired behavior if this is not considered.
 
 In the following examples, we will use the `LoadUserProfileViewState` and `EditUserProfileViewState` types from <doc:StateDefinition> to build two related VSM views.
 
@@ -64,7 +60,7 @@ protocol LoadingErrorModeling {
 }
 ```
 
-In SwiftUI, we simply write a switch statement within the `body` property to evaluate the current state and draw the most appropriate content for it.
+In SwiftUI, we write a switch statement within the `body` property to evaluate the current state and draw the most appropriate content for it.
 
 Note that if you avoid using a `default` case in your switch statement, the compiler will enforce any future changes to the shape of your feature. This is good because it will help you avoid bugs when maintaining the feature.
 
@@ -204,14 +200,12 @@ extension EditUserProfileViewState {
 
 Now that we have our view states rendering correctly, we need to wire up the various actions in our views so that they are appropriately and safely invoked by the environment or the user.
 
-VSM's ``ViewState`` property wrapper provides a critically important function called ``StateContainer/observe(_:)-1emeh`` through its projected value (`$`). This function updates the current state with all view states emitted by an action, as they are emitted in real-time.
+VSM's ``ViewState`` property wrapper provides a critically important function called ``StateObserving/observe(_:)-31ocs`` through its projected value (`$`). This function updates the current state with all view states emitted by an action, as they are emitted in real-time.
 
 It is called like so:
 
 ```swift
 $state.observe(someState.someAction())
-// or
-$state.observe(someState.someAction)
 ```
 
 The only way to update the current view state is to use the `ViewState`'s `observe(_:)` function.
@@ -228,7 +222,7 @@ This is a helpful reminder in case you forget to wrap an action call with `obser
 
 ### Loading View Actions
 
-There are two actions that we want to configure in the `LoadUserProfileView`. The `load()` action in the `initialized` view state and the `retry()` action for the `loadingError` view state. We want `load()` to be called only once in the view's lifetime, so we'll attach it to the `onAppear` event handler on one of the subviews. The `retry()` action will be nestled in the view that uses the unwrapped `errorModel`.
+There are two actions that we want to call in the `LoadUserProfileView`. The `load()` action in the `initialized` view state and the `retry()` action for the `loadingError` view state. We want `load()` to be called only once in the view's lifetime, so we'll attach it to the `onAppear` event handler on one of the subviews. The `retry()` action will be nestled in the view that uses the unwrapped `errorModel`.
 
 ```swift
 var body: some View {
@@ -349,13 +343,13 @@ var body: some View {
 }
 ```
 
-We have to use the `ViewState`'s projected value (`$`) because it gives us access to the underlying `StateContainer`'s ``StateContainer/statePublisher`` property which can be observed by `onReceive`.
+We use the `ViewState`'s projected value (`$`) because it gives us access to the state ``StatePublishing/publisher`` property which can be observed by `onReceive`.
 
 #### Custom Two-Way Bindings
 
 If we wanted to ditch the `Save` button in favor of having the view input call `save(username:)` as the user is typing, SwiftUI's `Binding<T>` type behaves much like a property on an object by providing a two-way getter and a setter for a wrapped value. We can utilize this to trick the `TextField` view into thinking it has read/write access to the view state's `username` property.
 
-A custom `Binding<T>` can be created as a view state extension property, as a `@Binding` property on the view, or on the fly right within the view's code, like so:
+A custom `Binding<T>` can be created as a view state extension property, as a `@Binding` property on the view, or right within the view's code, like so:
 
 ```swift
 var body: some View {
@@ -373,7 +367,7 @@ var body: some View {
 }
 ```
 
-Notice how our call to ``StateContainer/observe(_:debounced:identifier:)-6tnnd`` includes a `debounced` property. This allows us to prevent thrashing the `save(username:)` call if the user is typing quickly. It will only call the action a maximum of once per second (or whatever time delay is given).
+Notice how our call to ``StateObserving/observe(_:debounced:file:line:)-8vbf2`` includes a `debounced` parameter. This prevents excessive calls to the `save(username:)` function if the user is typing quickly. It will only call the action a maximum of once per second (or whatever time delay is given).
 
 ## View Construction
 
@@ -384,42 +378,56 @@ A VSM view's initializer can take either of two approaches (or both, if desired)
 - Dependent: The parent is responsible for passing in the view's initial view state (and its associated model)
 - Encapsulated: The view encapsulates its view state kickoff point (and associated model), only requiring that the parent provide dependencies needed by the view or the models.
 
-The dependent initializer has one upside and one downside when compared to the encapsulated approach. The upside is that the initializer is convenient for use in SwiftUI Previews and automated UI tests. The downside is that it requires any parent view to have some knowledge of the inner workings of the view in question.
+The "Dependent" initializer has two upsides and one downside when compared to the encapsulated approach. The upsides are that Swift provides a default initializer automatically and the initializer is convenient for use in SwiftUI Previews and automated UI tests. The downside is that it requires parent views to have some knowledge of the inner workings of the view in question.
 
 ### Loading View Initializers
 
 The initializers for the `LoadUserProfileView` are as follows:
 
+"Dependent" Approach
 ```swift
-// Dependent (A default struct initializer is provided for you automatically)
+// Parent View Code
 let loaderModel = LoadUserProfileViewState.LoaderModel(userId: userId)
 let state = .initialized(loaderModel)
 LoadUserProfileView(state: state)
+```
 
-// Encapsulated
+"Encapsulated" Approach
+```swift
+// LoadUserProfileView Code
 init(userId: Int) {
     let loaderModel = LoadUserProfileViewState.LoaderModel(userId: userId)
     let state = .initialized(loaderModel)
     _state = .init(wrappedValue: state)
 }
+
+// Parent View Code
+LoadUserProfileView(userId: someUserId)
 ```
 
 ### Editing View Initializers
 
 The initializers for the `EditUserProfileView` are as follows:
 
+"Dependent" Approach
 ```swift
-// Dependent (A default struct initializer is provided for you automatically)
+// Parent View Code
 let editingModel = EditUserProfileViewState.EditingModel(userData: userData)
 let state = EditUserProfileViewState(data: userData, editingState: .editing(editingModel))
 EditUserProfileView(state: state)
+```
 
-// Encapsulated
+"Encapsulated" Approach
+```swift
+// EditUserProfileView Code
 init(userData: UserData) {
     let editingModel = EditUserProfileViewState.EditingModel(userData: userData)
     let state = EditUserProfileViewState(data: userData, editingState: .editing(editingModel))
     _state = .init(wrappedValue: state)
 }
+
+// Parent View Code
+EditUserProfileView(userData: someUserData)
 ```
 
 ## Iterative View Development

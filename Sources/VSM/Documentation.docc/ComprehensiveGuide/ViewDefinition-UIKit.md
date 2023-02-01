@@ -31,11 +31,11 @@ class UserProfileViewController: UIViewController {
 }
 ```
 
-To turn any UIView or UIViewController into a "VSM View", we only need to define a property that holds our current state and decorate it with the `@RenderedViewState` property wrapper.
+To turn any UIView or UIViewController into a "VSM View", define a property that holds our current state and decorate it with the `@RenderedViewState` property wrapper.
 
-**The `@RenderedViewState` is a UIKit-only property wrapper that will cause the view to update every time the state changes**. `@RenderedViewState` requires a `render` _function type_ parameter to call when the state changes. You must define this function in your UIView or UIViewController. 
+**The `@RenderedViewState` is a UIKit-only property wrapper that updates the view every time the state changes**. `@RenderedViewState` requires a `render` _function type_ parameter to call when the state changes. You must define this function in your UIView or UIViewController. 
 
-> Note: In the examples found in this article, we will be using Storyboards. As a result, you can see that we used a custom `NSCoder` initializer above. If you are using a code-first approach to UIKit, you can use whichever initialization mechanism is most appropriate.
+> Note: In the examples found in this article, we will be using Storyboards. As a result, we used a custom `NSCoder` initializer. If you are using a code-first approach to UIKit, you can use whichever initialization mechanism is most appropriate.
 
 ## Displaying the State
 
@@ -65,7 +65,7 @@ protocol LoadingErrorModeling {
 }
 ```
 
-In UIKit, we simply write a switch statement within the `render()` function to evaluate the current state and configure the views for each state.
+In UIKit, we write a switch statement within the `render()` function to evaluate the current state and configure the views for each state.
 
 Note that if you avoid using a `default` case in your switch statement, the compiler will enforce any future changes to the shape of your feature. This is good because it will help you avoid bugs when maintaining the feature.
 
@@ -199,14 +199,12 @@ As in our first example, you can see that the various views are connected to the
 
 Now that we have our view states rendering correctly, we need to wire up the various actions in our views so that they are appropriately and safely invoked by the environment or the user.
 
-VSM's ``ViewState`` property wrapper provides a critically important function called ``StateContainer/observe(_:)-1emeh`` through its projected value (`$`). This function updates the current state with all view states emitted by an action, as they are emitted in real-time.
+VSM's ``ViewState`` property wrapper provides a critically important function called ``StateObserving/observe(_:)-31ocs`` through its projected value (`$`). This function updates the current state with all view states emitted by an action, as they are emitted in real-time.
 
 It is called like so:
 
 ```swift
 $state.observe(someState.someAction())
-// or
-$state.observe(someState.someAction)
 ```
 
 The only way to update the current view state is to use the `RenderedViewState`'s `observe(_:)` function.
@@ -223,7 +221,7 @@ This is a helpful reminder in case you forget to wrap an action call with `obser
 
 ### Loading View Actions
 
-There are two actions that we want to configure in the `LoadUserProfileView`. The `load()` action in the `initialized` view state and the `retry()` action for the `loadingError` view state. We want the `load()` call to only happen once for the view's lifetime, so we'll attach it to the `viewDidAppear` delegate method. Since the retry button is created by the Storyboard, the `retry()` action will be configured on the button in a special `setUpViews()` function.
+There are two actions that we want to call in the `LoadUserProfileView`. The `load()` action in the `initialized` view state and the `retry()` action for the `loadingError` view state. We want the `load()` call to only happen once for the view's lifetime, so we'll attach it to the `viewDidAppear` delegate method. Since the retry button is created by the Storyboard, the `retry()` action will be configured on the button in a special `setUpViews()` function.
 
 ```swift
 override func viewDidLoad() {
@@ -306,7 +304,7 @@ func setUpViews() {
 
 You can see that based on the type-system constraints, _these actions can never be called from the wrong state_, and the feature code indicates this very clearly.
 
-> Note: There is a special observe overload ``StateContainer/observe(_:debounced:identifier:)-6tnnd`` which includes a `debounced` property. This allows us to avoid calling an action too many times when tied to user input that may be triggered rapidly, like typing in a text field. It will only call the action a maximum of once per second (or whatever time delay is given).
+> Note: There is a special observe overload ``StateObserving/observe(_:debounced:file:line:)-8vbf2`` which includes a `debounced` property. This allows us to avoid calling an action too many times when tied to user input that may be triggered rapidly, like typing in a text field. It will only call the action a maximum of once per second (or whatever time delay is given).
 
 ## View Construction
 
@@ -317,46 +315,70 @@ A VSM view's initializer can take either of two approaches (or both, if desired)
 - Dependent: The parent is responsible for passing in the view's initial view state (and its associated model)
 - Encapsulated: The view encapsulates its view state kickoff point (and associated model), only requiring that the parent provide dependencies needed by the view or the models.
 
-The dependent initializer has one downside when compared to the encapsulated approach, in that it requires any parent view to have some knowledge of the inner workings of the view in question.
+The "Dependent" initializer has one downside when compared to the encapsulated approach, in that it requires any parent view to have some knowledge of the inner workings of the view in question.
 
 ### Loading View Initializers
 
 The initializers for the `LoadUserProfileViewController` are as follows:
 
+"Dependent" Approach
 ```swift
-// Dependent
+// LoadUserProfileViewController Code
 required init?(state: LoadUserProfileViewState, coder: NSCoder) {
     _state = .init(wrappedValue: state, render: Self.render)
     super.init(coder: coder)
 }
 
-// Encapsulated
+// Parent View Code
+let loaderModel = LoadUserProfileViewState.LoaderModel(userId: someUserId)
+let state = .initialized(loaderModel)
+LoadUserProfileViewController(state: state, coder: coder)
+```
+
+"Encapsulated" Approach
+```swift
+// LoadUserProfileViewController Code
 required init?(userId: Int, coder: NSCoder) {
     let loaderModel = LoadUserProfileViewState.LoaderModel(userId: userId)
     let state = .initialized(loaderModel)
     _state = .init(wrappedValue: state, render: Self.render)
     super.init(coder: coder)
 }
+
+// Parent View Code
+LoadUserProfileViewController(userId: someUserId, coder: coder)
 ```
 
 ### Editing View Initializers
 
 The initializers for the `EditUserProfileViewController` are as follows:
 
+"Dependent" Approach
 ```swift
-// Dependent
+// EditUserProfileViewController Code
 init?(state: EditUserProfileViewState, coder: NSCoder) {
     _state = .init(wrappedValue: state, render: Self.render)
     super.init(coder: coder)
 }
 
-// Encapsulated
+// Parent View Code
+let savingModel = EditUserProfileViewState.EditingModel(userData: someUserData)
+let state = EditUserProfileViewState(data: userData, editingState: .editing(savingModel))
+EditUserProfileViewController(state: state, code: coder)
+```
+
+"Encapsulated" Approach
+```swift
+// EditUserProfileViewController Code
 init?(userData: UserData, coder: NSCoder) {
     let savingModel = EditUserProfileViewState.EditingModel(userData: userData)
     let state = EditUserProfileViewState(data: userData, editingState: .editing(savingModel))
     _state = .init(wrappedValue: state, render: Self.render)
     super.init(coder: coder)
 }
+
+// Parent View Code
+EditUserProfileViewController(userData: someUserData, code: coder)
 ```
 
 ## Synchronize View Logic
