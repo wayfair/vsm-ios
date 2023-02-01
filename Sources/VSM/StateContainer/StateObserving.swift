@@ -60,7 +60,7 @@ public protocol StateObserving<State> {
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     ///   - identifier: The identifier for grouping actions for debouncing
     func observeAsync(
-        _ nextState: @escaping () async -> State, // "async" parameter name solves runtime closure disambiguation bug
+        _ nextState: @escaping () async -> State,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     )
@@ -118,7 +118,7 @@ public extension StateObserving {
     ///   - nextState: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     func observeAsync(
-        _ nextState: @escaping () async -> State, // "async" parameter name solves runtime closure disambiguation bug
+        _ nextState: @escaping () async -> State,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         file: String = #file,
         line: UInt = #line

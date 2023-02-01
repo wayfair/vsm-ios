@@ -8,14 +8,14 @@
 import SwiftUI
 import VSM
 
-struct ProfileView: View, ViewStateRendering {
+struct ProfileView: View {
     typealias Dependencies = ProfileLoaderModel.Dependencies
-    @StateObject var container: StateContainer<ProfileViewState>
+    @ViewState var state: ProfileViewState
     @State private var username: String?
     
     init(dependencies: Dependencies) {
         let loaderModel = ProfileLoaderModel(dependencies: dependencies, error: nil)
-        _container = .init(state: .initialized(loaderModel))
+        _state = .init(wrappedValue: .initialized(loaderModel))
     }
     
     var body: some View {
@@ -38,7 +38,7 @@ struct ProfileView: View, ViewStateRendering {
     func initializedView(loaderModel: ProfileLoaderModeling) -> some View {
         ProgressView()
             .onAppear {
-                container.observeAsync({ await loaderModel.load() })
+                $state.observeAsync({ await loaderModel.load() })
             }
             .alert(
                 "Oops!",
@@ -46,7 +46,7 @@ struct ProfileView: View, ViewStateRendering {
                 presenting: loaderModel.error
             ) { error in
                 Button("Retry") {
-                    container.observeAsync({ await loaderModel.load() })
+                    $state.observeAsync({ await loaderModel.load() })
                 }
             } message: { error in
                 Text(error)
@@ -61,7 +61,7 @@ struct ProfileView: View, ViewStateRendering {
                     username ?? editingModel.username
                 }, set: { newValue in
                     username = newValue
-                    container.observeAsync({ await editingModel.save(username: newValue)}, debounced: .seconds(0.5))
+                    $state.observeAsync({ await editingModel.save(username: newValue)}, debounced: .seconds(0.5))
                 }))
                     .textFieldStyle(.roundedBorder)
                 if case .saving = editingModel.editingState {
@@ -84,7 +84,7 @@ struct ProfileView: View, ViewStateRendering {
 
 extension ProfileView {
     init(state: ProfileViewState) {
-        _container = .init(state: state)
+        _state = .init(wrappedValue: state)
     }
 }
 

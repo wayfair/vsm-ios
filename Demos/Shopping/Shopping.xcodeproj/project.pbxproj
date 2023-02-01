@@ -295,10 +295,10 @@
 		32E5E76D27B48408002E9C47 /* Cart */ = {
 			isa = PBXGroup;
 			children = (
-				322B21F027BC55C700D147A4 /* CartView.swift */,
-				322B21F227BC55D400D147A4 /* CartViewState.swift */,
 				32F1B5E327C0626200819F76 /* CartButtonView.swift */,
 				3289790727BF2D5400651ADE /* CartButtonViewState.swift */,
+				322B21F027BC55C700D147A4 /* CartView.swift */,
+				322B21F227BC55D400D147A4 /* CartViewState.swift */,
 			);
 			path = Cart;
 			sourceTree = "<group>";

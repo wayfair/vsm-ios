@@ -8,17 +8,16 @@
 import SwiftUI
 import VSM
 
-struct CartButtonView: View, ViewStateRendering {
+struct CartButtonView: View {
     typealias Dependencies = CartCountLoaderModel.Dependencies & CartView.Dependencies
     let dependencies: Dependencies
     @State var showCart: Bool = false
-    @ObservedObject var container: StateContainer<CartButtonViewState>
+    @ViewState var state: CartButtonViewState
     
     init(dependencies: Dependencies) {
         self.dependencies = dependencies
         let loaderModel = CartCountLoaderModel(dependencies: dependencies)
-        container = .init(state: .initialized(loaderModel))
-        container.observe(loaderModel.loadCount())
+        _state = .init(wrappedValue: .initialized(loaderModel))
     }
     
     var body: some View {
@@ -26,9 +25,14 @@ struct CartButtonView: View, ViewStateRendering {
             Image(systemName: "cart")
         }
         .accessibilityIdentifier("Show Cart")
-        .overlay(Badge(count: container.state.cartItemCount))
+        .overlay(Badge(count: state.cartItemCount))
         .fullScreenCover(isPresented: $showCart) {
             CartView(dependencies: dependencies, showModal: $showCart)
+        }
+        .onAppear {
+            if case .initialized(let loaderModel) = state {
+                $state.observe(loaderModel.loadCount())
+            }
         }
     }
 }
@@ -38,7 +42,7 @@ struct CartButtonView: View, ViewStateRendering {
 extension CartButtonView {
     init(dependencies: Dependencies, state: CartButtonViewState) {
         self.dependencies = dependencies
-        container = .init(state: state)
+        _state = .init(wrappedValue: state)
     }
 }
 

@@ -12,9 +12,9 @@ import VSM
 struct ShoppingApp: App {
     
     init() {
-        // Uncomment this line to see state changes printed to the console for every StateContainer in the app.
+        // Uncomment this line to see state changes printed to the console for every ViewState in the app.
         // NOTE: The line below will produce a compiler warning in DEBUG, and will break any non-DEBUG build.
-        // StateContainer._debug()
+        // ViewState._debug()
         
         // Configure for UI testing if necessary
         configureUITestBehavior()

@@ -5,12 +5,11 @@
 //  Created by Albert Bori on 1/27/23.
 //
 
-import Combine
 import SwiftUI
 import UIKit
 import VSM
 
-class ProductDetailViewController: UIViewController, ViewStateRendering {
+class ProductDetailViewController: UIViewController {
     typealias Dependencies = AddToCartModel.Dependencies & FavoriteButtonView.Dependencies
     
     @IBOutlet weak var priceLabel: UILabel!
@@ -31,14 +30,13 @@ class ProductDetailViewController: UIViewController, ViewStateRendering {
     
     let dependencies: Dependencies
     let productDetail: ProductDetail
-    var container: StateContainer<ProductDetailViewState>
-    private var stateSubscription: AnyCancellable?
+    @RenderedViewState var state: ProductDetailViewState
         
     init?(dependencies: Dependencies, productDetail: ProductDetail, coder: NSCoder) {
         self.dependencies = dependencies
         self.productDetail = productDetail
         let addToCartModel = AddToCartModel(dependencies: dependencies, productId: productDetail.id)
-        container = .init(state: .viewing(addToCartModel))
+        _state = .init(wrappedValue: .viewing(addToCartModel), render: Self.render)
         super.init(coder: coder)
     }
     
@@ -48,10 +46,6 @@ class ProductDetailViewController: UIViewController, ViewStateRendering {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        stateSubscription = container.$state
-            .sink { [weak self] newState in
-                self?.render(newState)
-            }
         
         // create a FavoriteButtonView and add it to the favoriteButtonContainerView
         let favoriteButtonViewController = UIHostingController(rootView: FavoriteButtonView(dependencies: dependencies, productId: productDetail.id, productName: productDetail.name))
@@ -70,7 +64,7 @@ class ProductDetailViewController: UIViewController, ViewStateRendering {
             guard let strongSelf = self else { return }
             switch strongSelf.state {
             case .viewing(let addToCartModel), .addedToCart(let addToCartModel), .addToCartError(message: _, let addToCartModel):
-                self?.container.observe(addToCartModel.addToCart())
+                self?.$state.observe(addToCartModel.addToCart())
             default:
                 break
             }
@@ -86,7 +80,7 @@ class ProductDetailViewController: UIViewController, ViewStateRendering {
         errorView.isHidden = true
     }
     
-    func render(_ state: ProductDetailViewState) {
+    func render() {
         switch state {
         case .viewing:
             // update the UI with the product details
