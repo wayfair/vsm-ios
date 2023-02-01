@@ -10,52 +10,86 @@ import Combine
 import Foundation
 import SwiftUI
 
+/// Provides functions for converting a view state into a SwiftUI two-way `Binding<T>`
 public protocol StateBinding<State> {
     associatedtype State
     
-    /// Creates a unidirectional, auto-observing `Binding<Value>` for the `ViewState` using a `KeyPath` and a basic closure.
-    /// **Not intended for use when `ViewState` is an enum.**
+    /// Creates a two-way SwiftUI binding using a `KeyPath` and a _closure_ for simple (non-enum) view states.
+    ///
+    /// Example Usage
+    /// ```swift
+    /// TextField("Username", text: $state.bind(\.username, to: { $0.update(username: $1) }))
+    /// ```
+    ///
     /// - Parameters:
-    ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
-    ///   - observedSetter: Converts the new `Value` to a new `ViewState`, which is automatically observed
-    /// - Returns: A `Binding<Value>` for use in SwiftUI controls
-    func bind<Value>(_ stateKeyPath: KeyPath<State, Value>, to observedSetter: @escaping (State, Value) -> State) -> Binding<Value>
-    
-    /// Creates a unidirectional, auto-observing `Binding<Value>` for the `ViewState` using a `KeyPath` and a *method signature*
-    /// **This doesn't work when `ViewState` is an enum**
-    /// Example usage: `bind(\.someModelProperty, to: ViewState.someModelMethod)`
-    /// - Parameters:
-    ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
-    ///   - observedSetter: A **method signature** which converts the new `Value` to a new `ViewState` and is automatically observed
-    /// - Returns: A `Binding<Value>` for use in SwiftUI controls
-    func bind<Value>(_ stateKeyPath: KeyPath<State, Value>, to observedSetter: @escaping (State) -> (Value) -> State) -> Binding<Value>
-    
-    /// Creates a unidirectional, auto-observing `Binding<Value>` for the `ViewState` using a `KeyPath` and a basic closure.
-    /// **Not intended for use when `ViewState` is an enum.**
-    /// - Parameters:
-    ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
-    ///   - observedSetter: Converts the new `Value` to a new `ViewState`, which is automatically observed
+    ///   - stateKeyPath: `KeyPath` for a `Value` of the `State`
+    ///   - observedSetter: Converts the new `Value` to a new `State`, which is automatically rendered by the view
     /// - Returns: A `Binding<Value>` for use in SwiftUI controls
     func bind<Value>(_ stateKeyPath: KeyPath<State, Value>, to observedSetter: @escaping (State, Value) -> AnyPublisher<State, Never>) -> Binding<Value>
     
-    /// Creates a unidirectional, auto-observing `Binding<Value>` for the `ViewState` using a `KeyPath` and a *method signature*
-    /// **Not intended for use when `ViewState` is an enum.**
-    /// Example usage: `bind(\.someModelProperty, to: ViewState.someModelMethod)`
+    /// Creates a two-way SwiftUI binding using a `KeyPath` and a _function type_ for simple (non-enum) view states.
+    ///
+    /// Example Usage
+    /// ```swift
+    /// TextField("Username", text: $state.bind((\.username), to: ProfileState.update))
+    /// ```
+    ///
     /// - Parameters:
-    ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
-    ///   - observedSetter: A **method signature** which converts the new `Value` to a new `ViewState` and is automatically observed
+    ///   - stateKeyPath: `KeyPath` for a `Value` of the `State`
+    ///   - observedSetter: A _function type_ which converts the new `Value` to a new `State` and is automatically rendered by the view
     /// - Returns: A `Binding<Value>` for use in SwiftUI controls
     func bind<Value>(_ stateKeyPath: KeyPath<State, Value>, to observedSetter: @escaping (State) -> (Value) -> AnyPublisher<State, Never>) -> Binding<Value>
-}
-
-struct HashedIdentifier: Hashable {
-    let uniqueValues: [AnyHashable]
     
-    /// Prevents accidental key collisions between auto-generated identifiers and manually generated identifiers
-    private static let uniqueKey: AnyHashable = UUID()
+    /// Creates a two-way SwiftUI binding using a `KeyPath` and a _closure_ for simple (non-enum) view states.
+    ///
+    /// Example Usage
+    /// ```swift
+    /// TextField("Username", text: $state.bind(\.username, to: { $0.update(username: $1) }))
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - stateKeyPath: `KeyPath` for a `Value` of the `State`
+    ///   - observedSetter: Converts the new `Value` to a new `State`, which is automatically rendered by the view
+    /// - Returns: A `Binding<Value>` for use in SwiftUI controls
+    func bind<Value>(_ stateKeyPath: KeyPath<State, Value>, to observedSetter: @escaping (State, Value) -> State) -> Binding<Value>
+        
+    /// Creates a two-way SwiftUI binding using a `KeyPath` and a _function type_ for simple (non-enum) view states.
+    ///
+    /// Example Usage
+    /// ```swift
+    /// TextField("Username", text: $state.bind((\.username), to: ProfileState.update))
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - stateKeyPath: `KeyPath` for a `Value` of the `State`
+    ///   - observedSetter: A _function type_ which converts the new `Value` to a new `State` and is automatically rendered by the view
+    /// - Returns: A `Binding<Value>` for use in SwiftUI controls
+    func bind<Value>(_ stateKeyPath: KeyPath<State, Value>, to observedSetter: @escaping (State) -> (Value) -> State) -> Binding<Value>
     
-    init(_ values: AnyHashable ...) {
-        uniqueValues = [Self.uniqueKey] + values
-    }
+    /// Creates an asynchronous two-way SwiftUI binding using a `KeyPath` and a _closure_ for simple (non-enum) view states.
+    ///
+    /// Example Usage
+    /// ```swift
+    /// TextField("Username", text: $state.bind(\.username, to: { $0.update(username: $1) }))
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - stateKeyPath: `KeyPath` for a `Value` of the `State`
+    ///   - observedSetter: Converts the new `Value` to a new `State`, which is automatically rendered by the view
+    /// - Returns: A `Binding<Value>` for use in SwiftUI controls
+    func bindAsync<Value>(_ stateKeyPath: KeyPath<State, Value>, to observedSetter: @escaping (State, Value) async -> State) -> Binding<Value>
+        
+    /// Creates an asynchronous two-way SwiftUI binding using a `KeyPath` and a _function type_ for simple (non-enum) view states.
+    ///
+    /// Example Usage
+    /// ```swift
+    /// TextField("Username", text: $state.bind((\.username), to: ProfileState.update))
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - stateKeyPath: `KeyPath` for a `Value` of the `State`
+    ///   - observedSetter: A _function type_ which converts the new `Value` to a new `State` and is automatically rendered by the view
+    /// - Returns: A `Binding<Value>` for use in SwiftUI controls
+    func bindAsync<Value>(_ stateKeyPath: KeyPath<State, Value>, to observedSetter: @escaping (State) -> (Value) async -> State) -> Binding<Value>
 }
 #endif

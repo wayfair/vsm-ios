@@ -141,3 +141,14 @@ public extension StateObserving {
         observeAsync(stateSequence, debounced: dueTime, identifier: HashedIdentifier(file, line))
     }
 }
+
+struct HashedIdentifier: Hashable {
+    let uniqueValues: [AnyHashable]
+    
+    /// Prevents accidental key collisions between auto-generated identifiers and manually generated identifiers
+    private static let uniqueKey: AnyHashable = UUID()
+    
+    init(_ values: AnyHashable ...) {
+        uniqueValues = [Self.uniqueKey] + values
+    }
+}
