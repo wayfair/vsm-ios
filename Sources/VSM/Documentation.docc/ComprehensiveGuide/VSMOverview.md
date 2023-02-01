@@ -16,7 +16,9 @@ In VSM, the various responsibilities of a feature are divided into 3 concepts:
 
 The structure of your code should follow the above pattern, with a view code file, a view state code file, and a file for each model's implementation.
 
-Optionally, due to the reactive nature of VSM, Observable Repositories are an excellent companion to VSM models in performing data operations (such as loading, saving, etc.) whose results can be forwarded to the view. These repositories can be shared between views for a powerful, yet safe approach to synchronizing the state of various views and data in the app.
+Due to the reactive nature of VSM, Observable Repositories are an excellent companion to VSM models in performing data operations (such as loading, saving, etc.) and managing the state of data. This data can then be forwarded to the view via Combine Publishers.
+
+These repositories can also be shared between views to synchronize the state of various views and data in the app. While simple features may not need these repositories, they are an excellent tool for complex features. You'll learn more about these later in the guide.
 
 ![VSM Feature Structure Diagram](vsm-structure.jpg)
 
