@@ -8,22 +8,21 @@
 import SwiftUI
 import VSM
 
-struct FavoritesView: View, ViewStateRendering {
+struct FavoritesView: View {
     typealias Dependencies = FavoritesLoaderModel.Dependencies & FavoritesViewLoadedModel.Dependencies
-    @ObservedObject var container: StateContainer<FavoritesViewState>
+    @ViewState var state: FavoritesViewState
     @State var showErrorAlert: Bool = false
     
     init(dependencies: Dependencies) {
         let loaderModel = FavoritesLoaderModel(dependencies: dependencies,
                                                              modelBuilder: FavoritesViewModelBuilder(dependencies: dependencies))
-        container = .init(state: .initialized(loaderModel))
-        container.observe(loaderModel.loadFavorites())
+        _state = .init(wrappedValue: .initialized(loaderModel))
     }
     
     var body: some View {
         ZStack {
-            favoritedProductListView(favorites: container.state.favorites)
-            switch container.state {
+            favoritedProductListView(favorites: state.favorites)
+            switch state {
             case .initialized, .loading:
                 ProgressView()
             case .loaded(let loadedModel):
@@ -39,9 +38,14 @@ struct FavoritesView: View, ViewStateRendering {
             }
         }
         .navigationTitle("Favorites")
-        .onReceive(container.$state) { state in
+        .onReceive($state.publisher) { state in
             if case .deletingError = state {
                 showErrorAlert = true
+            }
+        }
+        .onAppear {
+            if case .initialized(let loaderModel) = state {
+                $state.observe(loaderModel.loadFavorites())
             }
         }
     }
@@ -52,9 +56,9 @@ struct FavoritesView: View, ViewStateRendering {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    if case .loaded(let loadedModel) = container.state {
+                    if case .loaded(let loadedModel) = state {
                         Button(role: .destructive) {
-                            container.observe(loadedModel.delete(productId: favorite.id))
+                            $state.observe(loadedModel.delete(productId: favorite.id))
                         } label : {
                             Label("Delete", systemImage: "trash.fill")
                         }
@@ -77,7 +81,7 @@ struct FavoritesView: View, ViewStateRendering {
             Text("Oops!").font(.title)
             Text(errorModel.message)
             Button("Retry") {
-                container.observe(errorModel.retry())
+                $state.observe(errorModel.retry())
             }
         }
     }
@@ -88,10 +92,10 @@ struct FavoritesView: View, ViewStateRendering {
             VStack { }
                 .alert("Oops!", isPresented: $showErrorAlert) {
                     Button("Retry") {
-                        container.observe(deletingErrorModel.retry())
+                        $state.observe(deletingErrorModel.retry())
                     }
                     Button("Cancel") {
-                        container.observe(deletingErrorModel.cancel())
+                        $state.observe(deletingErrorModel.cancel())
                     }
                 } message: {
                     Text(deletingErrorModel.message)
@@ -101,8 +105,8 @@ struct FavoritesView: View, ViewStateRendering {
                 .alert(isPresented: $showErrorAlert) {
                     Alert(title: Text("Oops!"),
                           message: Text(deletingErrorModel.message),
-                          primaryButton: .default(Text("Retry"), action: { container.observe(deletingErrorModel.retry()) }),
-                          secondaryButton: .default(Text("Cancel"), action: { container.observe(deletingErrorModel.cancel()) }))
+                          primaryButton: .default(Text("Retry"), action: { $state.observe(deletingErrorModel.retry()) }),
+                          secondaryButton: .default(Text("Cancel"), action: { $state.observe(deletingErrorModel.cancel()) }))
                 }
         }
     }
@@ -112,7 +116,7 @@ struct FavoritesView: View, ViewStateRendering {
 
 extension FavoritesView {
     init(state: FavoritesViewState) {
-        container = .init(state: state)
+        _state = .init(wrappedValue: state)
     }
 }
 

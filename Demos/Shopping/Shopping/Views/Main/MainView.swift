@@ -8,14 +8,13 @@
 import SwiftUI
 import VSM
 
-struct MainView: View, ViewStateRendering {
+struct MainView: View {
     typealias Dependencies = ProductsView.Dependencies & AccountView.Dependencies
-    @ObservedObject private(set) var container: StateContainer<MainViewState>
+    @ViewState var state: MainViewState
     
     init(appDependenciesProvider: AsyncResource<MainView.Dependencies>) {
         let loaderModel = DependenciesLoaderModel(appDependenciesProvider: appDependenciesProvider)
-        container = .init(state: .initialized(loaderModel))
-        container.observe(loaderModel.loadDependencies())
+        _state = .init(wrappedValue: .initialized(loaderModel))
     }
     
     var body: some View {
@@ -24,7 +23,11 @@ struct MainView: View, ViewStateRendering {
             ProgressView()
                 .onAppear {
                     // Enable the following debug-only flag to view all state changes in _this_ view
-                    // container._debug()
+                    // $state._debug()
+                    
+                    if case .initialized(let loaderModel) = state {
+                        $state.observe(loaderModel.loadDependencies())
+                    }
                 }
         case .loaded(let loadedModel):
             loadedView(loadedModel)
@@ -59,7 +62,7 @@ struct MainView: View, ViewStateRendering {
 
 extension MainView {
     init(state: MainViewState) {
-        container = .init(state: state)
+        _state = .init(wrappedValue: state)
     }
 }
 

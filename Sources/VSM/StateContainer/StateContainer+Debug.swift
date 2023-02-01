@@ -12,12 +12,12 @@ import Foundation
 
 public extension StateContaining {
     
-    @available(*, deprecated, message: "This debug statement only compiles in DEBUG schemas.")
-    @discardableResult
     /// Prints all state changes in this `StateContainer`, starting with the current state. ⚠️ Requires DEBUG configuration.
     /// This can be used multiple times per state container with different options.
     /// - Parameter options: Controls the type of information you want to see in each log. Defaults to `.default`
     /// - Returns: Self
+    @available(*, deprecated, message: "This debug statement only compiles in DEBUG schemas.")
+    @discardableResult
     func _debug(options: _StateContainerDebugOptions = .defaults) -> Self {
         if let stateContainer = self as? StateContainer<State> {
             stateContainer.debugLogger.startLogging(for: stateContainer, options: options)
@@ -26,7 +26,9 @@ public extension StateContaining {
     }
 }
 
-public extension StateContaining where State == Any {
+public protocol _StateContainerStaticDebugging { }
+
+public extension _StateContainerStaticDebugging {
     
     /// Prints all state changes in every `StateContainer` created after this line. ⚠️ Requires DEBUG configuration.
     /// - Parameter options: Controls the type of information you want to see in each log. Defaults to `.default`
@@ -35,6 +37,8 @@ public extension StateContaining where State == Any {
         StateContainerDebugLogger.defaultLoggingModes = options
     }
 }
+
+extension StateContainer: _StateContainerStaticDebugging where State == Any { }
 
 #endif
 

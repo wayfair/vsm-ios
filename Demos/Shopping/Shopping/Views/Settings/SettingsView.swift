@@ -10,50 +10,46 @@ import VSM
 
 // This view shows two examples of how to handle cases where a value that is controlled by the view should be synchronized with the State and/or State Model.
 // Note that in this example, the "S" in "VSM" is silent, because the corresponding view has a single state, which is implied by a single State-Model type
-struct SettingsView: View, ViewStateRendering {
+struct SettingsView: View {
     typealias Dependencies = SettingsViewState.Dependencies
-    @StateObject var container: StateContainer<SettingsViewState>
+    @ViewState var state: SettingsViewStating
     
     // a. Custom Binding Approach (generally recommended)
-    var isCustomBindingExampleEnabled: Binding<Bool>
+    var isCustomBindingExampleEnabled: Binding<Bool> {
+        .init(
+            get: {
+                state.isCustomBindingExampleEnabled
+            },
+            set: { enabled in
+                $state.observe(state.toggleIsCustomBindingExampleEnabled(enabled))
+            }
+        )
+    }
     
     // b. Value Observation & Synchronization
-    // Be careful with this approach. Incorrect use of `onChange` or `onReceive` can result in undesired side-effects
+    // Be careful with this approach. Incorrect use of `onChange` or `onReceive` can result in undesired side-effects if configured incorrectly
     @State var isStateBindingExampleEnabled: Bool
     
     // c State-Model Binding Convenience Functions (recommended for when your `ViewState` is not an enum)
     // c.1
-    var isConvenienceBindingExampleEnabled1: Binding<Bool>
-    // c.2
-    var isConvenienceBindingExampleEnabled2: Binding<Bool>
-    
-    init(dependencies: Dependencies) {
-        let container: StateContainer<SettingsViewState> = .init(state: SettingsViewState(dependencies: dependencies))
-        _container = .init(wrappedValue: container)
-        
-        // a.
-        isCustomBindingExampleEnabled = .init(
-            get: {
-                container.state.isCustomBindingExampleEnabled
-            },
-            set: { enabled in
-                container.observe(container.state.toggleIsCustomBindingExampleEnabled(enabled))
-            })
-        
-        // b.
-        _isStateBindingExampleEnabled = .init(initialValue: container.state.isStateBindingExampleEnabled)
-        
-        // c.1
-        isConvenienceBindingExampleEnabled1 = container.bind(
+    var isConvenienceBindingExampleEnabled1: Binding<Bool> {
+        $state.bind(
             \.isConvenienceBindingExampleEnabled1,
             to: { state, newValue in
                 state.toggleIsConvenienceBindingExampleEnabled1(newValue)
             }
         )
-        
-        // c.2
-        isConvenienceBindingExampleEnabled2 = container.bind(\.isConvenienceBindingExampleEnabled2, to: ViewState.toggleIsConvenienceBindingExampleEnabled2)
-        // The last parameter in c.2 can also be `SettingsViewState.toggleIsConvenienceBindingExampleEnabled2`. ViewState is just a generic type alias.
+    }
+    
+    // c.2
+    var isConvenienceBindingExampleEnabled2: Binding<Bool> {
+        $state.bind(\.isConvenienceBindingExampleEnabled2, to: SettingsViewStating.toggleIsConvenienceBindingExampleEnabled2)
+    }
+    
+    init(dependencies: Dependencies) {
+        let state = SettingsViewState(dependencies: dependencies)
+        _state = .init(wrappedValue: state)
+        _isStateBindingExampleEnabled = .init(initialValue: state.isStateBindingExampleEnabled)
     }
     
     var body: some View {
@@ -65,10 +61,10 @@ struct SettingsView: View, ViewStateRendering {
             // b.
             Toggle("State Binding", isOn: $isStateBindingExampleEnabled)
                 .onChange(of: isStateBindingExampleEnabled) { enabled in
-                    container.observe(container.state.toggleIsStateBindingExampleEnabled(enabled))
+                    $state.observe(state.toggleIsStateBindingExampleEnabled(enabled))
                 }
-                .onReceive(container.$state) { state in
-                    isStateBindingExampleEnabled = state.isStateBindingExampleEnabled
+                .onReceive($state.publisher.map(\.isStateBindingExampleEnabled)) { enabled in
+                    isStateBindingExampleEnabled = enabled
                 }
                 .accessibilityIdentifier("State Binding Toggle")
             

@@ -5,7 +5,6 @@
 //  Created by Albert Bori on 1/27/23.
 //
 
-import Combine
 import SwiftUI
 import UIKit
 import VSM
@@ -14,8 +13,7 @@ class ProductViewController: UIViewController {
     typealias Dependencies = ProductDetailLoaderModel.Dependencies & ProductDetailView.Dependencies & CartButtonView.Dependencies
     let dependencies: Dependencies
     let productId: Int
-    var container: StateContainer<ProductViewState>
-    private var stateSubscription: AnyCancellable?
+    @RenderedViewState var state: ProductViewState
     
     lazy var activityIndicatorView: UIActivityIndicatorView = UIActivityIndicatorView.init()
     private var productDetailViewController: ProductDetailViewController?
@@ -27,7 +25,7 @@ class ProductViewController: UIViewController {
             dependencies: dependencies,
             productId: productId
         )
-        container = .init(state: ProductViewState.initialized(initializedModel))
+        _state = .init(wrappedValue: ProductViewState.initialized(initializedModel), render: Self.render)
         super.init(nibName: nil, bundle: nil)
     }
     
@@ -37,10 +35,6 @@ class ProductViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        stateSubscription = container.$state
-            .sink { [weak self] newState in
-                self?.render(newState)
-            }
         
         view.addSubview(activityIndicatorView)
         activityIndicatorView.translatesAutoresizingMaskIntoConstraints = false
@@ -48,8 +42,8 @@ class ProductViewController: UIViewController {
             activityIndicatorView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
             activityIndicatorView.centerXAnchor.constraint(equalTo: view.centerXAnchor)
         ])
-        if case .initialized(let initializedModel) = container.state {
-            container.observe(initializedModel.loadProductDetail())
+        if case .initialized(let initializedModel) = state {
+            $state.observe(initializedModel.loadProductDetail())
         }
     }
     
@@ -60,7 +54,7 @@ class ProductViewController: UIViewController {
         parent?.navigationItem.rightBarButtonItem = UIBarButtonItem(customView: cartButtonViewController.view)
     }
     
-    func render(_ state: ProductViewState) {
+    func render() {
         switch state {
         case .initialized, .loading:
             activityIndicatorView.isHidden = false
@@ -88,11 +82,11 @@ class ProductViewController: UIViewController {
                 contentViewController.view.centerXAnchor.constraint(equalTo: view.centerXAnchor)
             ])
             productDetailViewController = contentViewController
-            contentViewController.didMove(toParent: self)            
+            contentViewController.didMove(toParent: self)
         case .error(message: let message, retry: let retry):
             showErrorAlert(message: message,
                            button: (title: "Retry", action: { [weak self] in
-                               self?.container.observe(retry())
+                               self?.$state.observe(retry())
                            }))
         }
     }
