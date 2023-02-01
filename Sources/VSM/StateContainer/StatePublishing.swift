@@ -11,6 +11,6 @@ import Combine
 public protocol StatePublishing<State> {
     associatedtype State
     
-    /// Publishes the State changes on the main thread
+    /// Publishes the state changes on the main thread
     var publisher: AnyPublisher<State, Never> { get }
 }
