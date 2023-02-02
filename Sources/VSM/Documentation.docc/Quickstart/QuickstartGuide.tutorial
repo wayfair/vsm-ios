@@ -101,7 +101,7 @@
             }
             
             @Step {
-                Next, add a your view property and decorate it with `@ViewState`. The ``ViewState`` property wrapper will persist and manage the view's state for you.
+                Next, add your view property and decorate it with `@ViewState`. The ``ViewState`` property wrapper will persist and manage the view's state for you.
                 
                 @Code(name: "BlogEntryView.swift", file: quickstart-view-conformance)
             }
