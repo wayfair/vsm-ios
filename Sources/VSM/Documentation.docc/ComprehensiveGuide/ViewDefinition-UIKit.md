@@ -33,7 +33,7 @@ class UserProfileViewController: UIViewController {
 
 To turn any UIView or UIViewController into a "VSM View", define a property that holds our current state and decorate it with the `@RenderedViewState` property wrapper.
 
-**The `@RenderedViewState` is a UIKit-only property wrapper that updates the view every time the state changes**. `@RenderedViewState` requires a `render` _function type_ parameter to call when the state changes. You must define this function in your UIView or UIViewController. 
+**The `@RenderedViewState` is a UIKit-only property wrapper that updates the view every time the state changes**. `@RenderedViewState` requires a `render` _function type_ parameter to call when the state changes. You must define this function in your UIView or UIViewController.
 
 > Note: In the examples found in this article, we will be using Storyboards. As a result, we used a custom `NSCoder` initializer. If you are using a code-first approach to UIKit, you can use whichever initialization mechanism is most appropriate.
 
@@ -322,6 +322,7 @@ The "Dependent" initializer has one downside when compared to the encapsulated a
 The initializers for the `LoadUserProfileViewController` are as follows:
 
 "Dependent" Approach
+
 ```swift
 // LoadUserProfileViewController Code
 required init?(state: LoadUserProfileViewState, coder: NSCoder) {
@@ -336,6 +337,7 @@ LoadUserProfileViewController(state: state, coder: coder)
 ```
 
 "Encapsulated" Approach
+
 ```swift
 // LoadUserProfileViewController Code
 required init?(userId: Int, coder: NSCoder) {
@@ -354,6 +356,7 @@ LoadUserProfileViewController(userId: someUserId, coder: coder)
 The initializers for the `EditUserProfileViewController` are as follows:
 
 "Dependent" Approach
+
 ```swift
 // EditUserProfileViewController Code
 init?(state: EditUserProfileViewState, coder: NSCoder) {
@@ -368,6 +371,7 @@ EditUserProfileViewController(state: state, code: coder)
 ```
 
 "Encapsulated" Approach
+
 ```swift
 // EditUserProfileViewController Code
 init?(userData: UserData, coder: NSCoder) {

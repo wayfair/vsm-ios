@@ -385,6 +385,7 @@ The "Dependent" initializer has two upsides and one downside when compared to th
 The initializers for the `LoadUserProfileView` are as follows:
 
 "Dependent" Approach
+
 ```swift
 // Parent View Code
 let loaderModel = LoadUserProfileViewState.LoaderModel(userId: userId)
@@ -393,6 +394,7 @@ LoadUserProfileView(state: state)
 ```
 
 "Encapsulated" Approach
+
 ```swift
 // LoadUserProfileView Code
 init(userId: Int) {
@@ -410,6 +412,7 @@ LoadUserProfileView(userId: someUserId)
 The initializers for the `EditUserProfileView` are as follows:
 
 "Dependent" Approach
+
 ```swift
 // Parent View Code
 let editingModel = EditUserProfileViewState.EditingModel(userData: userData)
@@ -418,6 +421,7 @@ EditUserProfileView(state: state)
 ```
 
 "Encapsulated" Approach
+
 ```swift
 // EditUserProfileView Code
 init(userData: UserData) {
