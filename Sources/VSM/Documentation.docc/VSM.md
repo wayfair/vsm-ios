@@ -8,7 +8,7 @@ VSM is a reactive, unidirectional, type-safe, behavior-driven, clean architectur
 
 ![VSM Overview Diagram](vsm-diagram.png)
 
-This package provides helpful types for implementing VSM, such as the ``ViewState`` type (or the ``RenderedViewState`` type for UIKit views) which manages and renders the current `State`.
+This package provides helpful types for implementing VSM, such as the ``ViewState`` property wrapper (or the ``RenderedViewState`` property wrapper for UIKit views) which manages and renders the current `State`.
 
 ## Topics
 
