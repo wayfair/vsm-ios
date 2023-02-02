@@ -8,70 +8,70 @@
 import Combine
 import Foundation
 
-/// Provides functions for observing an action for potentially new states
+/// Provides functions for observing VSM actions to render new states on the view.
 public protocol StateObserving<State> {
     associatedtype State
     
-    /// Observes the state publisher emitted as a result of invoking some action
+    /// Renders the states emitted by the publisher on the view.
+    /// - Parameter statePublisher: The view state publisher to be observed for rendering the current view state
     func observe(_ statePublisher: AnyPublisher<State, Never>)
-
-    /// Observes the state emitted as a result of invoking some synchronous action
+    
+    /// Renders the next state on the view.
+    /// - Parameter nextState: The next view state to render
     func observe(_ nextState: State)
     
-    /// Observes the state emitted as a result of invoking some asynchronous action
+    /// Asynchronously renders the next state on the view.
+    /// - Parameter nextState: The next view state to render
     func observeAsync(_ nextState: @escaping () async -> State)
     
-    /// Observes the states emitted as a result of invoking some asynchronous action that returns an asynchronous sequence
+    /// Asynchronously renders the sequence of states on the view.
+    /// - Parameter stateSequence: The sequence of states to render
     func observeAsync<StateSequence: AsyncSequence>(_ stateSequence: @escaping () async -> StateSequence) where StateSequence.Element == State
     
     // MARK: - Debounce
     
-    /// Debounces the action calls by `dueTime`, then observes the `State` publisher emitted as a result of invoking the action.
-    /// Prevents actions from being excessively called when bound to noisy UI events.
-    /// Action calls are grouped by the provided `identifier`.
+    /// Renders the states emitted by the publisher on the view.
+    /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
     ///   - statePublisher: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
-    ///   - identifier: The identifier for grouping actions for debouncing
+    ///   - identifier: (optional) The identifier for grouping actions for debouncing
     func observe(
         _ statePublisher: @escaping @autoclosure () ->  AnyPublisher<State, Never>,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     )
     
-    /// Debounces the action calls by `dueTime`, then observes the `State` returned as a result of invoking the action.
-    /// Prevents actions from being excessively called when bound to noisy UI events.
-    /// Action calls are grouped by the provided `identifier`.
+    /// Renders the next state on the view.
+    /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
     ///   - nextState: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
-    ///   - identifier: The identifier for grouping actions for debouncing
+    ///   - identifier: (optional) The identifier for grouping actions for debouncing
     func observe(
         _ nextState: @escaping @autoclosure () -> State,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     )
     
-    /// Debounces the action calls by `dueTime`, then asynchronously observes the `State` returned as a result of invoking the action.
-    /// Prevents actions from being excessively called when bound to noisy UI events.
-    /// Action calls are grouped by the provided `identifier`.
+    /// Asynchronously renders the next state on the view.
+    /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
     ///   - nextState: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
-    ///   - identifier: The identifier for grouping actions for debouncing
+    ///   - identifier: (optional) The identifier for grouping actions for debouncing
     func observeAsync(
         _ nextState: @escaping () async -> State,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     )
     
-    /// Debounces the action calls by `dueTime`, then observes the async sequence of `State`s returned as a result of invoking the action.
-    /// Prevents actions from being excessively called when bound to noisy UI events.
-    /// Action calls are grouped by the provided `identifier`.
+    /// Asynchronously renders the sequence of states on the view.
+    /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
     ///   - stateSequence: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
-    ///   - identifier: The identifier for grouping actions for debouncing
+    ///   - identifier: (optional) The identifier for grouping actions for debouncing
     func observeAsync<SomeAsyncSequence: AsyncSequence>(
         _ stateSequence: @escaping () async -> SomeAsyncSequence,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
@@ -80,10 +80,9 @@ public protocol StateObserving<State> {
 }
 
 public extension StateObserving {
-        
-    /// Debounces the action calls by `dueTime`, then observes the `State` publisher emitted as a result of invoking the action.
-    /// Prevents actions from being excessively called when bound to noisy UI events.
-    /// Action calls are automatically grouped by call location. Use `observe(_:debounced:identifier:)` if you need custom debounce grouping.
+    
+    /// Renders the states emitted by the publisher on the view.
+    /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
     ///   - statePublisher: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
@@ -96,9 +95,8 @@ public extension StateObserving {
         observe(statePublisher(), debounced: dueTime, identifier: HashedIdentifier(file, line))
     }
     
-    /// Debounces the action calls by `dueTime`, then observes the `State` returned as a result of invoking the action.
-    /// Prevents actions from being excessively called when bound to noisy UI events.
-    /// Action calls are automatically grouped by call location. Use `observe(_:debounced:identifier:)` if you need custom debounce grouping.
+    /// Renders the next state on the view.
+    /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
     ///   - nextState: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
@@ -111,9 +109,8 @@ public extension StateObserving {
         observe(nextState(), debounced: dueTime, identifier: HashedIdentifier(file, line))
     }
     
-    /// Debounces the action calls by `dueTime`, then asynchronously observes the `State` returned as a result of invoking the action.
-    /// Prevents actions from being excessively called when bound to noisy UI events.
-    /// Action calls are automatically grouped by call location. Use `observe(_:debounced:identifier:)` if you need custom debounce grouping.
+    /// Asynchronously renders the next state on the view.
+    /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
     ///   - nextState: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
@@ -126,9 +123,8 @@ public extension StateObserving {
         observeAsync(nextState, debounced: dueTime, identifier: HashedIdentifier(file, line))
     }
     
-    /// Debounces the action calls by `dueTime`, then observes the async sequence of `State`s returned as a result of invoking the action.
-    /// Prevents actions from being excessively called when bound to noisy UI events.
-    /// Action calls are automatically grouped by call location. Use `observe(_:debounced:identifier:)` if you need custom debounce grouping.
+    /// Asynchronously renders the sequence of states on the view.
+    /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
     ///   - stateSequence: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
@@ -139,5 +135,16 @@ public extension StateObserving {
         line: UInt = #line
     ) where SomeAsyncSequence.Element == State {
         observeAsync(stateSequence, debounced: dueTime, identifier: HashedIdentifier(file, line))
+    }
+}
+
+struct HashedIdentifier: Hashable {
+    let uniqueValues: [AnyHashable]
+    
+    /// Prevents accidental key collisions between auto-generated identifiers and manually generated identifiers
+    private static let uniqueKey: AnyHashable = UUID()
+    
+    init(_ values: AnyHashable ...) {
+        uniqueValues = [Self.uniqueKey] + values
     }
 }

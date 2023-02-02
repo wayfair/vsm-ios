@@ -167,7 +167,7 @@ public extension ViewStateRendering where Self: View {
     ///   - observedSetter: Converts the new `Value` to a new `ViewState`, which is automatically observed
     /// - Returns: A `Binding<Value>` for use in SwiftUI controls
     func bind<Value>(_ stateKeyPath: KeyPath<ViewState, Value>, to observedSetter: @escaping (ViewState, Value) async -> ViewState) -> Binding<Value> {
-        container.bind(stateKeyPath, to: observedSetter)
+        container.bindAsync(stateKeyPath, to: observedSetter)
     }
     
     /// Creates a unidirectional, auto-observing `Binding<Value>` for the `ViewState` using a `KeyPath` and a *method signature*
@@ -178,7 +178,7 @@ public extension ViewStateRendering where Self: View {
     ///   - observedSetter: A **method signature** which converts the new `Value` to a new `ViewState` and is automatically observed
     /// - Returns: A `Binding<Value>` for use in SwiftUI controls
     func bind<Value>(_ stateKeyPath: KeyPath<ViewState, Value>, to observedSetter: @escaping (ViewState) -> (Value) async -> ViewState) -> Binding<Value> {
-        container.bind(stateKeyPath, to: observedSetter)
+        container.bindAsync(stateKeyPath, to: observedSetter)
     }
 }
 

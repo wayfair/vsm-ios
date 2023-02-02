@@ -193,13 +193,13 @@ typealias Dependencies = UserDataProvidingDependency
 The resulting initializer chain will end up looking something like this:
 
 ```swift
-struct UserBioView: View, ViewStateRendering {
+struct UserBioView: View {
     typealias Dependencies = UserBioViewState.LoaderModel.Dependencies
                              & UserBioViewState.ErrorModel.Dependencies
     init(dependencies: Dependencies) {
         let loaderModel = UserBioViewState.LoaderModel(dependencies: Dependencies)
         let state = UserBioViewState.initialized(loaderModel)
-        _container = .init(state: state)
+        _state = .init(wrappedValue: state)
     }
 }
 

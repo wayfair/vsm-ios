@@ -120,7 +120,7 @@ States usually match up 1:1 with variations in the view. So, we can safely assum
 > ```swift
 > someView.onAppear {
 >     if case .initialized(let loadingModel) = state {
->         observe(loadingModel.load())
+>         $state.observe(loadingModel.load())
 >     }
 > }
 > ```

@@ -22,7 +22,7 @@ In the above situations, SwiftUI views should communicate with each other using 
 For example, if you have a presented modal that needs to be able to close itself, you would write:
 
 ```swift
-struct ProfileView: View, ViewStateRendering {
+struct ProfileView: View {
     ...
     @State var changePasswordIsPresented = false
     
@@ -36,7 +36,7 @@ struct ProfileView: View, ViewStateRendering {
     }
 }
 
-struct ChangePasswordView: View, ViewStateRendering {
+struct ChangePasswordView: View {
     ...
     @Binding var isPresented: Bool
 
@@ -58,7 +58,7 @@ However, there may be instances where `UIViews` and `UIViewControllers` should b
 One example of this would be if a `UITabBarController` needed to be notified when the first of its children appeared so that it could then trigger a modal to display.
 
 ```swift
-final class TabBarController: UITabBarController, ViewStateRendering {
+final class TabBarController: UITabBarController {
     ...
     var subscriptions: Set<AnyCancellable> = []
 
@@ -80,7 +80,7 @@ final class TabBarController: UITabBarController, ViewStateRendering {
     }
 }
 
-final class TabViewController: UIViewController, ViewStateRendering {
+final class TabViewController: UIViewController {
     ...
     private var eventSubject = PassthroughSubject<TabViewEvent, Never>()
     var eventPublisher: AnyPublisher<TabViewEvent, Never> { eventSubject.eraseToAnyPublisher() }
@@ -103,10 +103,10 @@ For example, if we have a feature that loads the user info that is required by t
 ### SwiftUI
 
 ```swift
-struct LoadUserView: View, ViewStateRendering {
-    ...
+struct LoadUserView: View {
+    @ViewState var state: LoadUserViewState
     let dependencies: Dependencies
-
+    ...
     var body: some View {
         HStack {
             switch state {
@@ -125,11 +125,11 @@ struct LoadUserView: View, ViewStateRendering {
 ### UIKit
 
 ```swift
-final class LoadUserViewController: UIViewController, ViewStateRendering {
-    ...
+final class LoadUserViewController: UIViewController {
+    @RenderedViewState var state: LoadUserViewState
     let dependencies: Dependencies
-
-    func render(_ state: LoadUserProfileViewState) {
+    ...
+    func render() {
         switch state {
         case .initialized, .loading:
             ...

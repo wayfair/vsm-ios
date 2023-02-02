@@ -4,7 +4,7 @@ A reference for choosing the best Action types for your VSM Models
 
 ## Overview
 
-Actions are responsible for progressing the "State Journey" of the feature and need to be flexible to account for any functionality. The VSM framework supports several Action types within the `StateContainer`'s `observe()` overloads. This article covers each and gives examples of how to use them appropriately.
+Actions are responsible for progressing the "State Journey" of the feature and need to be flexible to account for any functionality. The VSM framework supports several Action types within the `StateObserving`'s `observe()` overloads. This article covers each and gives examples of how to use them appropriately.
 
 ## State Publisher
 
@@ -12,7 +12,7 @@ Actions are responsible for progressing the "State Journey" of the feature and n
 func loadUser() -> AnyPublisher<UserViewState, Never>
 ```
 
-This is the most common action shape used in VSM because it allows the action to return any number of states to the view until another action is called. The ``StateContainer`` accomplishes this through the ``StateContainer/observe(_:)-1uta3`` function by subscribing to the publisher, which is returned from your action. It will only observe (subscribe to) one action at a time. It does this to prevent view state corruption by previously called actions.
+This is the most common action shape used in VSM because it allows the action to return any number of states to the view until another action is called. The ``ViewState`` accomplishes this through the ``StateObserving/observe(_:)-31ocs`` function by subscribing to the publisher, which is returned from your action. It will only observe (subscribe to) one action at a time. It does this to prevent view state corruption by previously called actions.
 
 The best way to implement this function is to return the Combine publisher result from your data repository. To do this, you will have to convert the data/error output of the repository to the state/never output of the action. This can be done like so:
 
@@ -151,18 +151,18 @@ func toggleFavorite() async -> ProductViewState
 ## No State
 
 ```swift
-func toggleFavorite() -> Void
+func toggleFavorite()
 ```
 
 Sometimes you need to kick off a process or call a function on a repository without needing a direct view state result. This action type is usable in a VSM feature in situations where a direct view state change is _not_ required. You can't use the `observe()` function to call this function from the view because the `observe()` function's only purpose is to track view state changes from action invocations.
 
 ```swift
-func toggleFavorite() -> Void
+func toggleFavorite()
     sharedFavoritesRepository.toggleFavorite(for: productId)
 }
 ```
 
-Usually, this action type is used in conjunction with an observable repository. A `load()` action would map the data from the repository's data publisher into a view state for the view to render. The ``StateContainer`` will hold on to that view state subscription (and, consequently, the repository data subscription) indefinitely unless another action is observed. Any future changes to the data will translate instantly into a change in the view.
+Usually, this action type is used in conjunction with an observable repository. A `load()` action would map the data from the repository's data publisher into a view state for the view to render. The ``ViewState`` will hold on to that view state subscription (and, consequently, the repository data subscription) indefinitely unless another action is observed. Any future changes to the data will translate instantly into a change in the view.
 
 For example, if you used the `load` action below, the view would always be updated when the data changes, even though the `toggleFavorite` action doesn't return any new view states.
 
@@ -177,7 +177,7 @@ func load() -> AnyPublisher<UserViewState, Never>
 }
 
 // In LoadedModel model:
-func toggleFavorite() -> Void
+func toggleFavorite()
     sharedFavoritesRepository.toggleFavorite(for: productId)
 }
 ```

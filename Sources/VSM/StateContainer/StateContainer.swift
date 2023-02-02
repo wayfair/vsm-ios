@@ -68,7 +68,8 @@ final public class StateContainer<State>: ObservableObject, StateContaining {
 // MARK: - Observe Function Overloads
 
 public extension StateContainer {
-    /// Observes the state publisher emitted as a result of invoking some action
+    
+    // See StateObserving for details
     func observe(_ statePublisher: AnyPublisher<State, Never>) {
         cancelRunningObservations()
         stateSubscription = statePublisher
@@ -77,7 +78,7 @@ public extension StateContainer {
             }
     }
     
-    /// Observes the state emitted as a result of invoking some asynchronous action
+    // See StateObserving for details
     func observeAsync(_ nextState: @escaping () async -> State) {
         cancelRunningObservations()
         // A weak-self declaration is required on the `Task` closure to break an unexpected strong self retention, despite not directly invoking self ¯\_(ツ)_/¯
@@ -90,7 +91,7 @@ public extension StateContainer {
         }
     }
     
-    /// Observes the states emitted as a result of invoking some asynchronous action that returns an asynchronous sequence
+    // See StateObserving for details
     func observeAsync<SomeAsyncSequence: AsyncSequence>(_ stateSequence: @escaping () async -> SomeAsyncSequence) where SomeAsyncSequence.Element == State {
         cancelRunningObservations()
         // A weak-self declaration is required on the `Task` closure to break an unexpected strong self retention, despite not directly invoking self ¯\_(ツ)_/¯
@@ -104,7 +105,7 @@ public extension StateContainer {
         }
     }
     
-    /// Observes the state emitted as a result of invoking some synchronous action
+    // See StateObserving for details
     func observe(_ nextState: State) {
         cancelRunningObservations()
         setStateOnMainThread(to: nextState)
@@ -115,12 +116,14 @@ public extension StateContainer {
 
 public extension StateContainer {
     
+    /// A type-erased, unique action debouncer
     private struct DebounceableAction {
         var identifier: AnyHashable
         var dueTime: DispatchQueue.SchedulerTimeType.Stride
         var action: () -> Void
     }
     
+    /// Debounces the type-erased, unique action
     private func debounce(action: DebounceableAction) {
         debounceSubscriptionQueue.sync {
             if debounceSubscriptions[action.identifier] == nil {
@@ -135,13 +138,7 @@ public extension StateContainer {
         debouncePublisher.send(action)
     }
     
-    /// Debounces the action calls by `dueTime`, then observes the `State` publisher emitted as a result of invoking the action.
-    /// Prevents actions from being excessively called when bound to noisy UI events.
-    /// Action calls are grouped by the provided `identifier`.
-    /// - Parameters:
-    ///   - statePublisher: The action to be debounced before invoking
-    ///   - dueTime: The amount of time required to pass before invoking the most recent action
-    ///   - identifier: The identifier for grouping actions for debouncing
+    // See StateObserving for details
     func observe(
         _ statePublisher: @escaping @autoclosure () -> AnyPublisher<State, Never>,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
@@ -153,13 +150,7 @@ public extension StateContainer {
         debounce(action: debounceableAction)
     }
     
-    /// Debounces the action calls by `dueTime`, then asynchronously observes the `State` returned as a result of invoking the action.
-    /// Prevents actions from being excessively called when bound to noisy UI events.
-    /// Action calls are grouped by the provided `identifier`.
-    /// - Parameters:
-    ///   - nextState: The action to be debounced before invoking
-    ///   - dueTime: The amount of time required to pass before invoking the most recent action
-    ///   - identifier: The identifier for grouping actions for debouncing
+    // See StateObserving for details
     func observeAsync(
         _ nextState: @escaping () async -> State,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
@@ -171,13 +162,7 @@ public extension StateContainer {
         debounce(action: debounceableAction)
     }
     
-    /// Debounces the action calls by `dueTime`, then observes the async sequence of `State`s returned as a result of invoking the action.
-    /// Prevents actions from being excessively called when bound to noisy UI events.
-    /// Action calls are grouped by the provided `identifier`.
-    /// - Parameters:
-    ///   - stateSequence: The action to be debounced before invoking
-    ///   - dueTime: The amount of time required to pass before invoking the most recent action
-    ///   - identifier: The identifier for grouping actions for debouncing
+    // See StateObserving for details
     func observeAsync<SomeAsyncSequence: AsyncSequence>(
         _ stateSequence: @escaping () async -> SomeAsyncSequence,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
@@ -189,13 +174,7 @@ public extension StateContainer {
         debounce(action: debounceableAction)
     }
     
-    /// Debounces the action calls by `dueTime`, then observes the `State` returned as a result of invoking the action.
-    /// Prevents actions from being excessively called when bound to noisy UI events.
-    /// Action calls are grouped by the provided `identifier`.
-    /// - Parameters:
-    ///   - nextState: The action to be debounced before invoking
-    ///   - dueTime: The amount of time required to pass before invoking the most recent action
-    ///   - identifier: The identifier for grouping actions for debouncing
+    // See StateObserving for details
     func observe(
         _ nextState: @escaping @autoclosure () -> State,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,

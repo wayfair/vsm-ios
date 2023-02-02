@@ -8,7 +8,7 @@ VSM is a reactive, unidirectional, type-safe, behavior-driven, clean architectur
 
 ![VSM Overview Diagram](vsm-diagram.png)
 
-This package provides helpful types for implementing VSM, such as the ``StateContainer`` type which manages the current `State`. `UIViews`, `UIViewControllers`, or SwiftUI `Views` that conform to ``ViewStateRendering`` can easily react to changes in `State` by rendering the current `State`.
+This package provides helpful types for implementing VSM, such as the ``ViewState`` property wrapper (or the ``RenderedViewState`` property wrapper for UIKit views) which manages and renders the current `State`.
 
 ## Topics
 
@@ -37,10 +37,15 @@ This package provides helpful types for implementing VSM, such as the ``StateCon
 
 ### Primary Types
 
-- ``ViewStateRendering``
-- ``StateContainer``
+- ``ViewState``
+- ``RenderedViewState``
 
 ### Supporting Types
 
+- ``StateContainer``
 - ``StateSequence``
 - ``MutatingCopyable``
+
+### Deprecated Types
+
+- ``ViewStateRendering``

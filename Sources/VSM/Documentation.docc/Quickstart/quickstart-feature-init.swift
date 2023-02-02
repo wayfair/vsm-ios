@@ -1,5 +1,5 @@
-struct BlogEntryView: View, ViewStateRendering {
-    @StateObject var container: StateContainer<BlogEntryViewState>
+struct BlogEntryView: View {
+    @ViewState var state: BlogEntryViewState
     
     init(repository: BlogEntryProviding, entryId: Int) {
         

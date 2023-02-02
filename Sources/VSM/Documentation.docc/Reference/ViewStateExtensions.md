@@ -32,7 +32,7 @@ A view's location is its identity. Since SwiftUI flow control statements are tra
 The following simplified example highlights one of these situations:
 
 ```swift
-struct EditUserProfileView: View, ViewStateRendering {
+struct EditUserProfileView: View {
     ...
     var body: some View {
         switch state.editingState {
@@ -52,7 +52,7 @@ While you may think these two view's identities are the same, they are in fact n
 The problem we have here is that our view state is an enum and our view code will become much more complicated and verbose if we try to convert the enum to a boolean like so:
 
 ```swift
-struct EditUserProfileView: View, ViewStateRendering {
+struct EditUserProfileView: View {
     ...
     var body: some View {
         let isSaving: Bool
@@ -87,7 +87,7 @@ extension EditUserProfileViewState {
 Now that we have this extension, our view code becomes much cleaner.
 
 ```swift
-struct EditUserProfileView: View, ViewStateRendering {
+struct EditUserProfileView: View {
     ...
     var body: some View {
         TextField("Username", $username)
@@ -104,7 +104,7 @@ SwiftUI now sees this TextField as a single view with a disabled modifier. Any t
 When working with the SwiftUI framework, you will often come across views or view modifiers that require a `Binding<T>` of some kind. For example, you may have an error view that you want to display if the user gets into an error state. Without view state extensions, your view will be cluttered with code that translates the view state enum into a `Binding<Bool>` and a confusing `.sheet()` view modifier implementation.
 
 ```swift
-struct EditUserProfileView: View, ViewStateRendering {
+struct EditUserProfileView: View {
     ...
     var hasError: Binding<Bool>
 
@@ -157,7 +157,7 @@ extension ErrorModel: Identifiable {
 This allows us to build the following view code, which is much more clean and concise.
 
 ```swift
-struct EditUserProfileView: View, ViewStateRendering {
+struct EditUserProfileView: View {
     ...
     var body: some View {
         VStack {
@@ -198,13 +198,13 @@ extension EditUserProfileViewState {
 In order to get view code that looks like this:
 
 ```swift
-struct EditUserProfileView: View, ViewStateRendering {
+struct EditUserProfileView: View {
     ...
     var body: some View {
         TextField("Username", $username)
             .disabled(state.isSaving)
         Button("Save") {
-            observe(state.saveUsername(username))
+            $state.observe(state.saveUsername(username))
         }
     }
 }
@@ -217,14 +217,14 @@ Obfuscating the action's behavior in a view state extension will confuse future 
 The following approach is a best practice. It is worth noting that there is no `observe` function overload for an optional action result, and this is by design for the reasons stated above.
 
 ```swift
-struct EditUserProfileView: View, ViewStateRendering {
+struct EditUserProfileView: View {
     ...
     var body: some View {
         TextField("Username", $username)
             .disabled(state.isSaving)
         Button("Save") {
             if case .editing(let editingModel) = editingState {
-                observe(editingModel.save(username: username))
+                $state.observe(editingModel.save(username: username))
             }
         }
     }
