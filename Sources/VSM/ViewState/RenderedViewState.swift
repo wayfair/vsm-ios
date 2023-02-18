@@ -158,7 +158,7 @@ public protocol StateRendering {
 public extension RenderedViewState {
     /// Provides functions for observing and rendering state changes in UIKit views and view controllers
     struct RenderedContainer<State>: StateRendering {
-        /// The wrapped state container for managin changes in state
+        /// The wrapped state container for managing changes in state
         let container: StateContainer<State>
         /// Implicitly used by UIKit views to automatically call the provided function when the state changes
         let render: (AnyObject, State) -> Void
