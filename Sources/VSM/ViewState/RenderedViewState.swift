@@ -135,29 +135,12 @@ public struct RenderedViewState<State> {
     }
 }
 
-// MARK: - RenderedViewState (StateRendering & Other Conformances)
-
-/// Provides functions for rendering state changes in UIKit views and view controllers
-@available(iOS 14.0, *)
-public protocol StateRendering {
-    /// Subscribes a UIKit view or view controller to render each state change. If not called, rendering will automatically start when the `state` property is first accessed.
-    ///
-    /// This function provides an option to control when the view begins rendering the current and subsequent states.
-    /// This can be especially important for views that inherently progress state by rendering the current state.
-    /// Directly calling the `render()` function on a view before the state rendering subscription is started will call the `render()` function twice.
-    /// Use this function to prevent that scenario.
-    ///
-    /// If the view or view controller accesses the `state` property in any of the early view lifecycle events (`viewDidLoad`, etc.), then calling this function is usually not necessary.
-    ///
-    /// Note that calling this function after accessing the `state` will have no effect.
-    /// Also, calling this function additional times will have no effect.
-    func startRendering<View: AnyObject>(on view: View)
-}
+// MARK: - RenderedViewState
 
 @available(iOS 14.0, *)
 public extension RenderedViewState {
     /// Provides functions for observing and rendering state changes in UIKit views and view controllers
-    struct RenderedContainer<State>: StateRendering {
+    struct RenderedContainer<State> {
         /// The wrapped state container for managing changes in state
         let container: StateContainer<State>
         /// Implicitly used by UIKit views to automatically call the provided function when the state changes
@@ -165,6 +148,18 @@ public extension RenderedViewState {
         /// Tracks state changes for invoking `render` when the state changes
         let stateDidChangeSubscriber: AtomicStateChangeSubscriber<State> = .init()
         
+        /// Subscribes a UIKit view or view controller to render each state change. If not called, rendering will automatically start when the `state` property is first accessed.
+        ///
+        /// This function provides an option to control when the view begins rendering the current and subsequent states.
+        /// This can be especially important for views that inherently progress state by rendering the current state.
+        /// Directly calling the `render()` function on a view before the state rendering subscription is started will call the `render()` function twice.
+        /// Use this function to prevent that scenario.
+        ///
+        /// If the view or view controller accesses the `state` property in any of the early view lifecycle events (`viewDidLoad`, etc.), then calling this function is usually not necessary.
+        ///
+        /// Note that calling this function after accessing the `state` will have no effect.
+        /// Also, calling this function additional times will have no effect.
+        /// - Parameter view: The view on which to subscribe
         public func startRendering<View>(on view: View) where View : AnyObject {
             stateDidChangeSubscriber
                 .subscribeOnce(to: container.publisher) { [weak view] newState in
