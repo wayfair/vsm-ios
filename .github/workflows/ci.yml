@@ -8,7 +8,7 @@ on: # Rebuild any PRs and main branch changes
   pull_request:
 
 jobs:
-  build-and-test-vsm:
+  test-vsm:
     runs-on: macos-12
     steps:
       - name: Prepare Xcode
@@ -27,7 +27,7 @@ jobs:
           destination: platform=iOS Simulator,OS=latest,name=iPhone 14
           action: test
   
-  shopping-swiftui-test:
+  test-swiftui-demo-app:
     runs-on: macos-12
     steps:
       - name: Prepare Xcode
@@ -46,7 +46,7 @@ jobs:
           destination: platform=iOS Simulator,OS=latest,name=iPhone 14
           action: test
 
-  shopping-uikit-test:
+  test-uikit-demo-app:
     runs-on: macos-12
     steps:
       - name: Prepare Xcode
