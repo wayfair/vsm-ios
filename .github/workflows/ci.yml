@@ -29,7 +29,6 @@ jobs:
   
   shopping-swiftui-test:
     runs-on: macos-12
-    needs: build-and-test-vsm
     steps:
       - name: Prepare Xcode
         uses: maxim-lobanov/setup-xcode@v1 # https://github.com/marketplace/actions/setup-xcode-version
@@ -49,7 +48,6 @@ jobs:
 
   shopping-uikit-test:
     runs-on: macos-12
-    needs: build-and-test-vsm
     steps:
       - name: Prepare Xcode
         uses: maxim-lobanov/setup-xcode@v1 # https://github.com/marketplace/actions/setup-xcode-version
