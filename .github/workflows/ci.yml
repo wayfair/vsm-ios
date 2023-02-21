@@ -8,7 +8,7 @@ on: # Rebuild any PRs and main branch changes
   pull_request:
 
 jobs:
-  env-setup:
+  build-and-test-vsm:
     runs-on: macos-12
     steps:
       - name: Prepare Xcode
@@ -19,10 +19,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-  build-and-test-vsm:
-    runs-on: macos-12
-    needs: env-setup
-    steps:
       - name: Build and Test VSM
         uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
         with:
@@ -33,8 +29,16 @@ jobs:
   
   shopping-swiftui-test:
     runs-on: macos-12
-    needs: [env-setup, build-and-test-vsm]
+    needs: build-and-test-vsm
     steps:
+      - name: Prepare Xcode
+        uses: maxim-lobanov/setup-xcode@v1 # https://github.com/marketplace/actions/setup-xcode-version
+        with:
+          xcode-version: 14.2
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
       - name: Build and Test Demo App
         uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
         with:
@@ -45,8 +49,16 @@ jobs:
 
   shopping-uikit-test:
     runs-on: macos-12
-    needs: [env-setup, build-and-test-vsm]
+    needs: build-and-test-vsm
     steps:
+      - name: Prepare Xcode
+        uses: maxim-lobanov/setup-xcode@v1 # https://github.com/marketplace/actions/setup-xcode-version
+        with:
+          xcode-version: 14.2
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
       - name: (UIKit) Build and Test Demo App
         uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
         with:
