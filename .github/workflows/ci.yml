@@ -8,10 +8,8 @@ on: # Rebuild any PRs and main branch changes
   pull_request:
 
 jobs:
-  build-and-test:
+  env-setup:
     runs-on: macos-12
-    steps:
-
       - name: Prepare Xcode
         uses: maxim-lobanov/setup-xcode@v1 # https://github.com/marketplace/actions/setup-xcode-version
         with:
@@ -20,6 +18,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+  build-and-test-vsm:
+    runs-on: macos-12
+    needs: env-setup
+    steps:
       - name: Build and Test VSM
         uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
         with:
@@ -27,7 +29,11 @@ jobs:
           scheme: VSM
           destination: platform=iOS Simulator,OS=latest,name=iPhone 14
           action: test
-      
+  
+  shopping-swiftui-test:
+    runs-on: macos-12
+    needs: [env-setup, build-and-test-vsm]
+    steps:
       - name: Build and Test Demo App
         uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
         with:
@@ -35,7 +41,11 @@ jobs:
           scheme: Shopping
           destination: platform=iOS Simulator,OS=latest,name=iPhone 14
           action: test
-      
+
+  shopping-uikit-test:
+    runs-on: macos-12
+    needs: [env-setup, build-and-test-vsm]
+    steps:
       - name: (UIKit) Build and Test Demo App
         uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
         with:
