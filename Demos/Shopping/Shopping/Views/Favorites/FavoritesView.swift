@@ -38,7 +38,7 @@ struct FavoritesView: View {
             }
         }
         .navigationTitle("Favorites")
-        .onReceive($state.publisher) { state in
+        .onReceive($state.willSetPublisher) { state in
             if case .deletingError = state {
                 showErrorAlert = true
             }

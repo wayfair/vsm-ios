@@ -14,11 +14,6 @@ final public class StateContainer<State>: ObservableObject, StateContaining {
         }
     }
     
-    /// Publishes the State on `didSet` (main thread). For a `willSet` publisher, use the `$state` projected value.
-    public lazy var publisher: AnyPublisher<State, Never> = {
-        stateDidChangeSubject.eraseToAnyPublisher()
-    }()
-    
     /// Used for debug logging. Inert in non-DEBUG schemas.
     lazy var debugLogger: StateContainerDebugLogger = StateContainerDebugLogger()
     
@@ -63,6 +58,20 @@ final public class StateContainer<State>: ObservableObject, StateContaining {
     deinit {
         cancelRunningObservations()
     }
+    
+    // MARK: - StatePublishing
+    
+    /// Publishes the state on `didSet` (main thread). For a `willSet` publisher, use the `$state` projected value.
+    @available(*, deprecated, renamed: "didSetPublisher", message: "It has been renamed to didSetPublisher and will be removed in a future version.")
+    public var publisher: AnyPublisher<State, Never> { didSetPublisher }
+    
+    public lazy var willSetPublisher: AnyPublisher<State, Never> = {
+        $state.eraseToAnyPublisher()
+    }()
+    
+    public lazy var didSetPublisher: AnyPublisher<State, Never> = {
+        stateDidChangeSubject.eraseToAnyPublisher()
+    }()
 }
 
 // MARK: - Observe Function Overloads

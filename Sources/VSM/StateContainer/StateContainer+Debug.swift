@@ -75,13 +75,13 @@ class StateContainerDebugLogger {
         
         if options.contains(.willSet) {
             publisher = publisher
-                .merge(with: container.$state
+                .merge(with: container.willSetPublisher
                     .map({ .init(name: "willSet", state: $0, description: "\($0)") }))
                 .eraseToAnyPublisher()
         }
         if options.contains(.didSet) {
             publisher = publisher
-                .merge(with: container.publisher
+                .merge(with: container.didSetPublisher
                     .map({ .init(name: "didSet", state: $0, description: "\($0)") }))
                 .eraseToAnyPublisher()
         }
