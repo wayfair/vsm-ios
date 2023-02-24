@@ -12,7 +12,7 @@ public protocol StatePublishing<State> {
     associatedtype State
     
     /// Publishes the state changes on the main thread
-    @available(*, deprecated, renamed: "didSetPublisher", message: "It has been renamed to didSetPublisher and will be removed in a future version.")
+    @available(*, deprecated, renamed: "didSetPublisher", message: "Renamed to didSetPublisher and will be removed in a future version")
     var publisher: AnyPublisher<State, Never> { get }
     
     /// Publishes the state changes on the main thread before the current state is updated

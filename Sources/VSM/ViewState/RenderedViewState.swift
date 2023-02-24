@@ -178,7 +178,7 @@ extension RenderedViewState.RenderedContainer: StateObserving & StatePublishing 
     // MARK: StatePublishing
     // For more information about these members, view the protocol definition
     
-    @available(*, deprecated, renamed: "didSetPublisher", message: "It has been renamed to didSetPublisher and will be removed in a future version.")
+    @available(*, deprecated, renamed: "didSetPublisher", message: "Renamed to didSetPublisher and will be removed in a future version")
     public var publisher: AnyPublisher<State, Never> {
         container.publisher
     }

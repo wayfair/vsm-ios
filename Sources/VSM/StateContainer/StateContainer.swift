@@ -62,7 +62,7 @@ final public class StateContainer<State>: ObservableObject, StateContaining {
     // MARK: - StatePublishing
     
     /// Publishes the state on `didSet` (main thread). For a `willSet` publisher, use the `$state` projected value.
-    @available(*, deprecated, renamed: "didSetPublisher", message: "It has been renamed to didSetPublisher and will be removed in a future version.")
+    @available(*, deprecated, renamed: "didSetPublisher", message: "Renamed to didSetPublisher and will be removed in a future version")
     public var publisher: AnyPublisher<State, Never> { didSetPublisher }
     
     public lazy var willSetPublisher: AnyPublisher<State, Never> = {
