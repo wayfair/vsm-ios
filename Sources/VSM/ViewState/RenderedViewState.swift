@@ -79,7 +79,7 @@ public struct RenderedViewState<State> {
             guard let parent = parent as? Parent else { return }
             render(parent)()
         }
-        renderedContainer = RenderedContainer(container: container, render: anyRender)
+        renderedContainer = RenderedContainer(container: container, render: anyRender, subscriptionEvent: .didSet)
     }
     
     /// **(UIKit only)** Instantiates the rendered view state with an initial value.
@@ -110,6 +110,54 @@ public struct RenderedViewState<State> {
     public init<Parent: AnyObject>(
         wrappedValue: State,
         render: @escaping (Parent) -> () -> ()
+    ) {
+        self.init(container: StateContainer(state: wrappedValue), render: render)
+    }
+    
+    /// **(UIKit only)** Instantiates the rendered view state with a custom state container.
+    /// - Parameters:
+    ///   - container: The state container that manages the view state.
+    ///   - render: The function to call when the view state _will change_. The function's state parameter represents what the new state will be.
+    public init<Parent: AnyObject>(container: StateContainer<State>, render: @escaping (Parent) -> (State) -> ()) {
+        let anyRender: (AnyObject, State) -> () = { parent, state in
+            guard let parent = parent as? Parent else { return }
+            render(parent)(state)
+        }
+        renderedContainer = RenderedContainer(container: container, render: anyRender, subscriptionEvent: .willSet)
+    }
+    
+    /// **(UIKit only)** Instantiates the rendered view state with an initial value.
+    ///
+    /// Example:
+    ///
+    /// ```swift
+    /// class MyViewController: UIViewController {
+    ///     @RenderedViewState var state: MyViewState
+    ///
+    ///     init(state: MyViewState) {
+    ///         _state = .init(wrappedValue: state, render: Self.render)
+    ///         super.init(bundle: nil, nib: nil)
+    ///     }
+    ///
+    ///     func render(newState: MyViewState) {
+    ///         // Compare state (old value) against newState (new value) to determine appropriate actions
+    ///         if state != newState {
+    ///             ...
+    ///         }
+    ///         if newState.someValue {
+    ///             ...
+    ///             $state.observe(newState.someAction())
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - wrappedValue: The view state to be managed by the state container.
+    ///   - render: The function to call when the view state _will change_. The function's state parameter represents what the new state will be.
+    public init<Parent: AnyObject>(
+        wrappedValue: State,
+        render: @escaping (Parent) -> (State) -> ()
     ) {
         self.init(container: StateContainer(state: wrappedValue), render: render)
     }
@@ -146,6 +194,8 @@ public extension RenderedViewState {
         let container: StateContainer<State>
         /// Implicitly used by UIKit views to automatically call the provided function when the state changes
         let render: (AnyObject, State) -> Void
+        /// Determines which event that this renderer will subscribe to for calling the render function
+        let subscriptionEvent: SubscriptionEvent
         /// Tracks state changes for invoking `render` when the state changes
         let stateSubscriber: AtomicStateChangeSubscriber<State> = .init()
         
@@ -162,11 +212,24 @@ public extension RenderedViewState {
         /// Also, calling this function additional times will have no effect.
         /// - Parameter view: The view on which to subscribe
         public func startRendering<View>(on view: View) where View : AnyObject {
+            let statePublisher: AnyPublisher<State, Never>
+            switch subscriptionEvent {
+            case .willSet:
+                statePublisher = container.willSetPublisher
+            case .didSet:
+                statePublisher = container.didSetPublisher
+            }
+            
             stateSubscriber
-                .subscribeOnce(to: container.didSetPublisher) { [weak view] newState in
+                .subscribeOnce(to: statePublisher) { [weak view] newState in
                     guard let view else { return }
                     render(view, newState)
                 }
+        }
+        
+        /// Represents the event type for a rendering subscription
+        enum SubscriptionEvent {
+            case didSet, willSet
         }
     }
 }
