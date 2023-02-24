@@ -80,8 +80,8 @@ class ProductDetailViewController: UIViewController {
         errorView.isHidden = true
     }
     
-    func render() {
-        switch state {
+    func render(newState: ProductDetailViewState) {
+        switch newState {
         case .viewing:
             // update the UI with the product details
             configureButton(saving: false)
