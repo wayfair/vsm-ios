@@ -366,4 +366,37 @@ class StateContainerTests: XCTestCase {
 
         negativeTest.waitForExpectations(timeout: 1)
     }
+    
+    @available(*, deprecated, message: "This test will be removed when the publisher property is removed from the framework")
+    func testStatePublisherTiming() {
+        let subject = StateContainer<MockState>(state: .foo)
+        let test = subject.publisher
+            .dropFirst()
+            .expect { state in
+                XCTAssertEqual(state, .bar)
+                XCTAssertEqual(subject.state, .bar)
+            }
+        subject.observe(.bar)
+        test.waitForExpectations(timeout: 1)
+    }
+    
+    func testEventStatePublisherTiming() {
+        // Assures that the willSet and didSet publishers emit values at the appropriate times
+        let subject = StateContainer<MockState>(state: .foo)
+        let willSetTest = subject.willSetPublisher
+            .dropFirst()
+            .expect { state in
+                XCTAssertEqual(state, .bar)
+                XCTAssertEqual(subject.state, .foo)
+            }
+        let didSetTest = subject.didSetPublisher
+            .dropFirst()
+            .expect { state in
+                XCTAssertEqual(state, .bar)
+                XCTAssertEqual(subject.state, .bar)
+            }
+        subject.observe(.bar)
+        willSetTest.waitForExpectations(timeout: 1)
+        didSetTest.waitForExpectations(timeout: 1)
+    }
 }

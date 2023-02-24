@@ -10,6 +10,7 @@ import SwiftUI
 import XCTest
 import VSM
 
+@available(*, deprecated, message: "This test class will be removed when ViewStateRendering is removed from the framework")
 class ViewStateRenderingTests_Bind: XCTestCase {
     var subject: AnyViewStateRendering<MockBindableState>!
     var cancellables: Set<AnyCancellable> = []

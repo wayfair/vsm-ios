@@ -10,6 +10,7 @@ import Combine
 import XCTest
 
 @available(macOS 12, *)
+@available(*, deprecated, message: "This test class will be removed when ViewStateRendering is removed from the framework")
 class ViewStateRenderingTests_ObserveDebounce: XCTestCase {
     var subject: AnyViewStateRendering<MockState>!
     var cancellables: Set<AnyCancellable> = []
