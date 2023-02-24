@@ -73,9 +73,9 @@ public struct RenderedViewState<State> {
     /// **(UIKit only)** Instantiates the rendered view state with a custom state container.
     /// - Parameters:
     ///   - container: The state container that manages the view state.
-    ///   - render: The function to call when the view state changes.
+    ///   - render: The function to call when the view state _did change_.
     public init<Parent: AnyObject>(container: StateContainer<State>, render: @escaping (Parent) -> () -> ()) {
-        let anyRender: (Any, State) -> () = { parent, state in
+        let anyRender: (AnyObject, State) -> () = { parent, state in
             guard let parent = parent as? Parent else { return }
             render(parent)()
         }
@@ -85,6 +85,7 @@ public struct RenderedViewState<State> {
     /// **(UIKit only)** Instantiates the rendered view state with an initial value.
     ///
     /// Example:
+    ///
     /// ```swift
     /// class MyViewController: UIViewController {
     ///     @RenderedViewState var state: MyViewState
@@ -105,7 +106,7 @@ public struct RenderedViewState<State> {
     ///
     /// - Parameters:
     ///   - wrappedValue: The view state to be managed by the state container.
-    ///   - render: The function to call when the view state changes.
+    ///   - render: The function to call when the view state _did change_.
     public init<Parent: AnyObject>(
         wrappedValue: State,
         render: @escaping (Parent) -> () -> ()
@@ -146,7 +147,7 @@ public extension RenderedViewState {
         /// Implicitly used by UIKit views to automatically call the provided function when the state changes
         let render: (AnyObject, State) -> Void
         /// Tracks state changes for invoking `render` when the state changes
-        let stateDidChangeSubscriber: AtomicStateChangeSubscriber<State> = .init()
+        let stateSubscriber: AtomicStateChangeSubscriber<State> = .init()
         
         /// Subscribes a UIKit view or view controller to render each state change. If not called, rendering will automatically start when the `state` property is first accessed.
         ///
@@ -161,8 +162,8 @@ public extension RenderedViewState {
         /// Also, calling this function additional times will have no effect.
         /// - Parameter view: The view on which to subscribe
         public func startRendering<View>(on view: View) where View : AnyObject {
-            stateDidChangeSubscriber
-                .subscribeOnce(to: container.publisher) { [weak view] newState in
+            stateSubscriber
+                .subscribeOnce(to: container.didSetPublisher) { [weak view] newState in
                     guard let view else { return }
                     render(view, newState)
                 }
@@ -177,8 +178,17 @@ extension RenderedViewState.RenderedContainer: StateObserving & StatePublishing 
     // MARK: StatePublishing
     // For more information about these members, view the protocol definition
     
+    @available(*, deprecated, renamed: "didSetPublisher", message: "Renamed to didSetPublisher and will be removed in a future version")
     public var publisher: AnyPublisher<State, Never> {
         container.publisher
+    }
+    
+    public var willSetPublisher: AnyPublisher<State, Never> {
+        container.willSetPublisher
+    }
+    
+    public var didSetPublisher: AnyPublisher<State, Never> {
+        container.didSetPublisher
     }
     
     // MARK: StateObserving Implementation - Observe

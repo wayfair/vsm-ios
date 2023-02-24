@@ -63,7 +63,7 @@ struct SettingsView: View {
                 .onChange(of: isStateBindingExampleEnabled) { enabled in
                     $state.observe(state.toggleIsStateBindingExampleEnabled(enabled))
                 }
-                .onReceive($state.publisher.map(\.isStateBindingExampleEnabled)) { enabled in
+                .onReceive($state.willSetPublisher.map(\.isStateBindingExampleEnabled)) { enabled in
                     isStateBindingExampleEnabled = enabled
                 }
                 .accessibilityIdentifier("State Binding Toggle")

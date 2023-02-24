@@ -11,6 +11,7 @@ import XCTest
 import VSM
 
 /// Tests all forwarding Observe overloads on the `ViewStateRendering` protocol extension
+@available(*, deprecated, message: "This test class will be removed when ViewStateRendering is removed from the framework")
 class ViewStateRenderingTests_Observe: XCTestCase {
     var subject: AnyViewStateRendering<MockState>!
 
