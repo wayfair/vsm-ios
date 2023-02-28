@@ -111,7 +111,7 @@ public extension ViewStateRendering {
     
     /// Convenience accessor for the `StateContainer`'s `observe` function.
     /// Observes the states emitted as a result of invoking some asynchronous action that returns an asynchronous sequence
-    func observeAsync<StateSequence: AsyncSequence>(_ awaitStateSequence: @escaping () async -> StateSequence) where StateSequence.Element == ViewState {
+    func observeAsync<SomeAsyncSequence: AsyncSequence>(_ awaitStateSequence: @escaping () async -> SomeAsyncSequence) where SomeAsyncSequence.Element == ViewState {
         container.observeAsync(awaitStateSequence)
     }
 

@@ -26,7 +26,7 @@ public protocol StateObserving<State> {
     
     /// Asynchronously renders the sequence of states on the view.
     /// - Parameter stateSequence: The sequence of states to render
-    func observeAsync<StateSequence: AsyncSequence>(_ stateSequence: @escaping () async -> StateSequence) where StateSequence.Element == State
+    func observeAsync<SomeAsyncSequence: AsyncSequence>(_ stateSequence: @escaping () async -> SomeAsyncSequence) where SomeAsyncSequence.Element == State
     
     // MARK: - Debounce
     
