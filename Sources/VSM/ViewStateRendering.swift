@@ -318,7 +318,7 @@ public extension ViewStateRendering {
         file: String = #file,
         line: UInt = #line
     ) {
-        container.observe(nextState, debounced: dueTime, file: file, line: line)
+        container.observe(nextState(), debounced: dueTime, file: file, line: line)
     }
     
     /// Debounces the action calls by `dueTime`, then observes the `State` returned as a result of invoking the action.

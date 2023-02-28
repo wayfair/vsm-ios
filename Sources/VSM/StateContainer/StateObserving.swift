@@ -101,7 +101,7 @@ public extension StateObserving {
     ///   - nextState: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     func observe(
-        _ nextState: @escaping () -> State,
+        _ nextState: @escaping @autoclosure () -> State,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         file: String = #file,
         line: UInt = #line
