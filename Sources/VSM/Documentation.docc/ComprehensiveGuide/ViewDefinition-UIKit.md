@@ -393,6 +393,49 @@ All business logic belongs in VSM models and associated repositories. However, t
 - Receiving/streaming user input
 - Animating the view
 
+### Comparing State Changes
+
+VSM provides additional tools for assisting in some of this view-centric logic for UIKit views. One such tool is the ability to compare the current view state against the future view state when rendering. To do this, simply add a view state parameter to the `render(...)` function. By adding a view state property to the render function, VSM will call the render function on the `state` property's `willSet` event instead of the `didSet` event.
+
+Example
+
+```swift
+func render(_ newState: MyViewState) {
+    if state.saveProgress < newState.saveProgress) {
+        animateSaveProgress(from: state.saveProgress, to: newState.saveProgress)
+    }
+}
+```
+
+In the above example, the `state` view property still contains the previous view state value, while the parameter passed into the `render(_ newState: MyViewState)` function contains the new view state _just before the `state` property is changed to the new value_. This allows you to perform any logic or operations that require comparison of the current and future state.
+
+### Will-Set / Did-Set Publishers
+
+The ``RenderedViewState/RenderedContainer/willSetPublisher`` and ``RenderedViewState/RenderedContainer/didSetPublisher`` publishers provide another tool for supporting view-centric logic. These publishers can be used to observe and respond to changes in view state as desired. These publishers are guaranteed to send the new value on the main thread.
+
+Example
+
+```swift
+class MyViewController: UIViewController {
+    @RenderedViewState var state: MyViewState
+    var stateSubscriptions: Set<AnyCancellable> = []
+    ...
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        $state.willSetPublisher
+            .sink { newState in
+                print(">>> will set: \(newState)"
+            }
+            .store(in: &stateSubscriptions)
+        $state.didSetPublisher
+            .sink { newState in
+                print(">>> did set: \(newState)"
+            }
+            .store(in: &stateSubscriptions)
+    }
+}
+```
+
 ## Iterative View Development
 
 The best approach to building features in VSM is to start with defining the view state, then move straight to building the view. Rely on mocked states and example/demo apps where possible to visualize each state. Postpone implementing the feature's business logic for as long as possible until you are confident that you have the right feature shape and view code.
