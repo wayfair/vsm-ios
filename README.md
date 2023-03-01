@@ -85,11 +85,7 @@ The view observes and renders the state using the `ViewState` property wrapper. 
 
 ```swift
 struct BlogEntryView: View {
-    @ViewState var state: BlogEntryViewState
-
-    init() {
-        _state = .init(wrappedValue: .initialized(LoaderModel()))
-    }
+    @ViewState var state: BlogEntryViewState = .initialized(LoaderModel())
 
     var body: some View {
         switch state {
