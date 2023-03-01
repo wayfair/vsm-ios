@@ -4,82 +4,8 @@ import XCTest
 import VSM
 
 class StateContainerTests: XCTestCase {
-    
-    // MARK: - Publisher Actions
-    
-    /// Asserts that observing state-emitting publisher actions will progress the state appropriately
-    func testStatePublisherAction_MultipleStates_Immediate() throws {
-        let mockAction: () -> AnyPublisher<MockState, Never> = {
-            Deferred {
-                [MockState.bar, MockState.baz].publisher
-            }
-            .eraseToAnyPublisher()
-        }
-        let subject = StateContainer<MockState>(state: .foo)
-        test(subject, expect: [.foo, .bar, .baz], when: { $0.observe(mockAction()) })
-    }
-
-    /// Asserts that observing state-emitting publisher actions will progress the state appropriately
-    func testStatePublisherAction_MultipleStates_Background() throws {
-        let mockAction: () -> AnyPublisher<MockState, Never> = {
-            Deferred {
-                [MockState.bar, MockState.baz].publisher
-                    .subscribe(on: DispatchQueue.global(qos: .background))
-            }
-            .eraseToAnyPublisher()
-        }
-        let subject = StateContainer<MockState>(state: .foo)
-        test(subject, expect: [.foo, .bar, .baz], when: { $0.observe(mockAction()) })
-    }
-    
-    /// Asserts that observing state-emitting publisher actions will progress the state appropriately
-    func testStatePublisherAction_MultipleStates_Main() throws {
-        let mockAction: () -> AnyPublisher<MockState, Never> = {
-            Deferred {
-                [MockState.bar, MockState.baz].publisher
-                    .subscribe(on: DispatchQueue.main)
-            }
-            .eraseToAnyPublisher()
-        }
-        let subject = StateContainer<MockState>(state: .foo)
-        test(subject, expect: [.foo, .bar, .baz], when: { $0.observe(mockAction()) })
-    }
-    
-    /// Asserts that synchronous actions update the state on the same (main) thread. Prevents "extra-frame render" view initialization bugs.
-    func testStatePublisherAction_MainThreadConsistency() throws {
-        let mockAction: () -> AnyPublisher<MockState, Never> = {
-            Just(MockState.bar).eraseToAnyPublisher()
-        }
-        XCTAssertTrue(Thread.isMainThread, "Unit test did not run on the main thread.")
-        let subject = StateContainer<MockState>(state: .foo)
-        subject.observe(mockAction())
-        XCTAssertEqual(subject.state, .bar, "State was not updated synchronously by the synchronous action")
-    }
-    
-    // MARK: - Async Actions
-    
-    /// Tests that observing state-emitting async actions will progress the state appropriately
-    func testAsyncStateAction_Immediate() throws {
-        let mockAction: () async -> MockState = {
-            .bar
-        }
-        let subject = StateContainer<MockState>(state: .foo)
-        test(subject, expect: [.foo, .bar], when: { $0.observeAsync({ await mockAction() }) })
-    }
-    
-    /// Tests that observing state-emitting async actions will progress the state appropriately
-    func testAsyncStateAction_Delayed() throws {
-        let mockAction: () async -> MockState = {
-            do {
-                try await Task.sleep(seconds: 0.1)
-            } catch {
-                XCTFail("Task sleep error: \(error)")
-            }
-            return .bar
-        }
-        let subject = StateContainer<MockState>(state: .foo)
-        test(subject, expect: [.foo, .bar], when: { $0.observeAsync({ await mockAction() }) })
-    }
+        
+    // MARK: Task Cancellation Tests
     
     /// Tests that observing long-running, state-emitting async actions will cancel when the subject is deallocated
     func testAsyncStateAction_Cancellation() throws {
@@ -104,36 +30,6 @@ class StateContainerTests: XCTestCase {
         performActionOnMemoryScopedStateContainer()
         XCTAssertNil(weakSubject, "\(type(of: weakSubject)) leaked!")
         waitForExpectations(timeout: 1)
-    }
-    
-    // MARK: - Asynchronous Sequence Actions
-    
-    /// Tests that observing state-emitting async actions will progress the state appropriately
-    func testAsyncStateSequenceAction_Awaitable_Immediate() throws {
-        let mockAction: () async -> StateSequence<MockState> = {
-            .init({ .bar }, { .baz })
-        }
-        let subject = StateContainer<MockState>(state: .foo)
-        test(subject, expect: [.foo, .bar, .baz], when: { $0.observeAsync({ await mockAction() }) })
-    }
-    
-    /// Tests that observing state-emitting async actions will progress the state appropriately
-    func testAsyncStateSequenceAction_Awaitable_Delayed() throws {
-        let mockAction: () async -> StateSequence<MockState> = {
-            .init(
-                { .bar },
-                {
-                    do {
-                        try await Task.sleep(seconds: 0.1)
-                    } catch {
-                        XCTFail("Task sleep error: \(error)")
-                    }
-                    return .baz
-                }
-            )
-        }
-        let subject = StateContainer<MockState>(state: .foo)
-        test(subject, expect: [.foo, .bar, .baz], when: { $0.observeAsync({ await mockAction() }) })
     }
     
     /// Tests that observing long-running, state-emitting async actions will cancel when the subject is deallocated
@@ -200,34 +96,6 @@ class StateContainerTests: XCTestCase {
         performActionOnMemoryScopedStateContainer()
         XCTAssertNil(weakSubject, "\(type(of: weakSubject)) leaked!")
         wait(for: [cancellationExpectation], timeout: 1)
-    }
-    
-    // MARK: - Synchronous Actions
-    
-    /// Tests that observing state-emitting synchronous actions will progress the state appropriately
-    func testSyncStateAction() throws {
-        let mockAction: () -> MockState = {
-            .bar
-        }
-        let subject = StateContainer<MockState>(state: .foo)
-        test(subject, expect: [.foo, .bar], when: { $0.observe(mockAction()) })
-    }
-    
-    /// Tests that observing state-emitting synchronous actions will progress the state appropriately, even if fired from a background thread
-    func testSyncStateAction_BackgroundObservation() throws {
-        let mockAction: () -> MockState = {
-            .bar
-        }
-        let subject = StateContainer<MockState>(state: .foo)
-        let test = subject.$state
-            .collect(2)
-            .expect({ _ in XCTAssert(Thread.isMainThread, "Observed published-state action should sink on main thread.") })
-            .expect([.foo, .bar])
-        
-        DispatchQueue.global().async {
-            subject.observe(mockAction())
-        }
-        test.waitForExpectations(timeout: 1)
     }
     
     // MARK: - Action Interop

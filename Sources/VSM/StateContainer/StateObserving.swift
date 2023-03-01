@@ -26,7 +26,7 @@ public protocol StateObserving<State> {
     
     /// Asynchronously renders the sequence of states on the view.
     /// - Parameter stateSequence: The sequence of states to render
-    func observeAsync<StateSequence: AsyncSequence>(_ stateSequence: @escaping () async -> StateSequence) where StateSequence.Element == State
+    func observeAsync<SomeAsyncSequence: AsyncSequence>(_ stateSequence: @escaping () async -> SomeAsyncSequence) where SomeAsyncSequence.Element == State
     
     // MARK: - Debounce
     
@@ -101,7 +101,7 @@ public extension StateObserving {
     ///   - nextState: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     func observe(
-        _ nextState: @escaping () -> State,
+        _ nextState: @escaping @autoclosure () -> State,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         file: String = #file,
         line: UInt = #line
