@@ -76,8 +76,7 @@ class ProductDetailViewController: UIViewController {
         loadProductImage(from: productDetail.imageURL)
         productImage.accessibilityIdentifier = "\(productDetail.name) Image"
         productDetailLabel.text = productDetail.description
-        confirmationView.isHidden = true
-        errorView.isHidden = true
+        $state.startRendering(on: self)
     }
     
     func render(newState: ProductDetailViewState) {
