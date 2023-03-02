@@ -158,17 +158,6 @@ The `loadingError` case shows the error view on top of all of the content and se
 
 The `loaded` state, however, does build and configure a new view because it will only ever be called once and it needs to pass data into the editing view which requires `UserData` for initialization. The loaded state also stops and hides the loading indicator and the error view (if previously shown).
 
-> Note: If a new view _must_ be repeatedly rebuilt due to state changes, be sure to properly clear the previous views, like so:
-
-```swift
-contentView.subviews.forEach { $0.removeFromSuperview() }
-children.forEach { child in
-    child.willMove(toParent: nil)
-    child.removeFromParent()
-    child.didMove(toParent: nil)
-}
-```
-
 ### Editing View
 
 If we go back up to the feature's flow chart and translate the editing behavior (the right section of the state machine) to a view state, we come up with the following view state:
