@@ -307,9 +307,9 @@ You will most often see these types of data expressed as properties on a SwiftUI
 
 ### Comparing State Changes
 
-VSM provides additional tools for assisting in some of this view-centric logic for SwiftUI views. One such tool is the ``RenderedViewState/RenderedContainer/willSetPublisher`` view state publisher. This publisher gives the ability to update SwiftUI view properties or compare the current view state against the future view state when the view state changes.
+VSM provides additional tools for assisting in some of this view-centric logic for SwiftUI views. One such tool is ``RenderedViewState/RenderedContainer/willSetPublisher``. This publisher enables SwiftUI view properties to be modified in a performant way when the state changes. It also enables engineers to compare the current and future view states.
 
-Example
+The following example displays a progress view that shows the loading state of some imaginary data operation. It begins loading when the view first appears and then animates the progress bar as the bytes are loaded. The view utilizes an `@State` property for animating the progress view and keeps the value up to date by observing the view state's `willSetPublisher`.
 
 ```swift
 struct MyView: View {
@@ -325,9 +325,9 @@ struct MyView: View {
             }
             .onReceive($state.willSetPublisher) { newState in
                 switch (state, newState) {
-                case (.loading(let loadingModel), .loading(let newLoadingModel)):
-                    guard loadingModel.loadedBytes < newLoadingModel.loadedBytes else { return }
-                    print(">>> Animating progress from \(loadingModel.loadedBytes) to \(newLoadingModel.loadedBytes) bytes")
+                case (.loading(let oldLoadingModel), .loading(let newLoadingModel)):
+                    guard oldLoadingModel.loadedBytes < newLoadingModel.loadedBytes else { return }
+                    print(">>> Animating progress from \(oldLoadingModel.loadedBytes) to \(newLoadingModel.loadedBytes) bytes")
                     withAnimation() {
                         progress = newLoadingModel.loadedBytes / newLoadingModel.totalBytes
                     }
