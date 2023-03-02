@@ -407,7 +407,7 @@ func render(_ newState: MyViewState) {
 }
 ```
 
-In the above example, the `state` view property still contains the previous view state value, while the parameter passed into the `render(_ newState: MyViewState)` function contains the new view state _just before the `state` property is changed to the new value_. This allows you to perform any logic or operations that require comparison of the current and future state.
+In the above example, the `state` view property still contains the previous view state value, while the parameter passed into the `render(_ newState: MyViewState)` function contains the new view state _just before the `state` property is changed to the new value_. This allows you to perform any logic or operations that require a comparison of the current and future states.
 
 ### Will-Set / Did-Set Publishers
 
@@ -418,7 +418,7 @@ Example
 ```swift
 class MyViewController: UIViewController {
     @RenderedViewState var state: MyViewState
-    var stateSubscriptions: Set<AnyCancellable> = []
+    private var stateSubscriptions: Set<AnyCancellable> = []
     ...
     override func viewDidLoad() {
         super.viewDidLoad()
