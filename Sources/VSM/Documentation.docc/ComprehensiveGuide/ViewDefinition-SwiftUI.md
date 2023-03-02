@@ -303,7 +303,41 @@ All business logic belongs in VSM models and associated repositories. However, t
 - Receiving/streaming user input
 - Animating the view
 
-You will most often see these types of data expressed as properties on a SwiftUI view with the `@State` or `@Binding` property wrappers. There are a handful of approaches in which VSM can synchronize between these view properties and the current view state. The two most common approaches are by using custom `Binding<T>` objects, or by imperatively manipulating view properties and calling VSM actions via the view event handlers.
+You will most often see these types of data expressed as properties on a SwiftUI view with the `@State` or `@Binding` property wrappers. There are a handful of approaches in which VSM can synchronize between these view properties and the current view state. The two most common approaches are by using custom `Binding<T>` objects, or by manipulating view properties and calling VSM actions via the view event handlers.
+
+### Comparing State Changes
+
+VSM provides additional tools for assisting in some of this view-centric logic for SwiftUI views. One such tool is the ``RenderedViewState/RenderedContainer/willSetPublisher`` view state publisher. This publisher gives the ability to update SwiftUI view properties or compare the current view state against the future view state when the view state changes.
+
+Example
+
+```swift
+struct MyView: View {
+    @ViewState var state: MyViewState
+    @State var progress: Double = 0
+    
+    var body: some View {
+        ProgressView("Loading...", value: progress)
+            .onAppear {
+                if case .initialized(let loaderModel) = state {
+                    $state.observe(loaderModel.load())
+                }
+            }
+            .onReceive($state.willSetPublisher) { newState in
+                switch (state, newState) {
+                case (.loading(let loadingModel), .loading(let newLoadingModel)):
+                    guard loadingModel.loadedBytes < newLoadingModel.loadedBytes else { return }
+                    print(">>> Animating progress from \(loadingModel.loadedBytes) to \(newLoadingModel.loadedBytes) bytes")
+                    withAnimation() {
+                        progress = newLoadingModel.loadedBytes / newLoadingModel.totalBytes
+                    }
+                default:
+                    break
+                }
+            }
+    }
+}
+```
 
 ### Logic Coordination for the Editing View
 
