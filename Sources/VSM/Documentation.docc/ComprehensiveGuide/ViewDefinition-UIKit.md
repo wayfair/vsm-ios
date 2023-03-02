@@ -8,6 +8,8 @@ VSM is a reactive architecture and as such is a natural fit for SwiftUI, but it 
 
 The purpose of the "View" in VSM is to render the current view state and provide the user access to the data and actions available in that state.
 
+In the examples found in this article, we will be using Storyboards. The code-first approach to UIKit can also be used by changing how you initialize your UIView or UIViewController.
+
 ## View Structure
 
 The basic structure of a UIKit VSM view is as follows:
@@ -31,11 +33,41 @@ class UserProfileViewController: UIViewController {
 }
 ```
 
-To turn any UIView or UIViewController into a "VSM View", define a property that holds our current state and decorate it with the `@RenderedViewState` property wrapper.
+To turn any UIView or UIViewController into a "VSM View", define a property that holds our current state and decorate it with the `@RenderedViewState` property wrapper. `@RenderViewState` is designed for UIKit and will not work in SwiftUI. (See <doc:ViewDefinition-SwiftUI> for more information.)
 
-**The UIKit-only `@RenderedViewState` property wrapper updates the view every time the state changes**. `@RenderedViewState` requires a `render` _function type_ parameter to call when the state changes. You must define this function in your UIView or UIViewController.
+**The `@RenderedViewState` property wrapper updates the view every time the state changes**. `@RenderedViewState` requires a `render` _function type_ parameter to call when the state changes. You must define this function in your UIView or UIViewController.
 
-> Note: In the examples found in this article, we will be using Storyboards. As a result, we used a custom `NSCoder` initializer. If you are using a code-first approach to UIKit, you can use whichever initialization mechanism is most appropriate.
+To kick off this automatic rendering, you must choose an appropriate UIView or UIViewController lifecycle event (`viewDidLoad`, `viewWillAppear`, etc.) and apply one of these two approaches:
+
+#### Auto-Render - Option A
+
+Automatic rendering will begin simply by accessing the `state` property. In VSM, it is common to begin your view's state journey by observing an action early in the view's lifecycle.
+
+Example
+
+```swift
+func viewDidLoad() {
+    super.viewDidLoad()
+    if case .initialized(let loaderModel) = state {
+        $state.observe(loaderModel.load())
+    }
+}
+```
+
+#### Auto-Render - Option B
+
+Call `$state.startRendering(on: self)` at any point after initialization. This won't progress your state, but it will cause the automatic rendering to begin. This is most commonly used when the view's state journey is begun by some user action (e.g. tapping a button) and not a view lifecycle event.
+
+Example
+
+```swift
+func viewDidLoad() {
+    super.viewDidLoad()
+    $state.startRendering(on: self)
+}
+```
+
+> Warning: If you fail to implement one of the above auto-render approaches, the `render` function will never be called and the view state will be inert.
 
 ## Displaying the State
 
