@@ -303,7 +303,41 @@ All business logic belongs in VSM models and associated repositories. However, t
 - Receiving/streaming user input
 - Animating the view
 
-You will most often see these types of data expressed as properties on a SwiftUI view with the `@State` or `@Binding` property wrappers. There are a handful of approaches in which VSM can synchronize between these view properties and the current view state. The two most common approaches are by using custom `Binding<T>` objects, or by imperatively manipulating view properties and calling VSM actions via the view event handlers.
+You will most often see these types of data expressed as properties on a SwiftUI view with the `@State` or `@Binding` property wrappers. There are a handful of approaches in which VSM can synchronize between these view properties and the current view state. The two most common approaches are by using custom `Binding<T>` objects, or by manipulating view properties and calling VSM actions via the view event handlers.
+
+### Comparing State Changes
+
+VSM provides additional tools for assisting in some of this view-centric logic for SwiftUI views. One such tool is ``RenderedViewState/RenderedContainer/willSetPublisher``. This publisher enables SwiftUI view properties to be modified in a performant way when the state changes. It also enables engineers to compare the current and future view states.
+
+The following example displays a progress view that shows the loading state of some imaginary data operation. It begins loading when the view first appears and then animates the progress bar as the bytes are loaded. The view utilizes an `@State` property for animating the progress view and keeps the value up to date by observing the view state's `willSetPublisher`.
+
+```swift
+struct MyView: View {
+    @ViewState var state: MyViewState
+    @State var progress: Double = 0
+    
+    var body: some View {
+        ProgressView("Loading...", value: progress)
+            .onAppear {
+                if case .initialized(let loaderModel) = state {
+                    $state.observe(loaderModel.load())
+                }
+            }
+            .onReceive($state.willSetPublisher) { newState in
+                switch (state, newState) {
+                case (.loading(let oldLoadingModel), .loading(let newLoadingModel)):
+                    guard oldLoadingModel.loadedBytes < newLoadingModel.loadedBytes else { return }
+                    print(">>> Animating progress from \(oldLoadingModel.loadedBytes) to \(newLoadingModel.loadedBytes) bytes")
+                    withAnimation() {
+                        progress = newLoadingModel.loadedBytes / newLoadingModel.totalBytes
+                    }
+                default:
+                    break
+                }
+            }
+    }
+}
+```
 
 ### Logic Coordination for the Editing View
 
