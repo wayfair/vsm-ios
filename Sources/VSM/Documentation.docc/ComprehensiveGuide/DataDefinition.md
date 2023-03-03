@@ -36,7 +36,7 @@ The publishers returned from the functions let features react to the individual 
 The basic implementation for the repository may look something like this:
 
 ```swift
-struct UserDataRepository: UserDataProviding {
+class UserDataRepository: UserDataProviding {
     private var userDataSubject = CurrentValueSubject<UserDataState, Never>(.loading)
     lazy var userDataPublisher: AnyPublisher<UserDataState, Never> = {
         userDataSubject.eraseToAnyPublisher()
