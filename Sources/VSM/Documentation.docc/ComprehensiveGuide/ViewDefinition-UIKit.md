@@ -39,7 +39,7 @@ To turn any UIView or UIViewController into a "VSM View", define a property that
 
 To kick off this automatic rendering, you must choose an appropriate UIView or UIViewController lifecycle event (`viewDidLoad`, `viewWillAppear`, etc.) and apply one of these two approaches:
 
-#### Auto-Render - Option A
+**Auto-Render: Option A**
 
 Automatic rendering will begin simply by accessing the `state` property. In VSM, it is common to begin your view's state journey by observing an action early in the view's lifecycle.
 
@@ -54,7 +54,7 @@ func viewDidLoad() {
 }
 ```
 
-#### Auto-Render - Option B
+**Auto-Render: Option B**
 
 Call `$state.startRendering(on: self)` at any point after initialization. This won't progress your state, but it will cause the automatic rendering to begin. This is most commonly used when the view's state journey is begun by some user action (e.g. tapping a button) and not a view lifecycle event.
 
