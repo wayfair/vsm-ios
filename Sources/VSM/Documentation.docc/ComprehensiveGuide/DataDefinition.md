@@ -38,9 +38,9 @@ The basic implementation for the repository may look something like this:
 ```swift
 struct UserDataRepository: UserDataProviding {
     private var userDataSubject = CurrentValueSubject<UserDataState, Never>(.loading)
-    var userDataPublisher: AnyPublisher<UserDataState, Never> {
-        userDataSubject.share().eraseToAnyPublisher()
-    }
+    lazy var userDataPublisher: AnyPublisher<UserDataState, Never> = {
+        userDataSubject.eraseToAnyPublisher()
+    }()
 
     func load() -> AnyPublisher<UserData, Error> {
         ...
@@ -54,7 +54,7 @@ struct UserDataRepository: UserDataProviding {
 
 We choose to manage the user data by way of the `CurrentValueSubject` publisher which always emits the current value to new subscribers and will emit any future changes to the subject's value property (or `.send(_:)` function). We also make sure to set the error type to `Never` because this specific publisher is only meant to keep track of the most recent stable value.
 
-We expose the current value by using a type-erased publisher property, as dictated by the `UserDataProviding` protocol. We make sure to `share()` this publisher so that all subscribers receive the same state updates.
+We expose the current value by using a type-erased publisher property, as dictated by the `UserDataProviding` protocol.
 
 Now, how do we keep this shared value up to date? As we implement the actions that manipulate the data, as you would expect from any repository, we'll make sure those actions appropriately update the state of the data.
 
