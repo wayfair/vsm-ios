@@ -10,6 +10,7 @@ import XCTest
 import SwiftUI
 
 @available(iOS 14.0, *)
+@available(tvOS 14.0, *)
 final class ViewStateObservingTests: StateObservingTests {
     
     override func setUp() {

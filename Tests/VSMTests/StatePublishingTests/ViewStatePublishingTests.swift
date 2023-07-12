@@ -9,6 +9,7 @@
 import XCTest
 
 @available(iOS 14.0, *)
+@available(tvOS 14.0, *)
 final class ViewStatePublishingTests: StatePublishingTests {
     
     override func setUp() {

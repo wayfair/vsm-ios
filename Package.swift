@@ -7,7 +7,9 @@ let package = Package(
     name: "VSM",
     platforms: [
         .iOS(.v13),
-        .macOS(.v11)
+        .macOS(.v11),
+        .watchOS(.v6),
+        .tvOS(.v13)
     ],
     products: [
         .library(
@@ -16,7 +18,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
-        .package(url: "https://github.com/albertbori/TestableCombinePublishers.git", from: "1.0.0")
+        .package(url: "https://github.com/albertbori/TestableCombinePublishers.git", from: "1.2.1")
     ],
     targets: [
         .target(
