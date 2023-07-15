@@ -10,6 +10,8 @@ import SwiftUI
 
 @available(macOS 11.0, *)
 @available(iOS 14.0, *)
+@available(tvOS 14.0, *)
+@available(watchOS 7.0, *)
 @available(*, deprecated, message: "Use the @ViewState property wrapper instead.")
 public extension StateObject {
     

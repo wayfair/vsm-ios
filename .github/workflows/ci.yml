@@ -19,13 +19,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Build and Test VSM
+      - name: Build and Test VSM on macOS
+        uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
+        with:
+          spm-package: ./
+          scheme: VSM
+          destination: platform=macOS,arch=x86_64
+          action: test
+      
+      - name: Build and Test VSM on iOS
         uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
         with:
           spm-package: ./
           scheme: VSM
           destination: platform=iOS Simulator,OS=latest,name=iPhone 14
           action: test
+      
+      - name: Build and Test VSM on watchOS
+        uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
+        with:
+          spm-package: ./
+          scheme: VSM
+          destination: platform=watchOS Simulator,OS=latest,name=Apple Watch SE (40mm) (2nd generation)
+          action: test
+
+      - name: Build and Test VSM on tvOS
+        uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
+        with:
+          spm-package: ./
+          scheme: VSM
+          destination: platform=tvOS Simulator,OS=latest,name=Apple TV
+          action: test
+
   
   test-swiftui-demo-app:
     runs-on: macos-12

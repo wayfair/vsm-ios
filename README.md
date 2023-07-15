@@ -4,9 +4,9 @@
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.0-4baaaa.svg)](CODE_OF_CONDUCT.md)
 [![Maintainer](https://img.shields.io/badge/Maintainer-Wayfair-7F187F)](https://wayfair.github.io)
 
-# VSM for iOS
+# VSM for Apple Platforms
 
-VSM is a reactive architecture that is unidirectional, highly type-safe, behavior-driven, and clean. This repository hosts an open-source swift package framework for easily building features in VSM on iOS.
+VSM is a reactive architecture that is unidirectional, highly type-safe, behavior-driven, and clean. This repository hosts an open-source swift package framework for easily building features in VSM on app publicly available Apple platforms.
 
 ## Overview
 
@@ -114,7 +114,7 @@ For more detailed tutorials and documentation, visit the [VSM Documentation](htt
 
 ### Credits
 
-VSM for iOS is owned and [maintained](MAINTAINERS.md) by [Wayfair](https://www.wayfair.com/).
+VSM for Apple platforms is owned and [maintained](MAINTAINERS.md) by [Wayfair](https://www.wayfair.com/).
 
 ### Contributing
 
@@ -126,4 +126,4 @@ See [SECURITY.md](SECURITY.md).
 
 ### License
 
-VSM for iOS is released under the MIT license. See [LICENSE](LICENSE) for details.
+VSM for Apple platforms is released under the MIT license. See [LICENSE](LICENSE) for details.

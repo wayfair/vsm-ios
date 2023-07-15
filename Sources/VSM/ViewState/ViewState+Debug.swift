@@ -8,6 +8,8 @@
 #if DEBUG
 
 @available(iOS 14.0, *)
+@available(tvOS 14.0, *)
+@available(watchOS 7.0, *)
 extension ViewState: _StateContainerStaticDebugging where State == Any { }
 
 #endif

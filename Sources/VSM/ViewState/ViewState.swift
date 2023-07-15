@@ -32,6 +32,8 @@ import SwiftUI
 /// }
 /// ```
 @available(iOS 14.0, *)
+@available(tvOS 14.0, *)
+@available(watchOS 7.0, *)
 @propertyWrapper
 public struct ViewState<State>: DynamicProperty {
     
