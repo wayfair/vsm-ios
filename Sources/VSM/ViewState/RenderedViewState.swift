@@ -53,6 +53,7 @@ import Combine
 /// }
 /// ```
 @available(iOS 14.0, *)
+@available(visionOS 1.0, *)
 @propertyWrapper
 public struct RenderedViewState<State> {
     
@@ -187,6 +188,7 @@ public struct RenderedViewState<State> {
 // MARK: - RenderedViewState
 
 @available(iOS 14.0, *)
+@available(visionOS 1.0, *)
 public extension RenderedViewState {
     /// Provides functions for observing and rendering state changes in UIKit views and view controllers
     struct RenderedContainer {
@@ -236,6 +238,7 @@ public extension RenderedViewState {
 
 // Forwards protocol member calls to underlying state container
 @available(iOS 14.0, *)
+@available(visionOS 1.0, *)
 extension RenderedViewState.RenderedContainer: StateObserving & StatePublishing {
     
     // MARK: StatePublishing
