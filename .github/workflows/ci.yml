@@ -9,7 +9,7 @@ on: # Rebuild any PRs and main branch changes
 
 jobs:
   test-vsm:
-    runs-on: macos-13
+    runs-on: macos-latest
     steps:
       - name: Prepare Xcode
         uses: maxim-lobanov/setup-xcode@v1 # https://github.com/marketplace/actions/setup-xcode-version
@@ -24,7 +24,7 @@ jobs:
         with:
           spm-package: ./
           scheme: VSM
-          destination: platform=macOS,arch=x86_64
+          destination: platform=macOS
           action: test
       
       - name: Build and Test VSM on iOS
@@ -32,7 +32,7 @@ jobs:
         with:
           spm-package: ./
           scheme: VSM
-          destination: platform=iOS Simulator,OS=latest,name=iPhone 15
+          destination: platform=iOS Simulator,OS=latest
           action: test
       
       - name: Build and Test VSM on watchOS
@@ -40,7 +40,7 @@ jobs:
         with:
           spm-package: ./
           scheme: VSM
-          destination: platform=watchOS Simulator,OS=latest,name=Apple Watch SE (40mm) (2nd generation)
+          destination: platform=watchOS Simulator,OS=latest
           action: test
 
       - name: Build and Test VSM on tvOS
@@ -48,12 +48,12 @@ jobs:
         with:
           spm-package: ./
           scheme: VSM
-          destination: platform=tvOS Simulator,OS=latest,name=Apple TV
+          destination: platform=tvOS Simulator,OS=latest
           action: test
 
   
   test-swiftui-demo-app:
-    runs-on: macos-13
+    runs-on: macos-latest
     steps:
       - name: Prepare Xcode
         uses: maxim-lobanov/setup-xcode@v1 # https://github.com/marketplace/actions/setup-xcode-version
@@ -68,11 +68,11 @@ jobs:
         with:
           project: ./Demos/Shopping/Shopping.xcodeproj
           scheme: Shopping
-          destination: platform=iOS Simulator,OS=latest,name=iPhone 15
+          destination: platform=iOS Simulator,OS=latest
           action: test
 
   test-uikit-demo-app:
-    runs-on: macos-13
+    runs-on: macos-latest
     steps:
       - name: Prepare Xcode
         uses: maxim-lobanov/setup-xcode@v1 # https://github.com/marketplace/actions/setup-xcode-version
@@ -87,5 +87,5 @@ jobs:
         with:
           project: ./Demos/Shopping/Shopping.xcodeproj
           scheme: Shopping - UIKit
-          destination: platform=iOS Simulator,OS=latest,name=iPhone 15
+          destination: platform=iOS Simulator,OS=latest
           action: test
