@@ -13,8 +13,8 @@ struct SettingsPage: TestableUI, PushedPage {
     let previousView: AccountTabPage
     
     private var navBarTitle: XCUIElement { app.navigationBars["Settings"] }
-    private func toggle(for setting: Setting) -> XCUIElement { app.switches[setting.rawValue] }
-    
+    // 12/4/23 Added `.switches.firstMatch` due to bug: https://stackoverflow.com/a/76063451/300408
+    private func toggle(for setting: Setting) -> XCUIElement { app.switches[setting.rawValue].switches.firstMatch }
     
     init(app: XCUIApplication, previousView: AccountTabPage, file: StaticString = #file, line: UInt = #line) {
         self.app = app
