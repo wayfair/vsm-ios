@@ -56,7 +56,7 @@ import Combine
 @propertyWrapper
 public struct RenderedViewState<State> {
     
-    let renderedContainer: RenderedContainer<State>
+    let renderedContainer: RenderedContainer
     
     // MARK: Encapsulating Properties
 
@@ -64,7 +64,7 @@ public struct RenderedViewState<State> {
         get { projectedValue.container.state }
     }
 
-    public var projectedValue: RenderedContainer<State> {
+    public var projectedValue: RenderedContainer {
         get { renderedContainer }
     }
     
@@ -189,7 +189,7 @@ public struct RenderedViewState<State> {
 @available(iOS 14.0, *)
 public extension RenderedViewState {
     /// Provides functions for observing and rendering state changes in UIKit views and view controllers
-    struct RenderedContainer<State> {
+    struct RenderedContainer {
         /// The wrapped state container for managing changes in state
         let container: StateContainer<State>
         /// Implicitly used by UIKit views to automatically call the provided function when the state changes
@@ -257,7 +257,7 @@ extension RenderedViewState.RenderedContainer: StateObserving & StatePublishing 
     // MARK: StateObserving Implementation - Observe
     // For more information about these members, view the protocol definition
     
-    public func observe(_ statePublisher: AnyPublisher<State, Never>) {
+    public func observe(_ statePublisher: some Publisher<State, Never>) {
         container.observe(statePublisher)
     }
     
@@ -279,7 +279,7 @@ extension RenderedViewState.RenderedContainer: StateObserving & StatePublishing 
     // For more information about these members, view the protocol definition
     
     public func observe(
-        _ statePublisher: @escaping @autoclosure () ->  AnyPublisher<State, Never>,
+        _ statePublisher: @escaping @autoclosure () -> some Publisher<State, Never>,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     ) {

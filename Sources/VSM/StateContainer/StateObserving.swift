@@ -14,7 +14,7 @@ public protocol StateObserving<State> {
     
     /// Renders the states emitted by the publisher on the view.
     /// - Parameter statePublisher: The view state publisher to be observed for rendering the current view state
-    func observe(_ statePublisher: AnyPublisher<State, Never>)
+    func observe(_ statePublisher: some Publisher<State, Never>)
     
     /// Renders the next state on the view.
     /// - Parameter nextState: The next view state to render
@@ -37,7 +37,7 @@ public protocol StateObserving<State> {
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     ///   - identifier: (optional) The identifier for grouping actions for debouncing
     func observe(
-        _ statePublisher: @escaping @autoclosure () ->  AnyPublisher<State, Never>,
+        _ statePublisher: @escaping @autoclosure () -> some Publisher<State, Never>,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     )
@@ -87,7 +87,7 @@ public extension StateObserving {
     ///   - statePublisher: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
     func observe(
-        _ statePublisher: @escaping @autoclosure () -> AnyPublisher<State, Never>,
+        _ statePublisher: @escaping @autoclosure () -> some Publisher<State, Never>,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         file: String = #file,
         line: UInt = #line

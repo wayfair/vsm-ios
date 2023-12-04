@@ -79,7 +79,7 @@ final public class StateContainer<State>: ObservableObject, StateContaining {
 public extension StateContainer {
     
     // See StateObserving for details
-    func observe(_ statePublisher: AnyPublisher<State, Never>) {
+    func observe(_ statePublisher: some Publisher<State, Never>) {
         cancelRunningObservations()
         stateSubscription = statePublisher
             .sink { [weak self] newState in
@@ -149,7 +149,7 @@ public extension StateContainer {
     
     // See StateObserving for details
     func observe(
-        _ statePublisher: @escaping @autoclosure () -> AnyPublisher<State, Never>,
+        _ statePublisher: @escaping @autoclosure () -> some Publisher<State, Never>,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     ) {
