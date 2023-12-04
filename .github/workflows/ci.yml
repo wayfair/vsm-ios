@@ -32,7 +32,7 @@ jobs:
         with:
           spm-package: ./
           scheme: VSM
-          destination: platform=iOS Simulator,OS=latest,name=iPhone 14
+          destination: platform=iOS Simulator,OS=latest,name=iPhone 15
           action: test
       
       - name: Build and Test VSM on watchOS
@@ -68,7 +68,7 @@ jobs:
         with:
           project: ./Demos/Shopping/Shopping.xcodeproj
           scheme: Shopping
-          destination: platform=iOS Simulator,OS=latest,name=iPhone 14
+          destination: platform=iOS Simulator,OS=latest,name=iPhone 15
           action: test
 
   test-uikit-demo-app:
@@ -87,5 +87,5 @@ jobs:
         with:
           project: ./Demos/Shopping/Shopping.xcodeproj
           scheme: Shopping - UIKit
-          destination: platform=iOS Simulator,OS=latest,name=iPhone 14
+          destination: platform=iOS Simulator,OS=latest,name=iPhone 15
           action: test
