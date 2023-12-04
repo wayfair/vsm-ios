@@ -11,22 +11,18 @@ import Foundation
 // MARK: - State & Model Definitions
 
 enum CartButtonViewState {
-    case initialized(CartCountLoaderModeling)
+    case initialized(CartCountLoaderModel)
     case loaded(cartItemCount: Int)
-}
-
-protocol CartCountLoaderModeling {
-    func loadCount() -> AnyPublisher<CartButtonViewState, Never>
 }
 
 // MARK: - Model Implementations
 
-struct CartCountLoaderModel: CartCountLoaderModeling {
+struct CartCountLoaderModel {
     typealias Dependencies = CartRepositoryDependency
     let dependencies: Dependencies
     
-    func loadCount() -> AnyPublisher<CartButtonViewState, Never> {
-        return dependencies.cartRepository.cartItemCountPublisher
+    func loadCount() -> some Publisher<CartButtonViewState, Never> {
+        dependencies.cartRepository.cartItemCountPublisher
             .map({ count in .loaded(cartItemCount: count) })
             .eraseToAnyPublisher()
     }
