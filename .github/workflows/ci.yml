@@ -19,15 +19,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Build and Test VSM on macOS
+      - name: Build and Test VSM on macOS (Intel)
         uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
         with:
           spm-package: ./
           scheme: VSM
-          destination: platform=macOS,id=4203018E-580F-C1B5-9525-B745CECA79EB
+          destination: platform=macOS,arch=x86_64
           action: test
 
-      - name: Build and Test VSM on Mac Catalyst
+      - name: Build and Test VSM on Mac Catalyst (Intel)
         uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
         with:
           spm-package: ./
