@@ -102,70 +102,60 @@ class StateContainerTests: XCTestCase {
     
     /// Asserts that different state observation types will progress one to another in this order: Publisher -> Async -> Sync -> Async -> Publisher.
     func testAllActionTypesProgression() throws {
-        let mockPublishedAction: () -> AnyPublisher<MockState, Never> = {
-            return Deferred {
-                Just(MockState.bar)
-                    .subscribe(on: DispatchQueue.global(qos: .background))
-            }
-            .eraseToAnyPublisher()
-        }
-        let mockAsyncAction: () async -> MockState = {
-            do {
-                try await Task.sleep(seconds: 0.1)
-            } catch {
-                XCTFail("Task sleep error: \(error)")
-            }
-            return .baz
-        }
-        let mockSyncAction: () -> MockState = {
-            .qux
-        }
+        let mockAsyncAction: (MockState) async -> MockState = { $0 }
         let subject = StateContainer<MockState>(state: .foo)
         
-        test(subject, expect: [.foo, .bar], when: { $0.observe(mockPublishedAction()) })
-        test(subject, expect: [.bar, .baz], when: { $0.observeAsync({ await mockAsyncAction() }) })
-        test(subject, expect: [.baz, .qux], when: { $0.observe(mockSyncAction()) })
-        test(subject, expect: [.qux, .baz], when: { $0.observeAsync({ await mockAsyncAction() }) })
-        test(subject, expect: [.baz, .bar], when: { $0.observe(mockPublishedAction()) })
+        test(subject, expect: [.foo, .bar], when: { $0.observe(Just(MockState.bar).eraseToAnyPublisher()) })
+        test(subject, expect: [.bar, .baz], when: { $0.observeAsync({ await mockAsyncAction(.baz) }) })
+        test(subject, expect: [.baz, .qux], when: { $0.observe(.qux) })
+        test(subject, expect: [.qux, .baz], when: { $0.observeAsync({ await mockAsyncAction(.baz) }) })
+        test(subject, expect: [.baz, .bar], when: { $0.observe(Just(MockState.bar).eraseToAnyPublisher()) })
+        test(subject, expect: [.bar, .foo], when: { $0.observe(.foo) })
     }
     
     /// Validates that a publisher's delayed output will not change the state if another action has been (or is being) observed
     func testAccidentalPublisherStateOverride() {
-        let mockPublishedAction: () -> AnyPublisher<MockState, Never> = {
-            let publisher = CurrentValueSubject<MockState, Never>(.bar)
-            DispatchQueue.global().async {
-                for newState in [MockState.corge, MockState.grault] {
-                    Thread.sleep(forTimeInterval: 0.2)
-                    publisher.value = newState
-                }
-            }
-            return publisher.eraseToAnyPublisher()
-        }
-        let mockAsyncAction: () async -> MockState = {
-            do {
-                try await Task.sleep(seconds: 0.5)
-            } catch {
-                XCTFail("Task sleep error: \(error)")
-            }
-            return .baz
-        }
-        let mockSyncAction: () -> MockState = {
-            .qux
-        }
-        let mockSyncAction2: () -> MockState = {
-            .quux
-        }
+        let mockAsyncAction: (MockState) async -> MockState = { $0 }
         let subject = StateContainer<MockState>(state: .foo)
-        let negativeTest = subject.$state
-            .expectNot(.corge)
-            .expectNot(.grault)
+        let supersededPublisher = PassthroughSubject<MockState, Never>()
         
-        test(subject, expect: [.foo, .bar], when: { $0.observe(mockPublishedAction()) })
-        test(subject, expect: [.bar, .baz], when: { $0.observeAsync({ await mockAsyncAction() }) })
-        test(subject, expect: [.baz, .qux], when: { $0.observe(mockSyncAction()) })
-        test(subject, expect: [.qux, .quux], when: { $0.observe(mockSyncAction2()) })
+        // Subsequent publisher action
+        let publisherActionTest = subject.$state
+            .collect(4)
+            .expect([.foo, .bar, .baz, .foo])
         
-        negativeTest.waitForExpectations(timeout: 1)
+        subject.observe(supersededPublisher.eraseToAnyPublisher())
+        supersededPublisher.send(.bar)
+        subject.observe(CurrentValueSubject(.baz).eraseToAnyPublisher())
+        supersededPublisher.send(.grault) // <- This should not update the state
+        subject.observe(.foo) // <- This bookend allows us to test this scenario without using negative condition tests that wait the full timeout
+        
+        publisherActionTest.waitForExpectations(timeout: 1)
+        
+        // Subsequent synchronous action
+        let syncActionTest = subject.$state
+            .collect(4)
+            .expect([.foo, .bar, .baz, .foo])
+        
+        subject.observe(supersededPublisher.eraseToAnyPublisher())
+        supersededPublisher.send(.bar)
+        subject.observe(.baz)
+        supersededPublisher.send(.grault) // <- This should not update the state
+        subject.observe(.foo) // <- This bookend allows us to test this scenario without using negative condition tests that wait the full timeout
+        
+        syncActionTest.waitForExpectations(timeout: 1)
+        
+        // Subsequent asynchronous action
+        let asyncActionTest = subject.$state
+            .collect(3)
+            .expect([.foo, .bar, .baz])
+                
+        subject.observe(supersededPublisher.eraseToAnyPublisher())
+        supersededPublisher.send(.bar)
+        subject.observeAsync({ await mockAsyncAction(.baz) })
+        supersededPublisher.send(.grault) // <- This should not update the state, even tho it will complete before the observeAsync finishes
+        
+        asyncActionTest.waitForExpectations(timeout: 1)
     }
     
     /// Validates that a async action's delayed output will not change the state if another action has been (or is being) observed

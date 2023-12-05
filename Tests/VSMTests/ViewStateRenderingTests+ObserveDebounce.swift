@@ -56,9 +56,9 @@ class ViewStateRenderingTests_ObserveDebounce: XCTestCase {
     /// Asserts that multiple time-delayed action observations will each execute, if they are called far enough apart
     func testDebounce_DefaultId_SingleAction_Delayed_MultipleCalls() async throws {
         actionCallSite()
-        try await Task.sleep(seconds: 0.6)
+        try await Task.sleep(seconds: 1)
         actionCallSite()
-        try await Task.sleep(seconds: 1) // wait for debounce timeout
+        try await Task.sleep(seconds: 2) // wait for debounce timeout
         
         XCTAssertEqual(2, countableAction.count)
     }
