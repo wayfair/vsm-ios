@@ -24,7 +24,7 @@ jobs:
         with:
           spm-package: ./
           scheme: VSM
-          destination: platform=macOS,arch=x86_64,id=4203018E-580F-C1B5-9525-B745CECA79EB
+          destination: platform=macOS,id=4203018E-580F-C1B5-9525-B745CECA79EB
           action: test
 
       - name: Build and Test VSM on Mac Catalyst
@@ -40,7 +40,7 @@ jobs:
         with:
           spm-package: ./
           scheme: VSM
-          destination: platform=iOS Simulator,OS=iOS 17.0,name=iPhone 15
+          destination: platform=iOS Simulator,OS=17.0.1,name=iPhone 15
           action: test
       
       - name: Build and Test VSM on watchOS
@@ -48,7 +48,7 @@ jobs:
         with:
           spm-package: ./
           scheme: VSM
-          destination: platform=watchOS Simulator,OS=watchOS 10.0,name=Apple Watch Series 9 (45mm)
+          destination: platform=watchOS Simulator,OS=10.0,name=Apple Watch Series 9 (45mm)
           action: test
 
       - name: Build and Test VSM on tvOS
@@ -56,9 +56,8 @@ jobs:
         with:
           spm-package: ./
           scheme: VSM
-          destination: platform=tvOS Simulator,OS=tvOS 17.0,name=Apple TV 4K (3rd generation) (at 1080p)
+          destination: platform=tvOS Simulator,OS=17.0,name=Apple TV 4K (3rd generation) (at 1080p)
           action: test
-
   
   test-swiftui-demo-app:
     runs-on: macos-13
@@ -76,7 +75,7 @@ jobs:
         with:
           project: ./Demos/Shopping/Shopping.xcodeproj
           scheme: Shopping
-          destination: platform=iOS Simulator,OS=iOS 17.0,name=iPhone 15
+          destination: platform=iOS Simulator,OS=17.0.1,name=iPhone 15
           action: test
 
   test-uikit-demo-app:
@@ -95,5 +94,5 @@ jobs:
         with:
           project: ./Demos/Shopping/Shopping.xcodeproj
           scheme: Shopping - UIKit
-          destination: platform=iOS Simulator,OS=iOS 17.0,name=iPhone 15
+          destination: platform=iOS Simulator,OS=17.0.1,name=iPhone 15
           action: test
