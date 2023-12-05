@@ -75,7 +75,7 @@ jobs:
         with:
           project: ./Demos/Shopping/Shopping.xcodeproj
           scheme: Shopping
-          destination: platform=iOS Simulator,OS=17.0.1,name=iPhone 15
+          destination: platform=iOS Simulator,OS=17.0.1,name=iPhone 14
           action: test
 
   test-uikit-demo-app:
@@ -94,5 +94,5 @@ jobs:
         with:
           project: ./Demos/Shopping/Shopping.xcodeproj
           scheme: Shopping - UIKit
-          destination: platform=iOS Simulator,OS=17.0.1,name=iPhone 15
+          destination: platform=iOS Simulator,OS=17.0.1,name=iPhone 14
           action: test
