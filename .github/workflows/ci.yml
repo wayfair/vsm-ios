@@ -24,7 +24,15 @@ jobs:
         with:
           spm-package: ./
           scheme: VSM
-          destination: platform=macOS
+          destination: platform=macOS,arch=x86_64,id=4203018E-580F-C1B5-9525-B745CECA79EB
+          action: test
+
+      - name: Build and Test VSM on Mac Catalyst
+        uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
+        with:
+          spm-package: ./
+          scheme: VSM
+          destination: platform=macOS,arch=x86_64,variant=Mac Catalyst
           action: test
       
       - name: Build and Test VSM on iOS
