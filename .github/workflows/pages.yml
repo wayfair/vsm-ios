@@ -28,13 +28,13 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: macos-13
+    runs-on: macos-13-arm64
     steps:
 
       - name: Prepare Xcode
         uses: maxim-lobanov/setup-xcode@v1 # https://github.com/marketplace/actions/setup-xcode-version
         with:
-          xcode-version: latest-stable
+          xcode-version: 15.0.1
 
       - name: Checkout
         uses: actions/checkout@v3

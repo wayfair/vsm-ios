@@ -9,12 +9,12 @@ on: # Rebuild any PRs and main branch changes
 
 jobs:
   test-vsm:
-    runs-on: macos-latest
+    runs-on: macos-13-arm64
     steps:
       - name: Prepare Xcode
         uses: maxim-lobanov/setup-xcode@v1 # https://github.com/marketplace/actions/setup-xcode-version
         with:
-          xcode-version: latest-stable
+          xcode-version: 15.0.1
 
       - name: Checkout
         uses: actions/checkout@v3
@@ -53,12 +53,12 @@ jobs:
 
   
   test-swiftui-demo-app:
-    runs-on: macos-latest
+    runs-on: macos-13-arm64
     steps:
       - name: Prepare Xcode
         uses: maxim-lobanov/setup-xcode@v1 # https://github.com/marketplace/actions/setup-xcode-version
         with:
-          xcode-version: latest-stable
+          xcode-version: 15.0.1
 
       - name: Checkout
         uses: actions/checkout@v3
@@ -72,12 +72,12 @@ jobs:
           action: test
 
   test-uikit-demo-app:
-    runs-on: macos-latest
+    runs-on: macos-13-arm64
     steps:
       - name: Prepare Xcode
         uses: maxim-lobanov/setup-xcode@v1 # https://github.com/marketplace/actions/setup-xcode-version
         with:
-          xcode-version: latest-stable
+          xcode-version: 15.0.1
 
       - name: Checkout
         uses: actions/checkout@v3
