@@ -17,7 +17,7 @@ jobs:
           xcode-version: 15.0.1
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build and Test VSM on macOS (Intel)
         uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
@@ -68,7 +68,7 @@ jobs:
           xcode-version: 14.3.1 # Xcode 15 has UI test runtime issues
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build and Test Demo App
         uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
@@ -87,7 +87,7 @@ jobs:
           xcode-version: 14.3.1 # Xcode 15 has UI test runtime issues
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: (UIKit) Build and Test Demo App
         uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
