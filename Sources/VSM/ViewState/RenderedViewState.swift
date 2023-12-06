@@ -257,7 +257,7 @@ extension RenderedViewState.RenderedContainer: StateObserving & StatePublishing 
     // MARK: StateObserving Implementation - Observe
     // For more information about these members, view the protocol definition
     
-    public func observe(_ statePublisher: AnyPublisher<State, Never>) {
+    public func observe(_ statePublisher: some Publisher<State, Never>) {
         container.observe(statePublisher)
     }
     
@@ -279,7 +279,7 @@ extension RenderedViewState.RenderedContainer: StateObserving & StatePublishing 
     // For more information about these members, view the protocol definition
     
     public func observe(
-        _ statePublisher: @escaping @autoclosure () ->  AnyPublisher<State, Never>,
+        _ statePublisher: @escaping @autoclosure () -> some Publisher<State, Never>,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     ) {
