@@ -36,7 +36,7 @@ public extension MutatingCopyable {
     
     /// Creates a mutated copy of this type while simultaneously mutating the value at the provided KeyPath.
     ///
-    /// - Parameter keyPath: The KeyPath of the property you want to mutate. Please not that this property MUST be a `var` in order to change it's value using this method.
+    /// - Parameter keyPath: The KeyPath of the property you want to mutate. Please not that this property MUST be a `var` in order to change its value using this method.
     /// - Parameter value: The new value you want set on the property.
     /// - Returns: A mutated copy of this type.
     func copy<T>(mutatingPath keyPath: WritableKeyPath<Self, T>, value: T) -> Self {
