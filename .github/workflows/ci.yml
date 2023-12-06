@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build and Test VSM on macOS (Intel)
-        uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
+        uses: sersoft-gmbh/xcodebuild-action@v3 # https://github.com/marketplace/actions/xcodebuild-action
         with:
           spm-package: ./
           scheme: VSM
@@ -28,7 +28,7 @@ jobs:
           action: test
 
       - name: Build and Test VSM on Mac Catalyst (Intel)
-        uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
+        uses: sersoft-gmbh/xcodebuild-action@v3 # https://github.com/marketplace/actions/xcodebuild-action
         with:
           spm-package: ./
           scheme: VSM
@@ -36,7 +36,7 @@ jobs:
           action: test
       
       - name: Build and Test VSM on iOS
-        uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
+        uses: sersoft-gmbh/xcodebuild-action@v3 # https://github.com/marketplace/actions/xcodebuild-action
         with:
           spm-package: ./
           scheme: VSM
@@ -44,7 +44,7 @@ jobs:
           action: test
       
       - name: Build and Test VSM on watchOS
-        uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
+        uses: sersoft-gmbh/xcodebuild-action@v3 # https://github.com/marketplace/actions/xcodebuild-action
         with:
           spm-package: ./
           scheme: VSM
@@ -52,7 +52,7 @@ jobs:
           action: test
 
       - name: Build and Test VSM on tvOS
-        uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
+        uses: sersoft-gmbh/xcodebuild-action@v3 # https://github.com/marketplace/actions/xcodebuild-action
         with:
           spm-package: ./
           scheme: VSM
