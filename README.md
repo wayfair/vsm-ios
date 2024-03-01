@@ -6,7 +6,7 @@
 
 # VSM for Apple Platforms
 
-VSM is a reactive architecture that is unidirectional, highly type-safe, behavior-driven, and clean. This repository hosts an open-source swift package framework for easily building features in VSM on app publicly available Apple platforms.
+VSM is a reactive architecture that is unidirectional, highly type-safe, behavior-driven, and clean. This open-source swift package framework allows for easily building features in VSM on all publicly available Apple platforms: iOS, iPadOS, macOS, tvOS, visionOS, watchOS
 
 ## Overview
 
@@ -21,13 +21,13 @@ In VSM, the **View** renders the **State**. Each state may provide a **Model**. 
 - The [VSM Documentation](https://wayfair.github.io/vsm-ios/documentation/vsm/) contains a complete framework reference, guides, and other learning resources
 - Open the [Demo App](Demos/Shopping) to see many different working examples of how to build features using the VSM pattern
 
-## Code Introduction
+## Brief Introduction
 
 The following are code excerpts of a feature that shows a blog entry from a data repository.
 
 ### State Definition
 
-The state is usually defined as an enum or a struct and represents the states that the view can have. It also declares the data and actions available to the view for each model. Actions return one or more new states.
+The state is usually defined as an enum or a struct and represents the states that the view can have. Each state contains a model that provides the data and actions to the view.
 
 ```swift
 enum BlogEntryViewState {
@@ -35,45 +35,30 @@ enum BlogEntryViewState {
     case loading(errorModel: ErrorModeling?)
     case loaded(blogModel: BlogModeling)
 }
-
-protocol LoaderModeling {
-    func load() -> AnyPublisher<BlogArticleViewState, Never>
-}
-
-protocol ErrorModeling {
-    var message: String { get }
-    func retry() -> AnyPublisher<BlogArticleViewState, Never>
-}
-
-protocol BlogModeling {
-    var title: String { get }
-    var text: String { get }
-    func refresh() -> AnyPublisher<BlogArticleViewState, Never>
-}
 ```
 
 ### Model Definition
 
-The discrete models provide the data for a given view state and implement the business logic within the actions.
+The discrete models provide the data for a given view state and implement the business logic within the actions. Actions return one or more new states.
 
 ```swift
-struct LoaderModel: LoaderModeling {
-    func load() -> AnyPublisher<BlogArticleViewState, Never> {
+struct LoaderModel {
+    func load() -> some Publisher<BlogArticleViewState, Never> {
         ...
     }
 }
 
-struct ErrorModel: ErrorModeling {
+struct ErrorModel {
     var message: String
-    func retry() -> AnyPublisher<BlogArticleViewState, Never> {
+    func retry() -> some Publisher<BlogArticleViewState, Never> {
         ...
     }
 }
 
-struct BlogModel: BlogModeling {
+struct BlogModel {
     var title: String
     var body: String
-    func refresh() -> AnyPublisher<BlogArticleViewState, Never> {
+    func refresh() -> some Publisher<BlogArticleViewState, Never> {
         ...
     }
 }
