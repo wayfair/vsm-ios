@@ -21,8 +21,20 @@ import Foundation
 public struct StateSequence<State>: AsyncSequence, AsyncIteratorProtocol {
     public typealias Element = State
     
-    let states: [() async -> State]
+    internal let states: [() async -> State]
     var iterator: IndexingIterator<[() async -> State]>
+    
+    public init(@ViewStateSequenceBuilder<State> states: () -> [() async -> State]) {
+        let computedStateSequence = states()
+        
+        self.states = computedStateSequence
+        iterator = computedStateSequence.makeIterator()
+    }
+    
+    internal init(stateList states: [() async -> State]) {
+        self.states = states
+        iterator = states.makeIterator()
+    }
     
     public init(_ states: () async -> State...) {
         self.states = states
