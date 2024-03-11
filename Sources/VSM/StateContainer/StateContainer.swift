@@ -82,8 +82,11 @@ public extension StateContainer {
     func observe(_ statePublisher: some Publisher<State, Never>) {
         cancelRunningObservations()
         stateSubscription = statePublisher
+            .subscribe(on: DispatchQueue.global(qos: .userInitiated))
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] newState in
-                self?.setStateOnMainThread(to: newState)
+//                self?.setStateOnMainThread(to: newState)
+                self?.state = newState
             }
     }
     
