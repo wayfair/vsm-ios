@@ -119,6 +119,20 @@ public extension StateContainer {
         cancelRunningObservations()
         setStateOnMainThread(to: nextState)
     }
+    
+    // See StateObserving for details
+    func observe<SomeAsyncSequence: AsyncSequence>(_ stateSequence: SomeAsyncSequence) where SomeAsyncSequence.Element == State {
+        cancelRunningObservations()
+        // A weak-self declaration is required on the `Task` closure to break an unexpected strong self retention, despite not directly invoking self ¯\_(ツ)_/¯
+        stateTask = Task { [weak self] in
+            for try await newState in stateSequence {
+                guard !Task.isCancelled else { break }
+                // GCD is used here instead of `MainActor` to avoid back-ported Swift Concurrency crashes relating to `MainActor` usage
+                // In a future iOS 15+ version, this class will be converted fully to the `MainActor` paradigm
+                self?.setStateOnMainThread(to: newState)
+            }
+        }
+    }
 }
 
 // MARK: - Observe Debounce Function Overloads
@@ -191,6 +205,18 @@ public extension StateContainer {
     ) {
         let debounceableAction = DebounceableAction(identifier: identifier, dueTime: dueTime) { [weak self] in
             self?.observe(nextState())
+        }
+        debounce(action: debounceableAction)
+    }
+    
+    // See StateObserving for details
+    func observe<SomeAsyncSequence: AsyncSequence>(
+        _ stateSequence: SomeAsyncSequence,
+        debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
+        identifier: AnyHashable
+    ) where SomeAsyncSequence.Element == State {
+        let debounceableAction = DebounceableAction(identifier: identifier, dueTime: dueTime) { [weak self] in
+            self?.observe(stateSequence)
         }
         debounce(action: debounceableAction)
     }

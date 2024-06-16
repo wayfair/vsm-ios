@@ -17,15 +17,19 @@ public protocol StateObserving<State> {
     func observe(_ statePublisher: some Publisher<State, Never>)
     
     /// Renders the next state on the view.
-    /// - Parameter nextState: The next view state to render
+    /// - Parameter nextState: The next view state to render.
     func observe(_ nextState: State)
     
+    /// Renders an asynchronous sequence states returned on the view.
+    /// - Parameter stateSequence: A sequence of states to render.
+    func observe<SomeAsyncSequence: AsyncSequence>(_ stateSequence: SomeAsyncSequence) where SomeAsyncSequence.Element == State
+    
     /// Asynchronously renders the next state on the view.
-    /// - Parameter nextState: The next view state to render
+    /// - Parameter nextState: An async closure that returns the next state to render.
     func observeAsync(_ nextState: @escaping () async -> State)
     
-    /// Asynchronously renders the sequence of states on the view.
-    /// - Parameter stateSequence: The sequence of states to render
+    /// Calls an async closure that returns an asynchronous sequence of states. Those states are rendered by the view in the order received.
+    /// - Parameter stateSequence: An async closure that returns a sequence of states.
     func observeAsync<SomeAsyncSequence: AsyncSequence>(_ stateSequence: @escaping () async -> SomeAsyncSequence) where SomeAsyncSequence.Element == State
     
     // MARK: - Debounce
@@ -54,6 +58,18 @@ public protocol StateObserving<State> {
         identifier: AnyHashable
     )
     
+    /// Renders an asynchronous sequence of states returned on the view.
+    /// Calls to this function are debounced to prevent excessive execution from noisy events.
+    /// - Parameters:
+    ///   - stateSequence: The action to be debounced before invoking
+    ///   - dueTime: The amount of time required to pass before invoking the most recent action
+    ///   - identifier: (optional) The identifier for grouping actions for debouncing
+    func observe<SomeAsyncSequence: AsyncSequence>(
+        _ stateSequence: SomeAsyncSequence,
+        debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
+        identifier: AnyHashable
+    ) where SomeAsyncSequence.Element == State
+    
     /// Asynchronously renders the next state on the view.
     /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
@@ -66,7 +82,7 @@ public protocol StateObserving<State> {
         identifier: AnyHashable
     )
     
-    /// Asynchronously renders the sequence of states on the view.
+    /// Calls an async closure that returns an asynchronous sequence of states. Those states are rendered by the view in the order received.
     /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
     ///   - stateSequence: The action to be debounced before invoking
@@ -109,6 +125,20 @@ public extension StateObserving {
         observe(nextState(), debounced: dueTime, identifier: HashedIdentifier(file, line))
     }
     
+    /// Renders the sequence of asynchronous states returned on the view.
+    /// Calls to this function are debounced to prevent excessive execution from noisy events.
+    /// - Parameters:
+    ///   - stateSequence: The action to be debounced before invoking
+    ///   - dueTime: The amount of time required to pass before invoking the most recent action
+    func observe<SomeAsyncSequence: AsyncSequence>(
+        _ stateSequence: SomeAsyncSequence,
+        debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
+        file: String = #file,
+        line: UInt = #line
+    ) where SomeAsyncSequence.Element == State {
+        observe(stateSequence, debounced: dueTime, identifier: HashedIdentifier(file, line))
+    }
+    
     /// Asynchronously renders the next state on the view.
     /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
@@ -123,7 +153,7 @@ public extension StateObserving {
         observeAsync(nextState, debounced: dueTime, identifier: HashedIdentifier(file, line))
     }
     
-    /// Asynchronously renders the sequence of states on the view.
+    /// Calls an async closure that returns an asynchronous sequence of states. Those states are rendered by the view in the order received.
     /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
     ///   - stateSequence: The action to be debounced before invoking

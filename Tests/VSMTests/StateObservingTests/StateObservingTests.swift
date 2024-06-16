@@ -165,4 +165,27 @@ class StateObservingTests: XCTestCase {
             .expect(.grault)
             .waitForExpectations(timeout: 5)
     }
+    
+    func testObserveStateSequence() {
+        let test = statePublisher
+            .collect(3)
+            .expect([.foo, .bar, .baz])
+        subject.observe(StateSequence<MockState>({ .bar }, { .baz }))
+        XCTAssertEqual(state, .foo)
+        test.waitForExpectations(timeout: 5)
+    }
+    
+    func testObserveStateSequence_Debounced() {
+        func thunk(state: MockState) {
+            subject.observe(StateSequence<MockState>({ state }), debounced: 0.0000001)
+        }
+        thunk(state: .bar)
+        thunk(state: .baz)
+        thunk(state: .grault)
+        XCTAssertEqual(state, .foo)
+        statePublisher
+            .dropFirst()
+            .expect(.grault)
+            .waitForExpectations(timeout: 5)
+    }
 }

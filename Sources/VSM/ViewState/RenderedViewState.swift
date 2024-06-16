@@ -278,6 +278,11 @@ extension RenderedViewState.RenderedContainer: StateObserving & StatePublishing 
         container.observeAsync(stateSequence)
     }
     
+    public func observe<SomeAsyncSequence>(_ stateSequence: SomeAsyncSequence) 
+    where SomeAsyncSequence : AsyncSequence, State == SomeAsyncSequence.Element {
+        container.observe(stateSequence)
+    }
+    
     // MARK: StateObserving Implementation - Debounce
     // For more information about these members, view the protocol definition
     
@@ -295,6 +300,10 @@ extension RenderedViewState.RenderedContainer: StateObserving & StatePublishing 
         identifier: AnyHashable
     ) {
         container.observe(nextState(), debounced: dueTime, identifier: identifier)
+    }
+    
+    public func observe<SomeAsyncSequence>(_ stateSequence: SomeAsyncSequence, debounced dueTime: DispatchQueue.SchedulerTimeType.Stride, identifier: AnyHashable) where SomeAsyncSequence : AsyncSequence, State == SomeAsyncSequence.Element {
+        container.observe(stateSequence, debounced: dueTime, identifier: identifier)
     }
     
     public func observeAsync(
