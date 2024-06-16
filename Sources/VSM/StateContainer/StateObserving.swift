@@ -153,7 +153,7 @@ public extension StateObserving {
         observeAsync(nextState, debounced: dueTime, identifier: HashedIdentifier(file, line))
     }
     
-    /// Calls an async closure that returns a asynchronous sequence states. Those states are rendered by the view in the order received.
+    /// Calls an async closure that returns an asynchronous sequence of states. Those states are rendered by the view in the order received.
     /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
     ///   - stateSequence: The action to be debounced before invoking
