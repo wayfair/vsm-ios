@@ -9,7 +9,7 @@ on: # Rebuild any PRs and main branch changes
 
 jobs:
   test-vsm:
-    runs-on: macos-13
+    runs-on: macos-14
     steps:
       - name: Prepare Xcode
         uses: maxim-lobanov/setup-xcode@v1 # https://github.com/marketplace/actions/setup-xcode-version
