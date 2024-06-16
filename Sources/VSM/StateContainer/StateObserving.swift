@@ -58,7 +58,7 @@ public protocol StateObserving<State> {
         identifier: AnyHashable
     )
     
-    /// Renders an asynchronous sequence states returned on the view.
+    /// Renders an asynchronous sequence of states returned on the view.
     /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
     ///   - stateSequence: The action to be debounced before invoking
