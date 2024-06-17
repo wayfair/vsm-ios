@@ -5,7 +5,7 @@
     "renovate/{{depName}}"
   ],
   "extends": [
-    "config:base",
+    "config:recommended",
     ":dependencyDashboard",
     ":rebaseStalePrs",
     "schedule:earlyMondays"
