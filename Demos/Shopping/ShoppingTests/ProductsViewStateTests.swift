@@ -53,7 +53,8 @@ class ProductsViewStateTests: XCTestCase {
     
     /// Tests the navigation binding action for `ProductsLoadedModel`
     func testNavigation() throws {
-        let subject = ProductsLoadedModel(products: [], productDetailId: nil)
+        let mockDependencies = MockAppDependencies.noOp
+        let subject = ProductsLoadedModel(dependencies: mockDependencies, products: [], productDetailId: nil)
         let output = subject.showProductDetail(id: 1)
         if case ProductsViewState.loaded(let loadedModel) = output {
             XCTAssertEqual(loadedModel.productDetailId, 1)

@@ -50,7 +50,24 @@ struct ProductsView: View {
                 Text("No products available.")
             }
         } else {
-            let columns = Array(repeating: GridItem(.flexible()), count: 2)
+            loadedGridContentView(columns: Array(repeating: GridItem(.flexible()), count: 2), loadedModel: loadedModel)
+        }
+    }
+    
+    @ViewBuilder
+    func loadedGridContentView(columns: [GridItem], loadedModel: ProductsLoadedModeling) -> some View {
+        if #available(iOS 16, *) {
+            ScrollView(.vertical, showsIndicators: false) {
+                LazyVGrid(columns: columns) {
+                    ForEach(loadedModel.products, id: \.id) { product in
+                        ProductGridItemView(dependencies: dependencies, product: product)
+                    }
+                }
+            }
+            .refreshable {
+                await $state.waitFor { await loadedModel.refreshProducts() }
+            }
+        } else {
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVGrid(columns: columns) {
                     ForEach(loadedModel.products, id: \.id) { product in

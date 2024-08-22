@@ -11,6 +11,8 @@ import Foundation
 protocol ProductRepository {
     func getGridProducts() -> AnyPublisher<[GridProduct], Error>
     func getProductDetail(id: Int) -> AnyPublisher<ProductDetail, Error>
+    
+    nonisolated func getGridProductsAsync() async throws -> [GridProduct]
 }
 
 protocol ProductRepositoryDependency {
@@ -60,6 +62,11 @@ class ProductDatabase: ProductRepository {
         }.eraseToAnyPublisher()
     }
     
+    nonisolated func getGridProductsAsync() async throws -> [GridProduct] {
+        try await Task.sleep(nanoseconds: AppConstants.simulatedNetworkNanoseconds)
+        return Self.allProducts.map({ .init(id: $0.id, name: $0.name, imageURL: $0.imageURL) })
+    }
+    
     func getProductDetail(id: Int) -> AnyPublisher<ProductDetail, Error> {
         struct NotFoundError: Error { }
         return Future { promise in
@@ -79,7 +86,8 @@ struct MockProductRepository: ProductRepository {
     static var noOp: Self {
         Self.init(
             getGridProductsImpl: { .empty() },
-            getProductsDetailImpl: { _ in .empty() }
+            getProductsDetailImpl: { _ in .empty() },
+            getGridProductsAsyncImpl: { [] }
         )
     }
     
@@ -91,5 +99,10 @@ struct MockProductRepository: ProductRepository {
     var getProductsDetailImpl: (Int) -> AnyPublisher<ProductDetail, Error>
     func getProductDetail(id: Int) -> AnyPublisher<ProductDetail, Error> {
         getProductsDetailImpl(id)
+    }
+    
+    var getGridProductsAsyncImpl: () async throws -> [GridProduct]
+    nonisolated func getGridProductsAsync() async throws -> [GridProduct] {
+        try await getGridProductsAsyncImpl()
     }
 }

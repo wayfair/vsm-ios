@@ -26,6 +26,7 @@ protocol ProductsLoadedModeling {
     var productDetailId: Int? { get }
     
     func showProductDetail(id: Int) -> ProductsViewState
+    nonisolated func refreshProducts() async -> ProductsViewState
 }
 
 // MARK: - Model Implementations
@@ -37,7 +38,7 @@ struct ProductsLoaderModel: ProductsLoaderModeling {
     func loadProducts() -> AnyPublisher<ProductsViewState, Never> {
         let statePublisher = Just(ProductsViewState.loading)
         let productsPublisher = dependencies.productRepository.getGridProducts()
-            .map { products in ProductsViewState.loaded(ProductsLoadedModel(products: products)) }
+            .map { products in ProductsViewState.loaded(ProductsLoadedModel(dependencies: dependencies, products: products)) }
             .catch { error in Just(ProductsViewState.error(message: "\(error)", retry: { self.loadProducts() })).eraseToAnyPublisher() }
         return statePublisher
             .merge(with: productsPublisher)
@@ -46,6 +47,9 @@ struct ProductsLoaderModel: ProductsLoaderModeling {
 }
 
 struct ProductsLoadedModel: ProductsLoadedModeling {
+    typealias Dependencies = ProductRepositoryDependency
+    
+    let dependencies: Dependencies
     let products: [GridProduct]
     var productDetailId: Int? = nil
     
@@ -53,5 +57,28 @@ struct ProductsLoadedModel: ProductsLoadedModeling {
         var mutableCopy = self
         mutableCopy.productDetailId = id
         return .loaded(mutableCopy)
+    }
+    
+    nonisolated func refreshProducts() async -> ProductsViewState {
+        do {
+            let products = try await dependencies.productRepository.getGridProductsAsync()
+            return .loaded(
+                ProductsLoadedModel(
+                    dependencies: dependencies,
+                    products: products,
+                    productDetailId: productDetailId
+                )
+            )
+            
+        } catch {
+            return .error(
+                message: error.localizedDescription,
+                retry: {
+                    Just(
+                        .initialized(ProductsLoaderModel(dependencies: dependencies))
+                    )
+                    .eraseToAnyPublisher()
+                })
+        }
     }
 }
