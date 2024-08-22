@@ -5,7 +5,7 @@
 //  Created by Albert Bori on 7/21/22.
 //
 
-enum MockState {
+enum MockState: Sendable {
     case foo
     case bar
     case baz

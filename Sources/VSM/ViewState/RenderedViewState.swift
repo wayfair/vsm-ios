@@ -240,6 +240,11 @@ public extension RenderedViewState {
 @available(iOS 14.0, *)
 @available(visionOS 1.0, *)
 extension RenderedViewState.RenderedContainer: StateObserving & StatePublishing {
+    @MainActor
+    public func waitFor(_ nextState: @escaping () async -> State) async {
+        return await container.waitFor(nextState)
+    }
+    
     
     // MARK: StatePublishing
     // For more information about these members, view the protocol definition

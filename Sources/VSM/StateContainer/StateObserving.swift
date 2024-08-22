@@ -28,6 +28,9 @@ public protocol StateObserving<State> {
     /// - Parameter nextState: An async closure that returns the next state to render.
     func observeAsync(_ nextState: @escaping () async -> State)
     
+    @MainActor
+    func waitFor(_ nextState: @escaping () async -> State) async -> Void
+    
     /// Calls an async closure that returns an asynchronous sequence of states. Those states are rendered by the view in the order received.
     /// - Parameter stateSequence: An async closure that returns a sequence of states.
     func observeAsync<SomeAsyncSequence: AsyncSequence>(_ stateSequence: @escaping () async -> SomeAsyncSequence) where SomeAsyncSequence.Element == State

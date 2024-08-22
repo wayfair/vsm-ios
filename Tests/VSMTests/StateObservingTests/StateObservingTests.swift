@@ -188,4 +188,124 @@ class StateObservingTests: XCTestCase {
             .expect(.grault)
             .waitForExpectations(timeout: 5)
     }
+    
+    @MainActor
+    func testWaitForNextState_MainActor() async {
+        // This test is purposefully run on the main thread to make sure main thread updates happen as expected
+        let test = statePublisher
+            .dropFirst()
+            .collect(3)
+            .expect([.foo, .bar, .baz])
+        
+        await subject.waitFor { .foo }
+        await subject.waitFor { .bar }
+        await subject.waitFor { .baz }
+        
+        test.waitForExpectations(timeout: 5)
+    }
+    
+    @MainActor
+    func testWaitForNextState_KickOffOnMainThread_ChangeStateOnBackground() async {
+        // This test intentionally changes state on a background thread to make sure that state changes are received
+        let test = statePublisher
+            .dropFirst()
+            .collect(3)
+            .expect([.foo, .bar, .baz])
+        
+        // These state changes are kicked off on the main thread, but are performed on a background thread
+        await subject.waitFor {
+            let task = Task { MockState.foo }
+            do {
+                return try await task.result.get()
+            } catch {
+                XCTFail(error.localizedDescription)
+                return .grault
+            }
+        }
+        
+        await subject.waitFor {
+            let task = Task { MockState.bar }
+            do {
+                return try await task.result.get()
+            } catch {
+                XCTFail(error.localizedDescription)
+                return .grault
+            }
+        }
+        
+        await subject.waitFor {
+            let task = Task { MockState.baz }
+            do {
+                return try await task.result.get()
+            } catch {
+                XCTFail(error.localizedDescription)
+                return .grault
+            }
+        }
+        
+        test.waitForExpectations(timeout: 5)
+    }
+    
+    func testWaitForNextState_Background() async {
+        // This test intentionally changes state on a background thread to make sure that state changes are received
+        let test = statePublisher
+            .dropFirst()
+            .collect(3)
+            .expect([.foo, .bar, .baz])
+        
+        Task.detached { [weak self] in
+            // These state changes are kicked off on a background thread, but are run on the main thread
+            //  because `waitFor` is marked as `@MainActor`.
+            await self?.subject.waitFor { .foo }
+            await self?.subject.waitFor { .bar }
+            await self?.subject.waitFor { .baz }
+        }
+        
+        test.waitForExpectations(timeout: 5)
+    }
+    
+    func testWaitForNextState_ChangeStateOnBackground() async {
+        // This test intentionally changes state on a background thread to make sure that state changes are received
+        let test = statePublisher
+            .dropFirst()
+            .collect(3)
+            .expect([.foo, .bar, .baz])
+        
+        Task.detached { [weak self] in
+            // These state changes are kicked off on a background thread, and are performed on a background thread.
+            // The `waitFor` method will always switch to the main thread because it's marked as `@MainActor`. The
+            //  setting of state will happen on the main thread too.
+            await self?.subject.waitFor {
+                let task = Task { MockState.foo }
+                do {
+                    return try await task.result.get()
+                } catch {
+                    XCTFail(error.localizedDescription)
+                    return .grault
+                }
+            }
+            
+            await self?.subject.waitFor {
+                let task = Task { MockState.bar }
+                do {
+                    return try await task.result.get()
+                } catch {
+                    XCTFail(error.localizedDescription)
+                    return .grault
+                }
+            }
+            
+            await self?.subject.waitFor {
+                let task = Task { MockState.baz }
+                do {
+                    return try await task.result.get()
+                } catch {
+                    XCTFail(error.localizedDescription)
+                    return .grault
+                }
+            }
+        }
+        
+        test.waitForExpectations(timeout: 5)
+    }
 }
