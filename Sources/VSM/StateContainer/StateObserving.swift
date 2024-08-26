@@ -24,6 +24,11 @@ public protocol StateObserving<State> {
     /// - Parameter stateSequence: A sequence of states to render.
     func observe<SomeAsyncSequence: AsyncSequence>(_ stateSequence: SomeAsyncSequence) where SomeAsyncSequence.Element == State
     
+    /// Renders the states emitted by the publisher on the view.
+    /// - Parameter statePublisher: The view state publisher to be observed for rendering the current view state
+    /// - Parameter isMatch: The state for which this function will wait
+    func observe(_ statePublisher: some Publisher<State, Never>, until isMatch: @escaping (State) -> Bool) async
+    
     /// Asynchronously renders the next state on the view.
     /// - Parameter nextState: An async closure that returns the next state to render.
     func observeAsync(_ nextState: @escaping () async -> State)

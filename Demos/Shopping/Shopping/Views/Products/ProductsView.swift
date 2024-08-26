@@ -65,7 +65,20 @@ struct ProductsView: View {
                 }
             }
             .refreshable {
-                await $state.waitFor { await loadedModel.refreshProducts() }
+//                await $state.waitFor { await loadedModel.refreshProducts() }
+//                await $state.observe(loadedModel.refreshProducts_SingleValuePublisher(), until: {
+//                    if case .loaded = $0 {
+//                        return true
+//                    }
+//                    return false
+//                })
+                await $state.observe(loadedModel.refreshProducts_MultiValuePublisher(), until: {
+                    print(">>> \($0)")
+                    if case .loaded(let newModel) = $0, newModel.products.count == 4 {
+                        return true
+                    }
+                    return false
+                })
             }
         } else {
             ScrollView(.vertical, showsIndicators: false) {

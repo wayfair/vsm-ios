@@ -27,6 +27,8 @@ protocol ProductsLoadedModeling {
     
     func showProductDetail(id: Int) -> ProductsViewState
     nonisolated func refreshProducts() async -> ProductsViewState
+    func refreshProducts_SingleValuePublisher() -> AnyPublisher<ProductsViewState, Never>
+    func refreshProducts_MultiValuePublisher() -> AnyPublisher<ProductsViewState, Never>
 }
 
 // MARK: - Model Implementations
@@ -80,5 +82,22 @@ struct ProductsLoadedModel: ProductsLoadedModeling {
                     .eraseToAnyPublisher()
                 })
         }
+    }
+    
+    func refreshProducts_SingleValuePublisher() -> AnyPublisher<ProductsViewState, Never> {
+        dependencies.productRepository.getGridProducts()
+            .map { products in ProductsViewState.loaded(ProductsLoadedModel(dependencies: dependencies, products: products)) }
+            .catch { error in Just(ProductsViewState.error(message: "\(error)", retry: { self.refreshProducts_SingleValuePublisher() })).eraseToAnyPublisher() }
+            .eraseToAnyPublisher()
+    }
+    
+    func refreshProducts_MultiValuePublisher() -> AnyPublisher<ProductsViewState, Never> {
+        let secondProductsResult = dependencies.productRepository.getGridProducts(addingExtra: true)
+            .map { products in ProductsViewState.loaded(ProductsLoadedModel(dependencies: dependencies, products: products)) }
+            .catch { error in Just(ProductsViewState.error(message: "\(error)", retry: { self.refreshProducts_SingleValuePublisher() })).eraseToAnyPublisher() }
+            .delay(for: 3, scheduler: DispatchQueue.global())
+        return refreshProducts_SingleValuePublisher()
+            .merge(with: secondProductsResult)
+            .eraseToAnyPublisher()
     }
 }

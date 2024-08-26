@@ -9,7 +9,7 @@ import Combine
 import Foundation
 
 protocol ProductRepository {
-    func getGridProducts() -> AnyPublisher<[GridProduct], Error>
+    func getGridProducts(addingExtra: Bool) -> AnyPublisher<[GridProduct], Error>
     func getProductDetail(id: Int) -> AnyPublisher<ProductDetail, Error>
     
     nonisolated func getGridProductsAsync() async throws -> [GridProduct]
@@ -54,10 +54,14 @@ class ProductDatabase: ProductRepository {
               description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer ornare sit amet lacus eget vehicula.")
     ]
     
-    func getGridProducts() -> AnyPublisher<[GridProduct], Error> {
+    func getGridProducts(addingExtra: Bool) -> AnyPublisher<[GridProduct], Error> {
         return Future { promise in
             DispatchQueue.global().asyncAfter(deadline: AppConstants.simulatedNetworkDelay) {
-                promise(.success(Self.allProducts.map({ .init(id: $0.id, name: $0.name, imageURL: $0.imageURL) })))
+                var products: [GridProduct] = Self.allProducts.map({ .init(id: $0.id, name: $0.name, imageURL: $0.imageURL) })
+                if addingExtra {
+                    products.append(.init(id: 4, name: "Fourth Product", imageURL: URL(string: "https://assets.wfcdn.com/im/47030195/resize-h800-w800%5Ecompr-r85/1102/110227759/72%27%27+Rectangular+Portable+Folding+Table.jpg")!))
+                }
+                promise(.success(products))
             }
         }.eraseToAnyPublisher()
     }
@@ -80,6 +84,12 @@ class ProductDatabase: ProductRepository {
     }
 }
 
+extension ProductRepository {
+    func getGridProducts() -> AnyPublisher<[GridProduct], Error> {
+        getGridProducts(addingExtra: false)
+    }
+}
+
 //MARK: Test Support
 
 struct MockProductRepository: ProductRepository {
@@ -92,7 +102,7 @@ struct MockProductRepository: ProductRepository {
     }
     
     var getGridProductsImpl: () -> AnyPublisher<[GridProduct], Error>
-    func getGridProducts() -> AnyPublisher<[GridProduct], Error> {
+    func getGridProducts(addingExtra: Bool) -> AnyPublisher<[GridProduct], Error> {
         getGridProductsImpl()
     }
     

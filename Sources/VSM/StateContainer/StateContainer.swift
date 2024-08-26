@@ -238,3 +238,29 @@ public extension StateContainer {
         debounce(action: debounceableAction)
     }
 }
+
+// MARK: - Refreshable Support
+
+public extension StateContainer {
+    func observe(_ statePublisher: some Publisher<State, Never>, until isMatch: @escaping (State) -> Bool) async {
+        cancelRunningObservations()
+        await withCheckedContinuation { continuation -> Void in
+            stateSubscription = statePublisher
+                .sink(receiveCompletion: { completion in
+                    // TODO: multiple calls to continuation will crash, however, if the publisher finishes without a match, we need to end the async call
+//                    continuation.resume()
+                }, receiveValue: { [weak self] newState in
+                    self?.setStateOnMainThread(to: newState)
+                    if isMatch(newState) {
+                        continuation.resume()
+                    }
+                })
+        }
+    }
+}
+
+public extension StateContainer where State: Equatable {
+    func observe(_ statePublisher: some Publisher<State, Never>, until state: State) async {
+        await observe(statePublisher, until: { $0 == state })
+    }
+}

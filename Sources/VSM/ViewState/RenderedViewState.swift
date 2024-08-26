@@ -326,4 +326,15 @@ extension RenderedViewState.RenderedContainer: StateObserving & StatePublishing 
     ) where SomeAsyncSequence.Element == State {
         container.observeAsync(stateSequence, debounced: dueTime, identifier: identifier)
     }
+    
+    public func observe(_ statePublisher: some Publisher<State, Never>, until isMatch: @escaping (State) -> Bool) async {
+        await container.observe(statePublisher, until: isMatch)
+    }
+}
+
+@available(iOS 14.0, *)
+extension RenderedViewState.RenderedContainer where State: Equatable {
+    public func observe(_ statePublisher: some Publisher<State, Never>, until state: State) async {
+        await container.observe(statePublisher, until: state)
+    }
 }
