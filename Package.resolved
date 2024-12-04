@@ -14,8 +14,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/albertbori/TestableCombinePublishers.git",
       "state" : {
-        "revision" : "a053f58f21a0187817afd65b440911496809d21a",
-        "version" : "1.2.1"
+        "revision" : "9ac94c59aca1df2d109da9899418f1388c1438ed",
+        "version" : "2.0.1"
       }
     }
   ],
