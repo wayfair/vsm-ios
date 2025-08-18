@@ -37,7 +37,7 @@ jobs:
           xcode-version: 15.2.0
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Build Documentation
         run: ./Scripts/generate-docs.sh

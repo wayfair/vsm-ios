@@ -17,7 +17,7 @@ jobs:
           xcode-version: 15.2.0
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Build and Test VSM on macOS (Intel)
         uses: sersoft-gmbh/xcodebuild-action@v3 # https://github.com/marketplace/actions/xcodebuild-action
