@@ -1,4 +1,5 @@
 {
+  "originHash" : "1bf85ea06b9561e2283e0cc2a668fdcfe270997b0aeacd273642ecf8dfee1ec9",
   "pins" : [
     {
       "identity" : "swift-docc-plugin",
@@ -8,16 +9,7 @@
         "revision" : "3303b164430d9a7055ba484c8ead67a52f7b74f6",
         "version" : "1.0.0"
       }
-    },
-    {
-      "identity" : "testablecombinepublishers",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/albertbori/TestableCombinePublishers.git",
-      "state" : {
-        "revision" : "9ac94c59aca1df2d109da9899418f1388c1438ed",
-        "version" : "2.0.1"
-      }
     }
   ],
-  "version" : 2
+  "version" : 3
 }

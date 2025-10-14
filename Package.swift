@@ -25,12 +25,14 @@ let package = Package(
     targets: [
         .target(
             name: "VSM",
-            dependencies: []),
+            dependencies: []
+        ),
         .testTarget(
             name: "VSMTests",
             dependencies: [
                 "VSM",
                 "TestableCombinePublishers"
-            ]),
+            ]
+        ),
     ]
 )
