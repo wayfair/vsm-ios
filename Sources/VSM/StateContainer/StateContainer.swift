@@ -91,25 +91,22 @@ public extension StateContainer {
     func observeAsync(_ nextState: @escaping () async -> State) {
         cancelRunningObservations()
         // A weak-self declaration is required on the `Task` closure to break an unexpected strong self retention, despite not directly invoking self ¯\_(ツ)_/¯
-        stateTask = Task { [weak self] in
+        stateTask = Task { @MainActor [weak self] in
             let newState = await nextState()
             guard !Task.isCancelled else { return }
-            // GCD is used here instead of `MainActor` to avoid back-ported Swift Concurrency crashes relating to `MainActor` usage
-            // In a future iOS 15+ version, this class will be converted fully to the `MainActor` paradigm
-            self?.setStateOnMainThread(to: newState)
+            self?.state = newState
         }
     }
     
     // See StateObserving for details
-    func observeAsync<SomeAsyncSequence: AsyncSequence>(_ stateSequence: @escaping () async -> SomeAsyncSequence) where SomeAsyncSequence.Element == State {
+    func observeAsync<SomeAsyncSequence: AsyncSequence>(_ stateSequence: @escaping @Sendable () async -> SomeAsyncSequence)
+    where SomeAsyncSequence.Element == State {
         cancelRunningObservations()
         // A weak-self declaration is required on the `Task` closure to break an unexpected strong self retention, despite not directly invoking self ¯\_(ツ)_/¯
-        stateTask = Task { [weak self] in
+        stateTask = Task { @MainActor [weak self] in
             for try await newState in await stateSequence() {
                 guard !Task.isCancelled else { break }
-                // GCD is used here instead of `MainActor` to avoid back-ported Swift Concurrency crashes relating to `MainActor` usage
-                // In a future iOS 15+ version, this class will be converted fully to the `MainActor` paradigm
-                self?.setStateOnMainThread(to: newState)
+                self?.state = newState
             }
         }
     }
@@ -121,15 +118,14 @@ public extension StateContainer {
     }
     
     // See StateObserving for details
-    func observe<SomeAsyncSequence: AsyncSequence>(_ stateSequence: SomeAsyncSequence) where SomeAsyncSequence.Element == State {
+    func observe<SomeAsyncSequence: AsyncSequence>(_ stateSequence: SomeAsyncSequence)
+    where SomeAsyncSequence.Element == State {
         cancelRunningObservations()
         // A weak-self declaration is required on the `Task` closure to break an unexpected strong self retention, despite not directly invoking self ¯\_(ツ)_/¯
         stateTask = Task { [weak self] in
             for try await newState in stateSequence {
                 guard !Task.isCancelled else { break }
-                // GCD is used here instead of `MainActor` to avoid back-ported Swift Concurrency crashes relating to `MainActor` usage
-                // In a future iOS 15+ version, this class will be converted fully to the `MainActor` paradigm
-                self?.setStateOnMainThread(to: newState)
+                self?.state = newState
             }
         }
     }

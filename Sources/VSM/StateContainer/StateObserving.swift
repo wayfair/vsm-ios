@@ -10,7 +10,7 @@ import Foundation
 
 /// Provides functions for observing VSM actions to render new states on the view.
 public protocol StateObserving<State> {
-    associatedtype State
+    associatedtype State: Sendable
     
     /// Renders the states emitted by the publisher on the view.
     /// - Parameter statePublisher: The view state publisher to be observed for rendering the current view state

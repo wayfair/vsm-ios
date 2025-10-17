@@ -8,6 +8,7 @@
 #if canImport(Observation)
 import Foundation
 import Observation
+import VSMUtility
 
 /// A container that manages state changes on the main thread while allowing state production on any thread.
 ///

@@ -7,6 +7,7 @@
 
 import Combine
 @testable import VSM
+import VSMUtility
 import XCTest
 
 @available(macOS 12, *)

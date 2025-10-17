@@ -6,6 +6,7 @@
 //
 
 @testable import VSM
+import VSMUtility
 import XCTest
 
 final class MutatingCopyableTests: XCTestCase {

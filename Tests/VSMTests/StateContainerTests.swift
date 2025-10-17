@@ -2,6 +2,7 @@ import Combine
 import TestableCombinePublishers
 import XCTest
 import VSM
+import VSMUtility
 
 class StateContainerTests: XCTestCase {
         

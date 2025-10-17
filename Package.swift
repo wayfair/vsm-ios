@@ -15,17 +15,23 @@ let package = Package(
     ],
     products: [
         .library(
+            name: "VSMUtility",
+            targets: ["VSMUtility"]
+        ),
+        .library(
             name: "VSM",
-            targets: ["VSM"]),
+            targets: ["VSM"]
+        ),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
         .package(url: "https://github.com/albertbori/TestableCombinePublishers.git", from: "2.0.1")
     ],
     targets: [
+        .target(name: "VSMUtility"),
         .target(
             name: "VSM",
-            dependencies: []
+            dependencies: ["VSMUtility"]
         ),
         .testTarget(
             name: "VSMTests",

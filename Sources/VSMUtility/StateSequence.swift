@@ -18,7 +18,7 @@ import Foundation
 ///     StateSequence({ .loading }, { await .loaded(getData()) })
 /// }
 /// ```
-public struct StateSequence<State>: AsyncSequence, AsyncIteratorProtocol {
+public struct StateSequence<State: Sendable>: AsyncSequence, AsyncIteratorProtocol {
     public typealias Element = State
     
     let states: [() async -> State]

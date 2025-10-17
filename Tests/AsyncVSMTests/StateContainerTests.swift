@@ -7,6 +7,7 @@
 
 import Testing
 import Observation
+import VSMUtility
 
 @testable import AsyncVSM
 

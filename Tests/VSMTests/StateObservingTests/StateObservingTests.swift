@@ -7,6 +7,7 @@
 
 import Combine
 @testable import VSM
+import VSMUtility
 import XCTest
 
 /// Tests the `StatContainer`'s implementation of `StateObserving` and acts as a base class for other `StateObserving` types to test their desired outcomes
@@ -171,8 +172,9 @@ class StateObservingTests: XCTestCase {
             .collect(3)
             .expect([.foo, .bar, .baz])
         subject.observe(StateSequence<MockState>({ .bar }, { .baz }))
-        XCTAssertEqual(state, .foo)
+
         test.waitForExpectations(timeout: 5)
+        XCTAssertEqual(state, .baz)
     }
     
     func testObserveStateSequence_Debounced() {

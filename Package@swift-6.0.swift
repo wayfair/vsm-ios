@@ -15,6 +15,10 @@ let package = Package(
     ],
     products: [
         .library(
+            name: "VSMUtility",
+            targets: ["VSMUtility"]
+        ),
+        .library(
             name: "AsyncVSM",
             targets: ["AsyncVSM"]
         ),
@@ -29,9 +33,10 @@ let package = Package(
         .package(url: "https://github.com/albertbori/TestableCombinePublishers.git", from: "2.0.1")
     ],
     targets: [
+        .target(name: "VSMUtility"),
         .target(
             name: "AsyncVSM",
-            dependencies: [],
+            dependencies: ["VSMUtility"],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]
@@ -47,7 +52,7 @@ let package = Package(
         // Legacy VSM
         .target(
             name: "VSM",
-            dependencies: [],
+            dependencies: ["VSMUtility"],
             swiftSettings: [
                 .swiftLanguageMode(.v5)
             ]
