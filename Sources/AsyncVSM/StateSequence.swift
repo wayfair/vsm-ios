@@ -20,7 +20,6 @@ import Foundation
 /// ```
 public struct StateSequence<State>: AsyncSequence, AsyncIteratorProtocol {
     public typealias Element = State
-    public typealias Failure = Never
     
     let states: [() async -> State]
     var iterator: IndexingIterator<[() async -> State]>
@@ -30,28 +29,9 @@ public struct StateSequence<State>: AsyncSequence, AsyncIteratorProtocol {
         iterator = states.makeIterator()
     }
     
-    mutating public func next() async throws -> State? {
+    mutating public func next() async -> State? {
         guard !Task.isCancelled else { return nil }
         return await iterator.next()?()
-    }
-    
-    public func makeAsyncIterator() -> Self { self }
-}
-
-public struct ThrowingStateSequence<State>: AsyncSequence, AsyncIteratorProtocol {
-    public typealias Element = State
-    
-    let states: [() async throws -> State]
-    var iterator: IndexingIterator<[() async throws -> State]>
-    
-    public init(_ states: () async throws -> State...) {
-        self.states = states
-        iterator = states.makeIterator()
-    }
-    
-    mutating public func next() async throws -> State? {
-        guard !Task.isCancelled else { return nil }
-        return try await iterator.next()?()
     }
     
     public func makeAsyncIterator() -> Self { self }

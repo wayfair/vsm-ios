@@ -212,6 +212,46 @@ struct StateContainerTests {
         #expect(stateChanges == expectedResult)
     }
     
+    @Test("Await State change on Main Thread for PTR functionality")
+    @MainActor
+    func awaitingMainThreadStateChange() async throws {
+        let expectedResult: MockState = .loaded(.init(count: 1))
+        
+        @ViewState var state: MockState = .initialize()
+        guard case let .initialize(initStateModel) = state else {
+            throw StateContainerTestError.missingStartState
+        }
+        let stateChangsStream = $state.stateChangeStream(last: 1)
+        await $state.refresh(state: { await initStateModel.loadAsyncOnCurrentExecutionContext(count: 1) })
+        
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
+        }
+        
+        #expect(stateChanges == [expectedResult])
+    }
+    
+    @Test("Await State change on Background Thread for PTR functionality")
+    @MainActor
+    func awaitingBackgroundThreadStateChange() async throws {
+        let expectedResult: MockState = .loaded(.init(count: 1))
+        
+        @ViewState var state: MockState = .initialize()
+        guard case let .initialize(initStateModel) = state else {
+            throw StateContainerTestError.missingStartState
+        }
+        let stateChangsStream = $state.stateChangeStream(last: 1)
+        await $state.refresh(state: { await initStateModel.loadAsyncOnBackgroundThread(count: 1) })
+        
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
+        }
+        
+        #expect(stateChanges == [expectedResult])
+    }
+    
     // MARK: Sanity Check Tests to ensure Mock types work as expected
     
     @Test("Sanity Check MockState sequence fires in the right order")
@@ -289,14 +329,14 @@ extension MockState {
             return .loaded(.init(count: 10))
         }
         
-        func loadSequence() -> ThrowingStateSequence<MockState> {
+        func loadSequence() -> StateSequence<MockState> {
             return .init(
                 { .loading },
                 { .loaded(.init(count: 2)) }
             )
         }
         
-        func loadSequenceAsync(onMainThread: Bool) -> ThrowingStateSequence<MockState> {
+        func loadSequenceAsync(onMainThread: Bool) -> StateSequence<MockState> {
             return .init(
                 { .loading },
                 {

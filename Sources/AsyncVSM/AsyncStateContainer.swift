@@ -5,11 +5,59 @@
 //  Created by Bill Dunay on 11/17/24.
 //
 
+#if canImport(Observation)
 import Foundation
+import Observation
 
+/// A container that manages state changes on the main thread while allowing state production on any thread.
+///
+/// `AsyncStateContainer` provides thread-safe state management by guaranteeing that all state changes occur
+/// on the main thread, while the code that produces the next state can run on any thread. This design leverages
+/// Swift 6's built-in concurrency features including `Task`, `Task.detached`, `@concurrent`, and `@MainActor`.
+///
+/// ## Thread Safety
+///
+/// The container ensures thread safety through the following guarantees:
+/// - State changes always occur on the `@MainActor` (main thread)
+/// - State production closures can run on any thread, controlled by Swift's concurrency model
+/// - Observation methods handle thread context automatically
+///
+/// ## Error Handling
+///
+/// `AsyncStateContainer` follows a never-throwing design philosophy:
+/// - Does not accept closures that produce state and also throw
+/// - Does not accept `AsyncSequence` types that can error
+/// - Only works with sequences whose `Failure` type is `Never`
+/// - Supports non-throwing `AsyncStream<State>` and `StateSequence<State>`
+///
+/// ## Usage
+///
+/// ```swift
+/// let container = AsyncStateContainer(state: MyState.initial)
+///
+/// // Observe with an immediate state change
+/// container.observe(.loading)
+///
+/// // Observe with async state production
+/// container.observe {
+///     await fetchData()
+/// }
+///
+/// // Observe a sequence of states
+/// container.observe(sequence: StateSequence(
+///     { .loading },
+///     { await .loaded(fetchData()) }
+/// ))
+/// ```
+///
+/// - Note: All state changes are automatically published to SwiftUI views through the `@Observable` macro.
 @Observable
 @MainActor
 public final class AsyncStateContainer<State: Sendable> {
+    /// The current state of the container.
+    ///
+    /// This property is observable and will trigger view updates when changed.
+    /// All changes to this property are guaranteed to occur on the main thread.
     public private(set) var state: State
     
     @ObservationIgnored
@@ -38,18 +86,57 @@ public final class AsyncStateContainer<State: Sendable> {
 }
 
 public extension AsyncStateContainer {
+    /// Immediately updates the container's state to the provided value.
+    ///
+    /// This method cancels any ongoing state observations and synchronously updates the state
+    /// on the main thread. Use this method when you have a state value ready and want to
+    /// update immediately without any asynchronous work.
+    ///
+    /// - Parameter nextState: The new state value to set.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// container.observe(.idle)
+    /// container.observe(.loading)
+    /// ```
     func observe(_ nextState: State) {
         cancelRunningObservations()
         stateChanges = 0
         performStateChange(nextState)
     }
     
-    func observeAsync(_ nextState: State) async {
-        cancelRunningObservations()
-        stateChanges = 0
-        performStateChange(nextState)
-    }
-    
+    /// Observes and updates the state using an asynchronous closure.
+    ///
+    /// This method executes the provided closure asynchronously to produce the next state.
+    /// The closure can run on any thread based on Swift's concurrency model, but the resulting
+    /// state change is guaranteed to occur on the main thread. The method returns immediately
+    /// without waiting for the closure to complete.
+    ///
+    /// Any ongoing state observations are cancelled before starting the new observation.
+    /// If the observation task is cancelled before completion, the state will not be updated.
+    ///
+    /// - Parameter nextState: An async closure that produces the next state value.
+    ///                        This closure must not throw errors.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// // State production runs on a background thread
+    /// container.observe {
+    ///     await performExpensiveComputation()
+    /// }
+    ///
+    /// // Control thread context explicitly
+    /// container.observe {
+    ///     await Task.detached {
+    ///         // Runs on background thread
+    ///         await fetchRemoteData()
+    ///     }.value
+    /// }
+    /// ```
+    ///
+    /// - Note: The closure is captured with `@escaping` and executed within a `Task` on the main actor.
     func observe(_ nextState: @escaping () async -> State) {
         cancelRunningObservations()
         
@@ -63,108 +150,193 @@ public extension AsyncStateContainer {
         }
     }
     
-    func observe(_ nextState: @escaping () async throws -> State, onError: @escaping @Sendable (Error) -> State) {
+    /// Refreshes the state using an asynchronous closure, suspending until complete.
+    ///
+    /// This method executes the provided closure asynchronously to produce the next state,
+    /// suspending the caller until the state has been produced and applied. Unlike ``observe(_:)-6ps5n``,
+    /// this method waits for the state production to complete before returning.
+    ///
+    /// The closure can run on any thread based on Swift's concurrency model, but the resulting
+    /// state change is guaranteed to occur on the main thread. Any ongoing state observations
+    /// are cancelled before starting the new observation.
+    ///
+    /// If the observation task is cancelled before completion, the state will not be updated
+    /// and the method will return early.
+    ///
+    /// - Parameter nextState: An async closure that produces the next state value.
+    ///                        This closure must not throw errors.
+    ///
+    /// ## Pull-to-Refresh Support
+    ///
+    /// This method is specifically designed to enable pull-to-refresh (PTR) functionality in
+    /// VSM-managed SwiftUI views. SwiftUI's `refreshable` view modifier requires an async
+    /// closure that suspends until the refresh operation completes. By using `observe(waitingFor:)`,
+    /// the refresh indicator will remain visible until the state has been updated.
+    ///
+    /// The `refreshable` modifier can be applied to scrollable views like `List` and `ScrollView`,
+    /// providing users with a standard pull-to-refresh gesture to manually update content.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// struct ProductListView: View {
+    ///     @State private var container = AsyncStateContainer(state: ProductState.initial)
+    ///     
+    ///     var body: some View {
+    ///         List(container.state.products) { product in
+    ///             ProductRow(product: product)
+    ///         }
+    ///         .refreshable {
+    ///             await container.refresh(state: {
+    ///                 await fetchLatestProducts()
+    ///             })
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// In this example, when the user pulls down on the list, the refresh indicator appears
+    /// and remains visible until the state update completes. The `refresh(state:)` method
+    /// ensures the refresh operation fully completes before the indicator is dismissed.
+    ///
+    /// - Note: Use this method when you need to ensure the state update completes before
+    ///         proceeding with subsequent operations, particularly with SwiftUI's `refreshable` modifier.
+    func refresh(state nextState: @escaping () async -> State) async {
         cancelRunningObservations()
+        let nextStateValue = await nextState()
         
-        stateTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            do {
-                let nextStateValue = try await nextState()
-                guard Task.isCancelled == false else {
-                    return
-                }
-                
-                self.performStateChange(nextStateValue)
-            } catch {
-                guard Task.isCancelled == false else { return }
-                self.performStateChange(onError(error))
-            }
-        }
+        guard Task.isCancelled == false else { return }
+        performStateChange(nextStateValue)
     }
     
-    // MARK: - Failable Async Sequences
-    
-    func observe<SomeAsyncSequence: AsyncSequence>(initial: @autoclosure () throws -> State? = nil, sequence: SomeAsyncSequence, onError: (@Sendable (Error) -> State)? = nil) where SomeAsyncSequence.Element == State {
+    /// Observes and updates the state through a sequence of state values.
+    ///
+    /// This method consumes a ``StateSequence`` that produces multiple state values over time.
+    /// Each state value is applied to the container as it becomes available from the sequence.
+    /// The method returns immediately without waiting for the sequence to complete.
+    ///
+    /// State values are produced according to the sequence's timing, which can run on any thread,
+    /// but all state changes are guaranteed to occur on the main thread. Any ongoing state
+    /// observations are cancelled before starting the new observation.
+    ///
+    /// The observation continues until the sequence completes or the observation is cancelled.
+    /// If cancelled, no further states from the sequence will be applied.
+    ///
+    /// - Parameter sequence: A ``StateSequence`` that produces a series of state values.
+    ///                       This sequence is guaranteed to never throw errors.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// container.observe(sequence: StateSequence(
+    ///     { .loading },
+    ///     { await .loaded(fetchData()) },
+    ///     { await .success }
+    /// ))
+    /// ```
+    ///
+    /// - Note: ``StateSequence`` is designed to never throw, ensuring reliable state transitions.
+    func observe(sequence: StateSequence<State>) {
         cancelRunningObservations()
         stateChanges = 0
         
-        if let initialState = try? initial() {
-            performStateChange(initialState)
-        }
-        
         stateTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            do {
-                for try await nextState in sequence {
-                    guard Task.isCancelled == false else { break }
-                    self.performStateChange(nextState)
-                }
-            } catch {
-                guard Task.isCancelled == false else { return }
-                guard let onError else {
-                    preconditionFailure(error.localizedDescription)
-                }
-                
-                self.performStateChange(onError(error))
-            }
-        }
-    }
-    
-    func observe<SomeAsyncSequence: AsyncSequence>(initial: @escaping @Sendable () async throws -> State, sequence: SomeAsyncSequence, onError: (@Sendable (Error) -> State)? = nil) where SomeAsyncSequence.Element == State {
-        cancelRunningObservations()
-        stateChanges = 0
-        
-        stateTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            do {
-                guard Task.isCancelled == false else { return }
-                self.performStateChange(try await initial())
-                
-                for try await nextState in sequence {
-                    guard Task.isCancelled == false else { break }
-                    self.performStateChange(nextState)
-                }
-            } catch {
-                guard Task.isCancelled == false else { return }
-                guard let onError else {
-                    preconditionFailure(error.localizedDescription)
-                }
-                
-                self.performStateChange(onError(error))
-            }
-        }
-    }
-    
-    // MARK: - Non-Failable Async Sequences
-    
-    @available(iOS 18.0, macOS 11.0, tvOS 18.0, watchOS 11.0, *)
-    func observe<SomeAsyncSequence: AsyncSequence>(initial: @autoclosure () -> State? = nil, sequence: SomeAsyncSequence) where SomeAsyncSequence.Element == State, SomeAsyncSequence.Failure == Never {
-        cancelRunningObservations()
-        stateChanges = 0
-        
-        if let initialState = initial() {
-            performStateChange(initialState)
-        }
-        
-        stateTask = Task { @MainActor [weak self] in
             for await nextState in sequence {
-                guard let self, !Task.isCancelled else { break }
-                
+                guard Task.isCancelled == false else { break }
                 self.performStateChange(nextState)
             }
         }
     }
     
-    @available(iOS 18.0, macOS 11.0, tvOS 18.0, watchOS 11.0, *)
-    func observe<SomeAsyncSequence: AsyncSequence>(initial: @escaping @Sendable () async -> State, sequence: SomeAsyncSequence) where SomeAsyncSequence.Element == State, SomeAsyncSequence.Failure == Never {
+    /// Observes and updates the state from an `AsyncStream`.
+    ///
+    /// This method consumes an `AsyncStream` that emits state values over time. Each state value
+    /// is applied to the container as it becomes available from the stream. The method returns
+    /// immediately without waiting for the stream to complete.
+    ///
+    /// State values can be produced on any thread, but all state changes are guaranteed to occur
+    /// on the main thread. Any ongoing state observations are cancelled before starting the new
+    /// observation.
+    ///
+    /// The observation continues until the stream finishes or the observation is cancelled.
+    /// If cancelled, no further states from the stream will be applied.
+    ///
+    /// - Parameter sequence: An `AsyncStream<State>` that emits state values. Since `AsyncStream`
+    ///                       cannot throw errors by design, this ensures reliable state transitions.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// let (stream, continuation) = AsyncStream<MyState>.makeStream()
+    ///
+    /// container.observe(sequence: stream)
+    ///
+    /// // Emit states from elsewhere
+    /// continuation.yield(.loading)
+    /// continuation.yield(.loaded(data))
+    /// continuation.finish()
+    /// ```
+    ///
+    /// - Note: `AsyncStream` is non-throwing by design, making it ideal for state management.
+    func observe(sequence: AsyncStream<State>) {
         cancelRunningObservations()
         stateChanges = 0
         
         stateTask = Task { @MainActor [weak self] in
-            guard let self, !Task.isCancelled else { return }
-            self.performStateChange(await initial())
-            
+            guard let self else { return }
             for await nextState in sequence {
+                guard Task.isCancelled == false else { break }
+                self.performStateChange(nextState)
+            }
+        }
+    }
+    
+    /// Observes and updates the state from a generic `AsyncSequence` that never throws.
+    ///
+    /// This method consumes any `AsyncSequence` whose element type is `State` and failure type
+    /// is `Never`. Each state value is applied to the container as it becomes available from
+    /// the sequence. The method returns immediately without waiting for the sequence to complete.
+    ///
+    /// State values can be produced on any thread, but all state changes are guaranteed to occur
+    /// on the main thread. Any ongoing state observations are cancelled before starting the new
+    /// observation.
+    ///
+    /// The observation continues until the sequence completes or the observation is cancelled.
+    /// If cancelled, no further states from the sequence will be applied.
+    ///
+    /// - Parameter sequence: Any `AsyncSequence` that emits `State` values and has a `Failure`
+    ///                       type of `Never`, ensuring it can never throw errors.
+    ///
+    /// ## Type Constraints
+    ///
+    /// - `SomeAsyncSequence.Element == State`: The sequence must emit state values
+    /// - `SomeAsyncSequence.Failure == Never`: The sequence must be non-throwing
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// let sequence = AsyncThrowingStream<MyState, Never> { continuation in
+    ///     continuation.yield(.loading)
+    ///     continuation.yield(.loaded)
+    ///     continuation.finish()
+    /// }
+    ///
+    /// container.observe(sequence: sequence)
+    /// ```
+    ///
+    /// - Note: The `Never` failure type is enforced at compile time, ensuring type safety.
+    ///         Any errors thrown despite this constraint will cause a precondition failure.
+    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, *)
+    func observe<SomeAsyncSequence: AsyncSequence>(sequence: SomeAsyncSequence)
+    where SomeAsyncSequence.Element == State, SomeAsyncSequence.Failure == Never {
+        cancelRunningObservations()
+        stateChanges = 0
+        
+        stateTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await nextState in sequence {
+                guard Task.isCancelled == false else { break }
                 self.performStateChange(nextState)
             }
         }
@@ -194,3 +366,5 @@ private extension AsyncStateContainer {
         }
     }
 }
+
+#endif
