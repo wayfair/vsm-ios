@@ -18,10 +18,15 @@ let package = Package(
             name: "AsyncVSM",
             targets: ["AsyncVSM"]
         ),
+        
+        .library(
+            name: "VSM",
+            targets: ["VSM"]
+        ),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
-//        .package(url: "https://github.com/albertbori/TestableCombinePublishers.git", from: "2.0.1")
+        .package(url: "https://github.com/albertbori/TestableCombinePublishers.git", from: "2.0.1")
     ],
     targets: [
         .target(
@@ -37,6 +42,25 @@ let package = Package(
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]
-        )
+        ),
+        
+        // Legacy VSM
+        .target(
+            name: "VSM",
+            dependencies: [],
+            swiftSettings: [
+                .swiftLanguageMode(.v5)
+            ]
+        ),
+        .testTarget(
+            name: "VSMTests",
+            dependencies: [
+                "VSM",
+                "TestableCombinePublishers"
+            ],
+            swiftSettings: [
+                .swiftLanguageMode(.v5)
+            ]
+        ),
     ]
 )
