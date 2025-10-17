@@ -32,22 +32,30 @@ import Observation
 ///
 /// ## Usage
 ///
+/// You interact with `AsyncStateContainer` through the `@ViewState` property wrapper in SwiftUI views:
+///
 /// ```swift
-/// let container = AsyncStateContainer(state: MyState.initial)
-///
-/// // Observe with an immediate state change
-/// container.observe(.loading)
-///
-/// // Observe with async state production
-/// container.observe {
-///     await fetchData()
+/// struct ExampleView: View {
+///     @ViewState var state = ExampleViewState.initialized(InitializedViewStateModel())
+///     
+///     var body: some View {
+///         switch state {
+///         case .initialized(let viewModel):
+///             HStack {
+///                 Color.clear
+///                     .onAppear {
+///                         $state.observe(sequence: viewModel.load())
+///                     }
+///             }
+///         case .loading:
+///             ProgressView()
+///         case .loaded(let model):
+///             ContentView(model: model)
+///         case .error(let error):
+///             ErrorView(error: error)
+///         }
+///     }
 /// }
-///
-/// // Observe a sequence of states
-/// container.observe(sequence: StateSequence(
-///     { .loading },
-///     { await .loaded(fetchData()) }
-/// ))
 /// ```
 ///
 /// - Note: All state changes are automatically published to SwiftUI views through the `@Observable` macro.
@@ -97,8 +105,30 @@ public extension AsyncStateContainer {
     /// ## Example
     ///
     /// ```swift
-    /// container.observe(.idle)
-    /// container.observe(.loading)
+    /// struct ExampleView: View {
+    ///     @ViewState var state = ExampleViewState.initialized(.init())
+    ///     
+    ///     var body: some View {
+    ///         switch state {
+    ///         case .initialized(let viewModel):
+    ///             HStack {
+    ///                 Color.clear
+    ///                     .onAppear {
+    ///                         $state.observe(sequence: viewModel.load())
+    ///                     }
+    ///             }
+    ///         case .loaded(let model):
+    ///             ContentView(model: model)
+    ///                 .toolbar {
+    ///                     Button("Retry") {
+    ///                         $state.observe(.loading)
+    ///                     }
+    ///                 }
+    ///         case .error(let error):
+    ///             ErrorView(error: error)
+    ///         }
+    ///     }
+    /// }
     /// ```
     func observe(_ nextState: State) {
         cancelRunningObservations()
@@ -122,17 +152,29 @@ public extension AsyncStateContainer {
     /// ## Example
     ///
     /// ```swift
-    /// // State production runs on a background thread
-    /// container.observe {
-    ///     await performExpensiveComputation()
-    /// }
-    ///
-    /// // Control thread context explicitly
-    /// container.observe {
-    ///     await Task.detached {
-    ///         // Runs on background thread
-    ///         await fetchRemoteData()
-    ///     }.value
+    /// struct ExampleView: View {
+    ///     @ViewState var state = ExampleViewState.initialized(.init())
+    ///     
+    ///     var body: some View {
+    ///         switch state {
+    ///         case .initialized(let viewModel):
+    ///             HStack {
+    ///                 Color.clear
+    ///                     .onAppear {
+    ///                         $state.observe(sequence: viewModel.load())
+    ///                     }
+    ///             }
+    ///         case .loaded(let model):
+    ///             ContentView(model: model)
+    ///         case .error(let viewModel):
+    ///             ErrorView(viewModel: viewModel)
+    ///                 .toolbar {
+    ///                     Button("Retry") {
+    ///                         $state.observe { await viewModel.retry() }
+    ///                     }
+    ///                 }
+    ///         }
+    ///     }
     /// }
     /// ```
     ///
@@ -153,7 +195,7 @@ public extension AsyncStateContainer {
     /// Refreshes the state using an asynchronous closure, suspending until complete.
     ///
     /// This method executes the provided closure asynchronously to produce the next state,
-    /// suspending the caller until the state has been produced and applied. Unlike ``observe(_:)-6ps5n``,
+    /// suspending the caller until the state has been produced and applied. Unlike ``observe(_:)-(State)``,
     /// this method waits for the state production to complete before returning.
     ///
     /// The closure can run on any thread based on Swift's concurrency model, but the resulting
@@ -179,17 +221,22 @@ public extension AsyncStateContainer {
     /// ## Example
     ///
     /// ```swift
-    /// struct ProductListView: View {
-    ///     @State private var container = AsyncStateContainer(state: ProductState.initial)
+    /// struct ExampleView: View {
+    ///     @ViewState var state = ExampleViewState.loaded(LoadedViewStateModel())
     ///     
     ///     var body: some View {
-    ///         List(container.state.products) { product in
-    ///             ProductRow(product: product)
-    ///         }
-    ///         .refreshable {
-    ///             await container.refresh(state: {
-    ///                 await fetchLatestProducts()
-    ///             })
+    ///         switch state {
+    ///         case .loaded(let model):
+    ///             List(model.items) { item in
+    ///                 ItemRow(item: item)
+    ///             }
+    ///             .refreshable {
+    ///                 await $state.refresh(state: {
+    ///                     await model.refresh()
+    ///                 })
+    ///             }
+    ///         default:
+    ///             ProgressView()
     ///         }
     ///     }
     /// }
@@ -228,11 +275,28 @@ public extension AsyncStateContainer {
     /// ## Example
     ///
     /// ```swift
-    /// container.observe(sequence: StateSequence(
-    ///     { .loading },
-    ///     { await .loaded(fetchData()) },
-    ///     { await .success }
-    /// ))
+    /// struct ExampleView: View {
+    ///     @ViewState var state = ExampleViewState.initialized(InitializedViewStateModel())
+    ///     
+    ///     var body: some View {
+    ///         switch state {
+    ///         case .initialized(let viewModel):
+    ///             HStack {
+    ///                 Color.clear
+    ///                     .onAppear {
+    ///                         // viewModel.load() returns StateSequence that emits .loading, then .loaded
+    ///                         $state.observe(sequence: viewModel.load())
+    ///                     }
+    ///             }
+    ///         case .loading:
+    ///             ProgressView()
+    ///         case .loaded(let model):
+    ///             ContentView(model: model)
+    ///         case .error(let error):
+    ///             ErrorView(error: error)
+    ///         }
+    ///     }
+    /// }
     /// ```
     ///
     /// - Note: ``StateSequence`` is designed to never throw, ensuring reliable state transitions.
@@ -268,14 +332,35 @@ public extension AsyncStateContainer {
     /// ## Example
     ///
     /// ```swift
-    /// let (stream, continuation) = AsyncStream<MyState>.makeStream()
-    ///
-    /// container.observe(sequence: stream)
-    ///
-    /// // Emit states from elsewhere
-    /// continuation.yield(.loading)
-    /// continuation.yield(.loaded(data))
-    /// continuation.finish()
+    /// struct ExampleView: View {
+    ///     @ViewState var state = ExampleViewState.initialized(.init())
+    ///     
+    ///     var body: some View {
+    ///         switch state {
+    ///         case .initialized(let viewModel):
+    ///             HStack {
+    ///                 Color.clear
+    ///                     .onAppear {
+    ///                         // This is just an example. Typically you would define a method on your view state model that returns an AsyncStream.
+    ///                         let (stream, continuation) = AsyncStream<ExampleViewState>.makeStream()
+    ///                         
+    ///                         $state.observe(sequence: stream)
+    ///                         
+    ///                         // Emit states from elsewhere (e.g., background task)
+    ///                         Task {
+    ///                             let data = await fetchData()
+    ///                             continuation.yield(.loaded(LoadedViewStateModel(data: data)))
+    ///                             continuation.finish()
+    ///                         }
+    ///                     }
+    ///             }
+    ///         case .loaded(let model):
+    ///             ContentView(model: model)
+    ///         case .error(let viewModel):
+    ///             ErrorView(viewModel: viewModel)
+    ///         }
+    ///     }
+    /// }
     /// ```
     ///
     /// - Note: `AsyncStream` is non-throwing by design, making it ideal for state management.
@@ -316,13 +401,35 @@ public extension AsyncStateContainer {
     /// ## Example
     ///
     /// ```swift
-    /// let sequence = AsyncThrowingStream<MyState, Never> { continuation in
-    ///     continuation.yield(.loading)
-    ///     continuation.yield(.loaded)
-    ///     continuation.finish()
+    /// struct ExampleView: View {
+    ///     @ViewState var state = ExampleViewState.initialized(.init())
+    ///     
+    ///     var body: some View {
+    ///         switch state {
+    ///         case .initialized(let viewModel):
+    ///             HStack {
+    ///                 Color.clear
+    ///                     .onAppear {
+    ///                         // This is just an example. Typically you would define a method on your view state model that returns an AsyncStream.
+    ///                         let (stream, continuation) = AsyncStream<ExampleViewState>.makeStream()
+    ///                         
+    ///                         $state.observe(sequence: stream)
+    ///                         
+    ///                         // Emit states from elsewhere (e.g., background task)
+    ///                         Task {
+    ///                             let data = await fetchData()
+    ///                             continuation.yield(.loaded(LoadedViewStateModel(data: data)))
+    ///                             continuation.finish()
+    ///                         }
+    ///                     }
+    ///             }
+    ///         case .loaded(let model):
+    ///             ContentView(model: model)
+    ///         case .error(let viewModel):
+    ///             ErrorView(viewModel: viewModel)
+    ///         }
+    ///     }
     /// }
-    ///
-    /// container.observe(sequence: sequence)
     /// ```
     ///
     /// - Note: The `Never` failure type is enforced at compile time, ensuring type safety.
