@@ -24,6 +24,17 @@ import VSMUtility
 /// - State production closures can run on any thread, controlled by Swift's concurrency model
 /// - Observation methods handle thread context automatically
 ///
+/// ### Atomicity and Property Access
+///
+/// **All properties in this class are thread-safe and atomic** due to `@MainActor` isolation:
+/// - The `@MainActor` attribute on the class ensures all property access (reads and writes) is serialized
+/// - Swift's actor isolation guarantees that only one piece of code can access the instance at a time
+/// - No additional synchronization primitives (locks, atomics, etc.) are needed
+/// - This applies to both public (`state`) and private properties (`stateTask`, `streamContinuation`, etc.)
+///
+/// When modifying this class, maintainers should ensure all property access remains within `@MainActor`
+/// context. Actor isolation automatically handles thread synchronization, preventing data races.
+///
 /// ## Error Handling
 ///
 /// `AsyncStateContainer` follows a never-throwing design philosophy:
@@ -69,6 +80,10 @@ public final class AsyncStateContainer<State: Sendable> {
     /// This property is observable and will trigger view updates when changed.
     /// All changes to this property are guaranteed to occur on the main thread.
     public private(set) var state: State
+    
+    // MARK: - Private Properties
+    // All properties below are thread-safe and atomic due to @MainActor isolation.
+    // No additional synchronization is needed - actor isolation handles all thread safety.
     
     @ObservationIgnored
     private var stateTask: Task<Void, Never>?
@@ -463,6 +478,18 @@ public extension AsyncStateContainer {
     ///
     /// The observation continues until the publisher completes or the observation is cancelled.
     /// If cancelled, no further states from the publisher will be applied.
+    ///
+    /// ## Thread Safety
+    ///
+    /// Combine publishers are not `Sendable`, which creates potential thread-safety concerns. This
+    /// method addresses this by:
+    /// - Capturing the publisher within a `@MainActor` Task, ensuring the capture happens on the main actor
+    /// - Iterating over `publisher.values` within the `@MainActor` Task context, ensuring values are
+    ///   received on the main actor (Swift's concurrency system handles the actor context switching)
+    /// - Performing all state changes on the main actor via `performStateChange`
+    ///
+    /// **Important**: If you're using a mutable publisher (e.g., `CurrentValueSubject`), ensure that
+    /// all mutations happen on the main thread to maintain thread safety.
     ///
     /// - Parameter publisher: A Combine `Publisher` that emits `State` values and has a `Failure`
     ///                        type of `Never`, ensuring it can never throw errors.
