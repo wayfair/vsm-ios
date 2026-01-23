@@ -111,6 +111,9 @@ public final class AsyncStateContainer<State: Sendable> {
 }
 
 public extension AsyncStateContainer {
+
+    // MARK: - Observe Single State Change Functions
+
     /// Immediately updates the container's state to the provided value.
     ///
     /// This method cancels any ongoing state observations and synchronously updates the state
@@ -164,7 +167,8 @@ public extension AsyncStateContainer {
     /// If the observation task is cancelled before completion, the state will not be updated.
     ///
     /// - Parameter nextState: An async closure that produces the next state value.
-    ///                        This closure must not throw errors.
+    ///                        This closure must not throw errors and must be `@Sendable`,
+    ///                        meaning all captured values must be thread-safe.
     ///
     /// ## Example
     ///
@@ -195,8 +199,10 @@ public extension AsyncStateContainer {
     /// }
     /// ```
     ///
-    /// - Note: The closure is captured with `@escaping` and executed within a `Task` on the main actor.
-    func observe(_ nextState: @escaping () async -> State) {
+    /// - Note: The closure is captured with `@escaping @Sendable` and executed within a `Task` on the main actor.
+    ///         The `@Sendable` requirement ensures thread-safe capture of values that may be accessed
+    ///         across different concurrency domains.
+    func observe(_ nextState: @escaping @Sendable () async -> State) {
         cancelRunningObservations()
         
         stateTask = Task { @MainActor [weak self] in
@@ -223,7 +229,8 @@ public extension AsyncStateContainer {
     /// and the method will return early.
     ///
     /// - Parameter nextState: An async closure that produces the next state value.
-    ///                        This closure must not throw errors.
+    ///                        This closure must not throw errors and must be `@Sendable`,
+    ///                        meaning all captured values must be thread-safe.
     ///
     /// ## Pull-to-Refresh Support
     ///
@@ -265,7 +272,9 @@ public extension AsyncStateContainer {
     ///
     /// - Note: Use this method when you need to ensure the state update completes before
     ///         proceeding with subsequent operations, particularly with SwiftUI's `refreshable` modifier.
-    func refresh(state nextState: @escaping () async -> State) async {
+    ///         The closure must be `@Sendable` to ensure thread-safe capture of values that may be
+    ///         accessed across different concurrency domains.
+    func refresh(state nextState: @escaping @Sendable () async -> State) async {
         cancelRunningObservations()
         let nextStateValue = await nextState()
         
@@ -273,6 +282,8 @@ public extension AsyncStateContainer {
         performStateChange(nextStateValue)
     }
     
+    // MARK: - Observe Sequence of State Changes Functions
+
     /// Observes and updates the state through a sequence of state values.
     ///
     /// This method consumes a ``StateSequence`` that produces multiple state values over time.
@@ -465,6 +476,8 @@ public extension AsyncStateContainer {
             }
         }
     }
+
+    // MARK: - Observe Combine Publisher State Change Functions
     
     /// Observes and updates the state from a Combine `Publisher`.
     ///
