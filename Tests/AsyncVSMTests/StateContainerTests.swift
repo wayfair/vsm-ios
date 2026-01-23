@@ -440,6 +440,7 @@ extension MockState {
         func loadFromPublisher() -> AnyPublisher<MockState, Never> {
             return Publishers.Sequence(sequence: [.loading])
                 .append(Just(.loaded(.init(count: 11))).delay(for: .milliseconds(100), scheduler: DispatchQueue.main))
+                .subscribe(on: DispatchQueue.main)
                 .eraseToAnyPublisher()
         }
 
