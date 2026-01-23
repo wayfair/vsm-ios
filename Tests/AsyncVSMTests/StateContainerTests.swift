@@ -5,8 +5,10 @@
 //  Created by Bill Dunay on 10/9/25.
 //
 
-import Testing
+import Combine
+import Foundation
 import Observation
+import Testing
 import VSMUtility
 
 @testable import AsyncVSM
@@ -253,6 +255,54 @@ struct StateContainerTests {
         #expect(stateChanges == [expectedResult])
     }
     
+    @Test("Observing State Publisher should result in state changes")
+    @MainActor
+    func testObservingStatePublisher() async throws {
+        let expectedResult: [MockState] = [
+            .loading,
+            .loaded(.init(count: 11))
+        ]
+        @ViewState var state: MockState = .initialize()
+        
+        guard case let .initialize(initStateModel) = state else {
+            throw StateContainerTestError.missingStartState
+        }
+        let stateChangsStream = $state.stateChangeStream(last: 2)
+        
+        $state.observe(initStateModel.loadFromPublisher())
+        
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
+        }
+        
+        #expect(stateChanges == expectedResult)
+    }
+    
+    @Test("Observing State Publisher that works on a background thread should result in state changes")
+    @MainActor
+    func testObservingStatePublisherOnBackgroundThread() async throws {
+        let expectedResult: [MockState] = [
+            .loading,
+            .loaded(.init(count: 11))
+        ]
+        @ViewState var state: MockState = .initialize()
+        
+        guard case let .initialize(initStateModel) = state else {
+            throw StateContainerTestError.missingStartState
+        }
+        let stateChangsStream = $state.stateChangeStream(last: 2)
+        
+        $state.observe(initStateModel.loadFromPublisherBackgroundThread())
+        
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
+        }
+        
+        #expect(stateChanges == expectedResult)
+    }
+    
     // MARK: Sanity Check Tests to ensure Mock types work as expected
     
     @Test("Sanity Check MockState sequence fires in the right order")
@@ -385,6 +435,19 @@ extension MockState {
         @concurrent
         func loadAsyncOnBackgroundThread(count: Int) async -> MockState {
             return .loaded(.init(count: count))
+        }
+        
+        func loadFromPublisher() -> AnyPublisher<MockState, Never> {
+            return Publishers.Sequence(sequence: [.loading])
+                .append(Just(.loaded(.init(count: 11))).delay(for: .milliseconds(100), scheduler: DispatchQueue.main))
+                .eraseToAnyPublisher()
+        }
+
+        func loadFromPublisherBackgroundThread() -> AnyPublisher<MockState, Never> {
+            return Publishers.Sequence(sequence: [.loading])
+                .append(Just(.loaded(.init(count: 11))).delay(for: .milliseconds(100), scheduler: DispatchQueue.global()))
+                .subscribe(on: DispatchQueue.global())
+                .eraseToAnyPublisher()
         }
     }
     

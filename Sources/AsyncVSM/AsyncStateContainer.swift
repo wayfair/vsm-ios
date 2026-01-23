@@ -6,6 +6,7 @@
 //
 
 #if canImport(Observation)
+import Combine
 import Foundation
 import Observation
 import VSMUtility
@@ -444,6 +445,65 @@ public extension AsyncStateContainer {
         stateTask = Task { @MainActor [weak self] in
             guard let self else { return }
             for await nextState in sequence {
+                guard Task.isCancelled == false else { break }
+                self.performStateChange(nextState)
+            }
+        }
+    }
+    
+    /// Observes and updates the state from a Combine `Publisher`.
+    ///
+    /// This method consumes a Combine `Publisher` that emits state values over time. Each state value
+    /// is applied to the container as it becomes available from the publisher. The method returns
+    /// immediately without waiting for the publisher to complete.
+    ///
+    /// State values can be produced on any thread, but all state changes are guaranteed to occur
+    /// on the main thread. Any ongoing state observations are cancelled before starting the new
+    /// observation.
+    ///
+    /// The observation continues until the publisher completes or the observation is cancelled.
+    /// If cancelled, no further states from the publisher will be applied.
+    ///
+    /// - Parameter publisher: A Combine `Publisher` that emits `State` values and has a `Failure`
+    ///                        type of `Never`, ensuring it can never throw errors.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// struct ExampleView: View {
+    ///     @ViewState var state = ExampleViewState.initialized(.init())
+    ///     
+    ///     var body: some View {
+    ///         switch state {
+    ///         case .initialized(let viewModel):
+    ///             HStack {
+    ///                 Color.clear
+    ///                     .onAppear {
+    ///                         // viewModel.loadPublisher() returns a Publisher<ExampleViewState, Never>
+    ///                         $state.observe(viewModel.loadPublisher())
+    ///                     }
+    ///             }
+    ///         case .loading:
+    ///             ProgressView()
+    ///         case .loaded(let model):
+    ///             ContentView(model: model)
+    ///         case .error(let error):
+    ///             ErrorView(error: error)
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// - Note: This method exists for ease of migration from VSM to AsyncVSM and may be removed
+    ///         in the future if Apple ever deprecates Combine in favor of Swift Concurrency.
+    func observe(_ publisher: some Publisher<State, Never>) {
+        cancelRunningObservations()
+        stateChanges = 0
+        
+        stateTask = Task { @MainActor [weak self] in
+            guard let self, !Task.isCancelled else { return }
+            
+            for await nextState in publisher.values {
                 guard Task.isCancelled == false else { break }
                 self.performStateChange(nextState)
             }
