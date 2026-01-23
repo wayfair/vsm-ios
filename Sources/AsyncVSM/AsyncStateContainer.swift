@@ -6,7 +6,8 @@
 //
 
 #if canImport(Observation)
-import Combine
+import AsyncAlgorithms
+@preconcurrency import Combine
 import Foundation
 import Observation
 import VSMUtility
@@ -544,6 +545,283 @@ public extension AsyncStateContainer {
             guard let self, !Task.isCancelled else { return }
             
             for await nextState in publisher.values {
+                guard Task.isCancelled == false else { break }
+                self.performStateChange(nextState)
+            }
+        }
+    }
+    
+    // MARK: - Observe Sequence of State Changes Functions (Debounced)
+    
+    /// Observes and updates the state through a debounced sequence of state values.
+    ///
+    /// This method consumes a ``StateSequence`` that produces multiple state values over time.
+    /// The sequence is debounced, meaning that rapid state changes will be throttled - only
+    /// the most recent state value will be applied after a quiescence period has elapsed.
+    /// The method returns immediately without waiting for the sequence to complete.
+    ///
+    /// State values are produced according to the sequence's timing, which can run on any thread,
+    /// but all state changes are guaranteed to occur on the main thread. Any ongoing state
+    /// observations are cancelled before starting the new observation.
+    ///
+    /// The observation continues until the sequence completes or the observation is cancelled.
+    /// If cancelled, no further states from the sequence will be applied.
+    ///
+    /// - Parameters:
+    ///   - sequence: A ``StateSequence`` that produces a series of state values.
+    ///              This sequence is guaranteed to never throw errors.
+    ///   - duration: The amount of time that must pass without new values before the most recent
+    ///              state value is applied to the container.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// struct ExampleView: View {
+    ///     @ViewState var state = ExampleViewState.initialized(InitializedViewStateModel())
+    ///     
+    ///     var body: some View {
+    ///         switch state {
+    ///         case .initialized(let viewModel):
+    ///             TextField("Search", text: $searchText)
+    ///                 .onChange(of: searchText) { newValue in
+    ///                     // Debounce rapid text changes - only observe after user stops typing for 0.5 seconds
+    ///                     $state.observe(sequence: viewModel.search(query: newValue), debounced: .seconds(0.5))
+    ///                 }
+    ///         case .loading:
+    ///             ProgressView()
+    ///         case .loaded(let model):
+    ///             ContentView(model: model)
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// - Note: ``StateSequence`` is designed to never throw, ensuring reliable state transitions.
+    func observe(sequence: StateSequence<State>, debounced duration: Duration) {
+        cancelRunningObservations()
+        stateChanges = 0
+        
+        // Convert StateSequence to AsyncStream first to avoid Sendable issues
+        let stream = AsyncStream<State> { continuation in
+            Task {
+                var iterator = sequence.makeAsyncIterator()
+                while let nextState = await iterator.next() {
+                    continuation.yield(nextState)
+                }
+                continuation.finish()
+            }
+        }
+        
+        stateTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await nextState in stream.debounce(for: duration) {
+                guard Task.isCancelled == false else { break }
+                self.performStateChange(nextState)
+            }
+        }
+    }
+    
+    /// Observes and updates the state from a debounced `AsyncStream`.
+    ///
+    /// This method consumes an `AsyncStream` that emits state values over time. The stream is
+    /// debounced, meaning that rapid state changes will be throttled - only the most recent
+    /// state value will be applied after a quiescence period has elapsed. The method returns
+    /// immediately without waiting for the stream to complete.
+    ///
+    /// State values can be produced on any thread, but all state changes are guaranteed to occur
+    /// on the main thread. Any ongoing state observations are cancelled before starting the new
+    /// observation.
+    ///
+    /// The observation continues until the stream finishes or the observation is cancelled.
+    /// If cancelled, no further states from the stream will be applied.
+    ///
+    /// - Parameters:
+    ///   - sequence: An `AsyncStream<State>` that emits state values. Since `AsyncStream`
+    ///              cannot throw errors by design, this ensures reliable state transitions.
+    ///   - duration: The amount of time that must pass without new values before the most recent
+    ///              state value is applied to the container.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// struct ExampleView: View {
+    ///     @ViewState var state = ExampleViewState.initialized(.init())
+    ///     
+    ///     var body: some View {
+    ///         switch state {
+    ///         case .initialized(let viewModel):
+    ///             TextField("Search", text: $searchText)
+    ///                 .onChange(of: searchText) { newValue in
+    ///                     // Debounce rapid text changes
+    ///                     let stream = viewModel.searchStream(query: newValue)
+    ///                     $state.observe(sequence: stream, debounced: .seconds(0.5))
+    ///                 }
+    ///         case .loaded(let model):
+    ///             ContentView(model: model)
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// - Note: `AsyncStream` is non-throwing by design, making it ideal for state management.
+    func observe(sequence: AsyncStream<State>, debounced duration: Duration) {
+        cancelRunningObservations()
+        stateChanges = 0
+        
+        stateTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await nextState in sequence.debounce(for: duration) {
+                guard Task.isCancelled == false else { break }
+                self.performStateChange(nextState)
+            }
+        }
+    }
+    
+    /// Observes and updates the state from a debounced generic `AsyncSequence` that never throws.
+    ///
+    /// This method consumes any `AsyncSequence` whose element type is `State` and failure type
+    /// is `Never`. The sequence is debounced, meaning that rapid state changes will be throttled -
+    /// only the most recent state value will be applied after a quiescence period has elapsed.
+    /// The method returns immediately without waiting for the sequence to complete.
+    ///
+    /// State values can be produced on any thread, but all state changes are guaranteed to occur
+    /// on the main thread. Any ongoing state observations are cancelled before starting the new
+    /// observation.
+    ///
+    /// The observation continues until the sequence completes or the observation is cancelled.
+    /// If cancelled, no further states from the sequence will be applied.
+    ///
+    /// - Parameters:
+    ///   - sequence: Any `AsyncSequence` that emits `State` values and has a `Failure`
+    ///              type of `Never`, ensuring it can never throw errors.
+    ///   - duration: The amount of time that must pass without new values before the most recent
+    ///              state value is applied to the container.
+    ///
+    /// ## Type Constraints
+    ///
+    /// - `SomeAsyncSequence.Element == State`: The sequence must emit state values
+    /// - `SomeAsyncSequence.Failure == Never`: The sequence must be non-throwing
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// struct ExampleView: View {
+    ///     @ViewState var state = ExampleViewState.initialized(.init())
+    ///     
+    ///     var body: some View {
+    ///         switch state {
+    ///         case .initialized(let viewModel):
+    ///             TextField("Search", text: $searchText)
+    ///                 .onChange(of: searchText) { newValue in
+    ///                     // Debounce rapid text changes
+    ///                     let sequence = viewModel.searchSequence(query: newValue)
+    ///                     $state.observe(sequence: sequence, debounced: .seconds(0.5))
+    ///                 }
+    ///         case .loaded(let model):
+    ///             ContentView(model: model)
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// - Note: The `Never` failure type is enforced at compile time, ensuring type safety.
+    ///         Any errors thrown despite this constraint will cause a precondition failure.
+    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, *)
+    func observe<SomeAsyncSequence: AsyncSequence & Sendable>(
+        sequence: SomeAsyncSequence,
+        debounced duration: Duration
+    ) where SomeAsyncSequence.Element == State, SomeAsyncSequence.Failure == Never {
+        cancelRunningObservations()
+        stateChanges = 0
+        
+        stateTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await nextState in sequence.debounce(for: duration) {
+                guard Task.isCancelled == false else { break }
+                self.performStateChange(nextState)
+            }
+        }
+    }
+    
+    /// Observes and updates the state from a debounced Combine `Publisher`.
+    ///
+    /// This method consumes a Combine `Publisher` that emits state values over time. The publisher's
+    /// values are debounced, meaning that rapid state changes will be throttled - only the most
+    /// recent state value will be applied after a quiescence period has elapsed. The method returns
+    /// immediately without waiting for the publisher to complete.
+    ///
+    /// State values can be produced on any thread, but all state changes are guaranteed to occur
+    /// on the main thread. Any ongoing state observations are cancelled before starting the new
+    /// observation.
+    ///
+    /// The observation continues until the publisher completes or the observation is cancelled.
+    /// If cancelled, no further states from the publisher will be applied.
+    ///
+    /// ## Thread Safety
+    ///
+    /// Combine publishers are not `Sendable`, which creates potential thread-safety concerns. This
+    /// method addresses this by:
+    /// - Capturing the publisher within a `@MainActor` Task, ensuring the capture happens on the main actor
+    /// - Converting the publisher to an AsyncSequence via `publisher.values`
+    /// - Applying debounce to the AsyncSequence before iterating
+    /// - Performing all state changes on the main actor via `performStateChange`
+    ///
+    /// **Important**: If you're using a mutable publisher (e.g., `CurrentValueSubject`), ensure that
+    /// all mutations happen on the main thread to maintain thread safety.
+    ///
+    /// - Parameters:
+    ///   - publisher: A Combine `Publisher` that emits `State` values and has a `Failure`
+    ///               type of `Never`, ensuring it can never throw errors.
+    ///   - duration: The amount of time that must pass without new values before the most recent
+    ///              state value is applied to the container.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// struct ExampleView: View {
+    ///     @ViewState var state = ExampleViewState.initialized(.init())
+    ///     
+    ///     var body: some View {
+    ///         switch state {
+    ///         case .initialized(let viewModel):
+    ///             TextField("Search", text: $searchText)
+    ///                 .onChange(of: searchText) { newValue in
+    ///                     // Debounce rapid text changes
+    ///                     let publisher = viewModel.searchPublisher(query: newValue)
+    ///                     $state.observe(publisher, debounced: .seconds(0.5))
+    ///                 }
+    ///         case .loaded(let model):
+    ///             ContentView(model: model)
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// - Note: This method exists for ease of migration from VSM to AsyncVSM and may be removed
+    ///         in the future if Apple ever deprecates Combine in favor of Swift Concurrency.
+    func observe(_ publisher: some Publisher<State, Never>, debounced duration: Duration) {
+        cancelRunningObservations()
+        stateChanges = 0
+        
+        // Convert publisher to AsyncStream first to avoid Sendable issues with AsyncPublisher
+        let stream = AsyncStream<State> { continuation in
+            let cancellable = publisher.sink(
+                receiveCompletion: { _ in
+                    continuation.finish()
+                },
+                receiveValue: { value in
+                    continuation.yield(value)
+                }
+            )
+            continuation.onTermination = { @Sendable _ in
+                cancellable.cancel()
+            }
+        }
+        
+        stateTask = Task { @MainActor [weak self] in
+            guard let self, !Task.isCancelled else { return }
+            
+            for await nextState in stream.debounce(for: duration) {
                 guard Task.isCancelled == false else { break }
                 self.performStateChange(nextState)
             }

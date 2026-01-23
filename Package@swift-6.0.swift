@@ -30,13 +30,17 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
-        .package(url: "https://github.com/albertbori/TestableCombinePublishers.git", from: "2.0.1")
+        .package(url: "https://github.com/albertbori/TestableCombinePublishers.git", from: "2.0.1"),
+        .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0")
     ],
     targets: [
         .target(name: "VSMUtility"),
         .target(
             name: "AsyncVSM",
-            dependencies: ["VSMUtility"],
+            dependencies: [
+                "VSMUtility",
+                .product(name: "AsyncAlgorithms", package: "swift-async-algorithms")
+            ],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]

@@ -303,6 +303,150 @@ struct StateContainerTests {
         #expect(stateChanges == expectedResult)
     }
     
+    // MARK: - Debounce Tests
+    
+    @Test("Debounced StateSequence - rapid emissions should only emit last state after quiescence")
+    @MainActor
+    func testDebouncedStateSequence() async throws {
+        let expectedResult: [MockState] = [
+            .loaded(.init(count: 5)) // Only the last state after debounce period
+        ]
+        
+        @ViewState var state: MockState = .initialize()
+        guard case let .initialize(initStateModel) = state else {
+            throw StateContainerTestError.missingStartState
+        }
+        let stateChangsStream = $state.stateChangeStream(last: 1)
+        
+        // Create a sequence that emits rapidly
+        let rapidSequence = initStateModel.loadRapidSequence()
+        $state.observe(sequence: rapidSequence, debounced: .milliseconds(200))
+        
+        // Wait for debounce period plus a bit more
+        try await Task.sleep(nanoseconds: 500_000_000) // 500ms
+        
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
+        }
+        
+        #expect(stateChanges == expectedResult)
+    }
+    
+    @Test("Debounced AsyncStream - rapid emissions should only emit last state after quiescence")
+    @MainActor
+    func testDebouncedAsyncStream() async throws {
+        let expectedResult: [MockState] = [
+            .loaded(.init(count: 3)) // Only the last state after debounce period
+        ]
+        
+        @ViewState var state: MockState = .initialize()
+        guard case let .initialize(initStateModel) = state else {
+            throw StateContainerTestError.missingStartState
+        }
+        let stateChangsStream = $state.stateChangeStream(last: 1)
+        
+        // Create a stream that emits rapidly
+        let rapidStream = initStateModel.loadRapidStream()
+        $state.observe(sequence: rapidStream, debounced: .milliseconds(200))
+        
+        // Wait for debounce period plus a bit more
+        try await Task.sleep(nanoseconds: 500_000_000) // 500ms
+        
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
+        }
+        
+        #expect(stateChanges == expectedResult)
+    }
+    
+    @Test("Debounced Publisher - rapid emissions should only emit last state after quiescence")
+    @MainActor
+    func testDebouncedPublisher() async throws {
+        let expectedResult: [MockState] = [
+            .loaded(.init(count: 3)) // Only the last state after debounce period
+        ]
+        
+        @ViewState var state: MockState = .initialize()
+        guard case let .initialize(initStateModel) = state else {
+            throw StateContainerTestError.missingStartState
+        }
+        let stateChangsStream = $state.stateChangeStream(last: 1)
+        
+        // Create a publisher that emits rapidly
+        let rapidPublisher = initStateModel.loadRapidPublisher()
+        $state.observe(rapidPublisher, debounced: .milliseconds(200))
+        
+        // Wait for debounce period plus a bit more
+        try await Task.sleep(nanoseconds: 500_000_000) // 500ms
+        
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
+        }
+        
+        #expect(stateChanges == expectedResult)
+    }
+    
+    @Test("Debounced StateSequence - emissions far apart should not be debounced together")
+    @MainActor
+    func testDebouncedStateSequenceWithDelays() async throws {
+        let expectedResult: [MockState] = [
+            .loaded(.init(count: 1)),
+            .loaded(.init(count: 2))
+        ]
+        
+        @ViewState var state: MockState = .initialize()
+        guard case let .initialize(initStateModel) = state else {
+            throw StateContainerTestError.missingStartState
+        }
+        let stateChangsStream = $state.stateChangeStream(last: 2)
+        
+        // Create a sequence that emits with delays longer than debounce period
+        let delayedSequence = initStateModel.loadDelayedSequence()
+        $state.observe(sequence: delayedSequence, debounced: .milliseconds(100))
+        
+        // Wait for all emissions to complete
+        try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+        
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
+        }
+        
+        #expect(stateChanges == expectedResult)
+    }
+    
+    @Test("Debounced AsyncStream - emissions far apart should not be debounced together")
+    @MainActor
+    func testDebouncedAsyncStreamWithDelays() async throws {
+        let expectedResult: [MockState] = [
+            .loaded(.init(count: 1)),
+            .loaded(.init(count: 2))
+        ]
+        
+        @ViewState var state: MockState = .initialize()
+        guard case let .initialize(initStateModel) = state else {
+            throw StateContainerTestError.missingStartState
+        }
+        let stateChangsStream = $state.stateChangeStream(last: 2)
+        
+        // Create a stream that emits with delays longer than debounce period
+        let delayedStream = initStateModel.loadDelayedStream()
+        $state.observe(sequence: delayedStream, debounced: .milliseconds(100))
+        
+        // Wait for all emissions to complete
+        try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+        
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
+        }
+        
+        #expect(stateChanges == expectedResult)
+    }
+    
     // MARK: Sanity Check Tests to ensure Mock types work as expected
     
     @Test("Sanity Check MockState sequence fires in the right order")
@@ -449,6 +593,66 @@ extension MockState {
                 .append(Just(.loaded(.init(count: 11))).delay(for: .milliseconds(100), scheduler: DispatchQueue.global()))
                 .subscribe(on: DispatchQueue.global())
                 .eraseToAnyPublisher()
+        }
+        
+        // MARK: - Debounce Test Helpers
+        
+        /// Creates a StateSequence that emits states rapidly (for debounce testing)
+        func loadRapidSequence() -> StateSequence<MockState> {
+            return .init(
+                { .loaded(.init(count: 1)) },
+                { .loaded(.init(count: 2)) },
+                { .loaded(.init(count: 3)) },
+                { .loaded(.init(count: 4)) },
+                { .loaded(.init(count: 5)) }
+            )
+        }
+        
+        /// Creates an AsyncStream that emits states rapidly (for debounce testing)
+        func loadRapidStream() -> AsyncStream<MockState> {
+            return AsyncStream<MockState> { continuation in
+                Task {
+                    // Emit states rapidly without delays
+                    continuation.yield(.loaded(.init(count: 1)))
+                    continuation.yield(.loaded(.init(count: 2)))
+                    continuation.yield(.loaded(.init(count: 3)))
+                    continuation.finish()
+                }
+            }
+        }
+        
+        /// Creates a Publisher that emits states rapidly (for debounce testing)
+        func loadRapidPublisher() -> AnyPublisher<MockState, Never> {
+            return Publishers.Sequence(sequence: [
+                .loaded(.init(count: 1)),
+                .loaded(.init(count: 2)),
+                .loaded(.init(count: 3))
+            ])
+            .eraseToAnyPublisher()
+        }
+        
+        /// Creates a StateSequence that emits states with delays longer than debounce period
+        func loadDelayedSequence() -> StateSequence<MockState> {
+            return .init(
+                { .loaded(.init(count: 1)) },
+                {
+                    // Add delay between emissions
+                    try? await Task.sleep(nanoseconds: 200_000_000) // 200ms delay
+                    return .loaded(.init(count: 2))
+                }
+            )
+        }
+        
+        /// Creates an AsyncStream that emits states with delays longer than debounce period
+        func loadDelayedStream() -> AsyncStream<MockState> {
+            return AsyncStream<MockState> { continuation in
+                Task {
+                    continuation.yield(.loaded(.init(count: 1)))
+                    try? await Task.sleep(nanoseconds: 200_000_000) // 200ms delay
+                    continuation.yield(.loaded(.init(count: 2)))
+                    continuation.finish()
+                }
+            }
         }
     }
     
