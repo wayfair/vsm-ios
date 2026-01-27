@@ -6,6 +6,7 @@
 //
 #if canImport(SwiftUI)
 import Foundation
+import OSLog
 import SwiftUI
 
 /// **(SwiftUI Only)** Manages the view state for a SwiftUI View in VSM. Automatically updates the view when the state changes.
@@ -63,8 +64,13 @@ public struct ViewState<State>: DynamicProperty where State: Sendable {
     /// ```
     ///
     /// - Parameter wrappedValue: The view state to be managed by the state container.
-    public init(wrappedValue initialState: State) {
-        self.container = AsyncStateContainer(state: initialState)
+    public init(wrappedValue initialState: State, subsystem: String = "com.wayfair.vsm", observedViewType: Any.Type? = nil) {
+        var category = "VSM View"
+        if let observedViewType {
+            category = String(describing: observedViewType)
+        }
+        
+        self.container = AsyncStateContainer(state: initialState, logger: OSLog(subsystem: subsystem, category: category))
     }
 }
 #endif

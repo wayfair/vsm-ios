@@ -10,6 +10,7 @@ import AsyncAlgorithms
 @preconcurrency import Combine
 import Foundation
 import Observation
+import os.signpost
 import VSMUtility
 
 /// A container that manages state changes on the main thread while allowing state production on any thread.
@@ -98,8 +99,16 @@ public final class AsyncStateContainer<State: Sendable> {
     @ObservationIgnored
     private var stateChanges: Int = 0
     
-    init(state: State) {
+    @ObservationIgnored
+    private let logger: OSLog
+    
+    @ObservationIgnored
+    private let signposter: OSSignposter
+    
+    init(state: State, logger: OSLog) {
         self.state = state
+        self.logger = logger
+        self.signposter = OSSignposter(logHandle: logger)
     }
     
     internal func stateChangeStream(last numberOfChanges: Int) -> AsyncStream<State> {
@@ -154,7 +163,14 @@ public extension AsyncStateContainer {
     func observe(_ nextState: State) {
         cancelRunningObservations()
         stateChanges = 0
+        
+        let signpostId = signposter.makeSignpostID()
+        let postName: StaticString = "observe next state"
+        let state = signposter.beginInterval(postName, id: signpostId)
+        
         performStateChange(nextState)
+        
+        signposter.endInterval(postName, state)
     }
     
     /// Observes and updates the state using an asynchronous closure.
@@ -209,8 +225,16 @@ public extension AsyncStateContainer {
         stateTask = Task { @MainActor [weak self] in
             guard let self else { return }
             
+            let signpostId = signposter.makeSignpostID()
+            let postName: StaticString = "observe next asynchronous state"
+            let state = signposter.beginInterval(postName, id: signpostId)
+            defer { signposter.endInterval(postName, state) }
+            
             let nextStateValue = await nextState()
-            guard Task.isCancelled == false else { return }
+            
+            guard Task.isCancelled == false else {
+                return
+            }
             
             self.performStateChange(nextStateValue)
         }
@@ -277,8 +301,12 @@ public extension AsyncStateContainer {
     ///         accessed across different concurrency domains.
     func refresh(state nextState: @escaping @Sendable () async -> State) async {
         cancelRunningObservations()
-        let nextStateValue = await nextState()
+        let signpostId = signposter.makeSignpostID()
+        let postName: StaticString = "observe refresh of next state"
+        let state = signposter.beginInterval(postName, id: signpostId)
+        defer { signposter.endInterval(postName, state) }
         
+        let nextStateValue = await nextState()
         guard Task.isCancelled == false else { return }
         performStateChange(nextStateValue)
     }
@@ -335,9 +363,39 @@ public extension AsyncStateContainer {
         
         stateTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            for await nextState in sequence {
-                guard Task.isCancelled == false else { break }
-                self.performStateChange(nextState)
+            
+            // Track the entire sequence with one interval
+            let sequenceID = signposter.makeSignpostID()
+            let postName: StaticString = "State Sequence"
+            let sequenceState = signposter.beginInterval(postName, id: sequenceID)
+            defer {
+                signposter.endInterval(postName, sequenceState, "Completed all state changes in StateSequence")
+            }
+            
+            var iterator = sequence.makeAsyncIterator()
+            var iterationCount = 1
+            
+            while !Task.isCancelled {
+                let nextState = await iterator.next()
+                
+                guard let state = nextState else {
+                    // Sequence completed naturally
+                    signposter.emitEvent("Sequence Ended", id: sequenceID,
+                                         "After \(iterationCount) iterations")
+                    break
+                }
+                
+                guard !Task.isCancelled else {
+                    signposter.emitEvent("Sequence Cancelled", id: sequenceID,
+                                         "At iteration \(iterationCount)")
+                    break
+                }
+                self.performStateChange(state)
+                
+                // Emit an event to mark the state change
+                signposter.emitEvent("State Changed", id: sequenceID,
+                                     "New State Change observed: \(String(describing: self.state))")
+                iterationCount += 1
             }
         }
     }
@@ -399,10 +457,25 @@ public extension AsyncStateContainer {
         
         stateTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            for await nextState in sequence {
-                guard Task.isCancelled == false else { break }
-                self.performStateChange(nextState)
-            }
+            var iterator = sequence.makeAsyncIterator()
+            var nextState: State?
+            
+            repeat {
+                os_signpost(.begin, log: logger, name: "await next state in async stream")
+                nextState = await iterator.next()
+                
+                if let state = nextState {
+                    guard !Task.isCancelled else {
+                        os_signpost(.end, log: logger, name: "await next state in async stream", "State update task cancelled")
+                        break
+                    }
+                    self.performStateChange(state)
+                } else {
+                    os_signpost(.end, log: logger, name: "await next state in async stream", "Next state was not available")
+                }
+                
+                os_signpost(.end, log: logger, name: "await next state in async stream")
+            } while nextState != nil
         }
     }
     
@@ -471,10 +544,25 @@ public extension AsyncStateContainer {
         
         stateTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            for await nextState in sequence {
-                guard Task.isCancelled == false else { break }
-                self.performStateChange(nextState)
-            }
+            var iterator = sequence.makeAsyncIterator()
+            var nextState: State?
+            
+            repeat {
+                os_signpost(.begin, log: logger, name: "await next state in async sequence")
+                nextState = try? await iterator.next()
+                
+                if let state = nextState {
+                    guard !Task.isCancelled else {
+                        os_signpost(.end, log: logger, name: "await next state in async sequence", "State update task cancelled")
+                        break
+                    }
+                    self.performStateChange(state)
+                } else {
+                    os_signpost(.end, log: logger, name: "await next state in async sequence", "Next state was not available")
+                }
+                
+                os_signpost(.end, log: logger, name: "await next state in async sequence")
+            } while nextState != nil
         }
     }
 
@@ -544,10 +632,25 @@ public extension AsyncStateContainer {
         stateTask = Task { @MainActor [weak self] in
             guard let self, !Task.isCancelled else { return }
             
-            for await nextState in publisher.values {
-                guard Task.isCancelled == false else { break }
-                self.performStateChange(nextState)
-            }
+            var iterator = publisher.values.makeAsyncIterator()
+            var nextState: State?
+            
+            repeat {
+                os_signpost(.begin, log: logger, name: "await next state from publisher")
+                nextState = await iterator.next()
+                
+                if let state = nextState {
+                    guard !Task.isCancelled else {
+                        os_signpost(.end, log: logger, name: "await next state from publisher", "State update task cancelled")
+                        break
+                    }
+                    self.performStateChange(state)
+                } else {
+                    os_signpost(.end, log: logger, name: "await next state from publisher", "Next state was not available")
+                }
+                
+                os_signpost(.end, log: logger, name: "await next state from publisher")
+            } while nextState != nil
         }
     }
     
