@@ -21,10 +21,10 @@ import Foundation
 public struct StateSequence<State: Sendable>: AsyncSequence, AsyncIteratorProtocol {
     public typealias Element = State
     
-    let states: [() async -> State]
-    var iterator: IndexingIterator<[() async -> State]>
+    let states: [@Sendable () async -> State]
+    var iterator: IndexingIterator<[@Sendable () async -> State]>
     
-    public init(_ states: () async -> State...) {
+    public init(_ states: @Sendable () async -> State...) {
         self.states = states
         iterator = states.makeIterator()
     }

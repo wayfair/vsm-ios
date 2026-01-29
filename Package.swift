@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -6,18 +6,14 @@ import PackageDescription
 let package = Package(
     name: "VSM",
     platforms: [
-        .iOS(.v13),
-        .macOS(.v11),
-        .macCatalyst(.v13),
-        .watchOS(.v6),
-        .tvOS(.v13),
+        .iOS(.v17),
+        .macOS(.v14),
+        .macCatalyst(.v17),
+        .watchOS(.v10),
+        .tvOS(.v17),
         .visionOS(.v1)
     ],
     products: [
-        .library(
-            name: "VSMUtility",
-            targets: ["VSMUtility"]
-        ),
         .library(
             name: "VSM",
             targets: ["VSM"]
@@ -25,20 +21,21 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
-        .package(url: "https://github.com/albertbori/TestableCombinePublishers.git", from: "2.0.1")
+        .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0")
     ],
-    targets: [
-        .target(name: "VSMUtility"),
+    targets: [        
+        // Legacy VSM
         .target(
             name: "VSM",
-            dependencies: ["VSMUtility"]
+            dependencies: [
+                .product(name: "AsyncAlgorithms", package: "swift-async-algorithms")
+            ],
         ),
         .testTarget(
             name: "VSMTests",
             dependencies: [
                 "VSM",
-                "TestableCombinePublishers"
-            ]
+            ],
         ),
     ]
 )

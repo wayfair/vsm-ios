@@ -1,5 +1,5 @@
 {
-  "originHash" : "44145cd45fbab3fbec1f8e8366ce44cbead23b1aa18f2ccd6b792ff22a97c5c1",
+  "originHash" : "2b813d137bd0d478b5c8fd771ad223ddd31720e6ae467f722067dbccab2167f7",
   "pins" : [
     {
       "identity" : "swift-async-algorithms",
@@ -35,15 +35,6 @@
       "state" : {
         "revision" : "b45d1f2ed151d057b54504d653e0da5552844e34",
         "version" : "1.0.0"
-      }
-    },
-    {
-      "identity" : "testablecombinepublishers",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/albertbori/TestableCombinePublishers.git",
-      "state" : {
-        "revision" : "9ac94c59aca1df2d109da9899418f1388c1438ed",
-        "version" : "2.0.1"
       }
     }
   ],

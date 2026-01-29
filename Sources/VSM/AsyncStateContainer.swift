@@ -11,7 +11,6 @@ import AsyncAlgorithms
 import Foundation
 import Observation
 import os.signpost
-import VSMUtility
 
 /// A container that manages state changes on the main thread while allowing state production on any thread.
 ///
