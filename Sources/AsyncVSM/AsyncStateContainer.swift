@@ -165,7 +165,7 @@ public extension AsyncStateContainer {
         stateChanges = 0
         
         let signpostId = signposter.makeSignpostID()
-        let postName: StaticString = "observe next state"
+        let postName: StaticString = "State"
         let state = signposter.beginInterval(postName, id: signpostId)
         
         performStateChange(nextState)
@@ -226,7 +226,7 @@ public extension AsyncStateContainer {
             guard let self else { return }
             
             let signpostId = signposter.makeSignpostID()
-            let postName: StaticString = "observe next asynchronous state"
+            let postName: StaticString = "State"
             let state = signposter.beginInterval(postName, id: signpostId)
             defer { signposter.endInterval(postName, state) }
             
@@ -302,7 +302,7 @@ public extension AsyncStateContainer {
     func refresh(state nextState: @escaping @Sendable () async -> State) async {
         cancelRunningObservations()
         let signpostId = signposter.makeSignpostID()
-        let postName: StaticString = "observe refresh of next state"
+        let postName: StaticString = "Refresh"
         let state = signposter.beginInterval(postName, id: signpostId)
         defer { signposter.endInterval(postName, state) }
         
@@ -357,7 +357,7 @@ public extension AsyncStateContainer {
     /// ```
     ///
     /// - Note: ``StateSequence`` is designed to never throw, ensuring reliable state transitions.
-    func observe(sequence: StateSequence<State>) {
+    func observe(_ sequence: StateSequence<State>) {
         cancelRunningObservations()
         stateChanges = 0
         
@@ -366,11 +366,9 @@ public extension AsyncStateContainer {
             
             // Track the entire sequence with one interval
             let sequenceID = signposter.makeSignpostID()
-            let postName: StaticString = "State Sequence"
-            let sequenceState = signposter.beginInterval(postName, id: sequenceID)
-            defer {
-                signposter.endInterval(postName, sequenceState, "Completed all state changes in StateSequence")
-            }
+            let postName: StaticString = "Sequence"
+            let sequenceState = signposter.beginInterval(postName, id: sequenceID, "State Sequence")
+            defer { signposter.endInterval(postName, sequenceState) }
             
             var iterator = sequence.makeAsyncIterator()
             var iterationCount = 1
@@ -380,21 +378,24 @@ public extension AsyncStateContainer {
                 
                 guard let state = nextState else {
                     // Sequence completed naturally
-                    signposter.emitEvent("Sequence Ended", id: sequenceID,
-                                         "After \(iterationCount) iterations")
+                    let eventName: StaticString = "State Sequence Ended"
+                    signposter.emitEvent(eventName, id: sequenceID,
+                                         "Ended after \(iterationCount - 1) iterations")
                     break
                 }
                 
                 guard !Task.isCancelled else {
-                    signposter.emitEvent("Sequence Cancelled", id: sequenceID,
-                                         "At iteration \(iterationCount)")
+                    let eventName: StaticString = "State Sequence Cancelled"
+                    signposter.emitEvent(eventName, id: sequenceID,
+                                         "Cancelled during iteration \(iterationCount)")
                     break
                 }
                 self.performStateChange(state)
                 
                 // Emit an event to mark the state change
-                signposter.emitEvent("State Changed", id: sequenceID,
-                                     "New State Change observed: \(String(describing: self.state))")
+                // Note: Avoid accessing self.state in the message to prevent observation side effects
+                let eventName: StaticString = "StateSequence Changed State"
+                signposter.emitEvent(eventName, id: sequenceID, "State changed to \(String(describing: state))")
                 iterationCount += 1
             }
         }
@@ -451,31 +452,47 @@ public extension AsyncStateContainer {
     /// ```
     ///
     /// - Note: `AsyncStream` is non-throwing by design, making it ideal for state management.
-    func observe(sequence: AsyncStream<State>) {
+    func observe(_ sequence: AsyncStream<State>) {
         cancelRunningObservations()
         stateChanges = 0
         
         stateTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            var iterator = sequence.makeAsyncIterator()
-            var nextState: State?
             
-            repeat {
-                os_signpost(.begin, log: logger, name: "await next state in async stream")
-                nextState = await iterator.next()
+            // Track the entire sequence with one interval
+            let sequenceID = signposter.makeSignpostID()
+            let postName: StaticString = "Sequence"
+            let sequenceState = signposter.beginInterval(postName, id: sequenceID, "AsyncStream Sequence")
+            defer { signposter.endInterval(postName, sequenceState) }
+            
+            var iterator = sequence.makeAsyncIterator()
+            var iterationCount = 1
+            
+            while !Task.isCancelled {
+                let nextState = await iterator.next()
                 
-                if let state = nextState {
-                    guard !Task.isCancelled else {
-                        os_signpost(.end, log: logger, name: "await next state in async stream", "State update task cancelled")
-                        break
-                    }
-                    self.performStateChange(state)
-                } else {
-                    os_signpost(.end, log: logger, name: "await next state in async stream", "Next state was not available")
+                guard let state = nextState else {
+                    // Sequence completed naturally
+                    let eventName: StaticString = "AsyncStream Sequence Ended"
+                    signposter.emitEvent(eventName, id: sequenceID,
+                                         "Ended after \(iterationCount - 1) iterations")
+                    break
                 }
                 
-                os_signpost(.end, log: logger, name: "await next state in async stream")
-            } while nextState != nil
+                guard !Task.isCancelled else {
+                    let eventName: StaticString = "AsyncStream Sequence Cancelled"
+                    signposter.emitEvent(eventName, id: sequenceID,
+                                         "Cancelled during iteration \(iterationCount)")
+                    break
+                }
+                self.performStateChange(state)
+                
+                // Emit an event to mark the state change
+                // Note: Avoid accessing self.state in the message to prevent observation side effects
+                let eventName: StaticString = "AsyncStream Changed State"
+                signposter.emitEvent(eventName, id: sequenceID, "State changed to \(String(describing: state))")
+                iterationCount += 1
+            }
         }
     }
     
@@ -537,32 +554,48 @@ public extension AsyncStateContainer {
     /// - Note: The `Never` failure type is enforced at compile time, ensuring type safety.
     ///         Any errors thrown despite this constraint will cause a precondition failure.
     @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, *)
-    func observe<SomeAsyncSequence: AsyncSequence>(sequence: SomeAsyncSequence)
+    func observe<SomeAsyncSequence: AsyncSequence>(_ sequence: SomeAsyncSequence)
     where SomeAsyncSequence.Element == State, SomeAsyncSequence.Failure == Never {
         cancelRunningObservations()
         stateChanges = 0
         
         stateTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            var iterator = sequence.makeAsyncIterator()
-            var nextState: State?
             
-            repeat {
-                os_signpost(.begin, log: logger, name: "await next state in async sequence")
-                nextState = try? await iterator.next()
+            // Track the entire sequence with one interval
+            let sequenceID = signposter.makeSignpostID()
+            let postName: StaticString = "Sequence"
+            let sequenceState = signposter.beginInterval(postName, id: sequenceID, "\(String(describing: sequence.self)) Sequence")
+            defer { signposter.endInterval(postName, sequenceState) }
+            
+            var iterator = sequence.makeAsyncIterator()
+            var iterationCount = 1
+            
+            while !Task.isCancelled {
+                let nextState = try? await iterator.next()
                 
-                if let state = nextState {
-                    guard !Task.isCancelled else {
-                        os_signpost(.end, log: logger, name: "await next state in async sequence", "State update task cancelled")
-                        break
-                    }
-                    self.performStateChange(state)
-                } else {
-                    os_signpost(.end, log: logger, name: "await next state in async sequence", "Next state was not available")
+                guard let state = nextState else {
+                    // Sequence completed naturally
+                    let eventName: StaticString = "Some AsyncSequence Sequence Ended"
+                    signposter.emitEvent(eventName, id: sequenceID,
+                                         "Ended after \(iterationCount - 1) iterations")
+                    break
                 }
                 
-                os_signpost(.end, log: logger, name: "await next state in async sequence")
-            } while nextState != nil
+                guard !Task.isCancelled else {
+                    let eventName: StaticString = "Some AsyncSequence Sequence Cancelled"
+                    signposter.emitEvent(eventName, id: sequenceID,
+                                         "Cancelled during iteration \(iterationCount)")
+                    break
+                }
+                self.performStateChange(state)
+                
+                // Emit an event to mark the state change
+                // Note: Avoid accessing self.state in the message to prevent observation side effects
+                let eventName: StaticString = "Some AsyncSequence Changed State"
+                signposter.emitEvent(eventName, id: sequenceID, "State changed to \(String(describing: state))")
+                iterationCount += 1
+            }
         }
     }
 
@@ -632,25 +665,38 @@ public extension AsyncStateContainer {
         stateTask = Task { @MainActor [weak self] in
             guard let self, !Task.isCancelled else { return }
             
-            var iterator = publisher.values.makeAsyncIterator()
-            var nextState: State?
+            // Track the entire sequence with one interval
+            let sequenceID = signposter.makeSignpostID()
+            let postName: StaticString = "Publisher"
+            let sequenceState = signposter.beginInterval(postName, id: sequenceID, "Combine Publisher \(String(describing: publisher.self))")
+            defer { signposter.endInterval(postName, sequenceState) }
             
-            repeat {
-                os_signpost(.begin, log: logger, name: "await next state from publisher")
-                nextState = await iterator.next()
+            var iterator = publisher.values.makeAsyncIterator()
+            
+            while !Task.isCancelled {
+                let nextState = await iterator.next()
                 
-                if let state = nextState {
-                    guard !Task.isCancelled else {
-                        os_signpost(.end, log: logger, name: "await next state from publisher", "State update task cancelled")
-                        break
-                    }
-                    self.performStateChange(state)
-                } else {
-                    os_signpost(.end, log: logger, name: "await next state from publisher", "Next state was not available")
+                guard let state = nextState else {
+                    // Sequence completed naturally
+                    let eventName: StaticString = "Subscription Ended"
+                    signposter.emitEvent(eventName, id: sequenceID,
+                                         "Subscription finished")
+                    break
                 }
                 
-                os_signpost(.end, log: logger, name: "await next state from publisher")
-            } while nextState != nil
+                guard !Task.isCancelled else {
+                    let eventName: StaticString = "Subscription Cancelled"
+                    signposter.emitEvent(eventName, id: sequenceID,
+                                         "Subscription was cancelled")
+                    break
+                }
+                self.performStateChange(state)
+                
+                // Emit an event to mark the state change
+                // Note: Avoid accessing self.state in the message to prevent observation side effects
+                let eventName: StaticString = "Publisher emitted new State"
+                signposter.emitEvent(eventName, id: sequenceID, "State changed to \(String(describing: state))")
+            }
         }
     }
     

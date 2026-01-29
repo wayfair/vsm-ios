@@ -105,7 +105,7 @@ struct StateContainerTests {
         }
         let stateChangsStream = $state.stateChangeStream(last: 2)
         
-        $state.observe(sequence: initStateModel.loadSequence())
+        $state.observe(initStateModel.loadSequence())
         
         var stateChanges: [MockState] = []
         for await stateChange in stateChangsStream {
@@ -129,7 +129,7 @@ struct StateContainerTests {
         }
         let stateChangsStream = $state.stateChangeStream(last: 2)
         
-        $state.observe(sequence: initStateModel.loadSequenceAsync(onMainThread: true))
+        $state.observe(initStateModel.loadSequenceAsync(onMainThread: true))
         
         var stateChanges: [MockState] = []
         for await stateChange in stateChangsStream {
@@ -153,7 +153,7 @@ struct StateContainerTests {
         }
         let stateChangsStream = $state.stateChangeStream(last: 2)
         
-        $state.observe(sequence: initStateModel.loadSequenceAsync(onMainThread: false))
+        $state.observe(initStateModel.loadSequenceAsync(onMainThread: false))
         
         var stateChanges: [MockState] = []
         for await stateChange in stateChangsStream {
@@ -180,7 +180,7 @@ struct StateContainerTests {
         }
         let stateChangsStream = $state.stateChangeStream(last: 3)
         
-        $state.observe(sequence: initStateModel.loadStreamCurrentExecutionContext())
+        $state.observe(initStateModel.loadStreamCurrentExecutionContext())
         
         var stateChanges: [MockState] = []
         for await stateChange in stateChangsStream {
@@ -205,7 +205,7 @@ struct StateContainerTests {
         }
         let stateChangsStream = $state.stateChangeStream(last: 3)
         
-        $state.observe(sequence: initStateModel.loadStreamBackgroundExecutionContext())
+        $state.observe(initStateModel.loadStreamBackgroundExecutionContext())
         
         var stateChanges: [MockState] = []
         for await stateChange in stateChangsStream {
