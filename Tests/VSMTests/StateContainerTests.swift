@@ -319,7 +319,7 @@ struct StateContainerTests {
         
         // Create a sequence that emits rapidly
         let rapidSequence = initStateModel.loadRapidSequence()
-        $state.observe(sequence: rapidSequence, debounced: .milliseconds(200))
+        $state.observe(rapidSequence, debounced: .milliseconds(200))
         
         // Wait for debounce period plus a bit more
         try await Task.sleep(nanoseconds: 500_000_000) // 500ms
@@ -347,7 +347,7 @@ struct StateContainerTests {
         
         // Create a stream that emits rapidly
         let rapidStream = initStateModel.loadRapidStream()
-        $state.observe(sequence: rapidStream, debounced: .milliseconds(200))
+        $state.observe(rapidStream, debounced: .milliseconds(200))
         
         // Wait for debounce period plus a bit more
         try await Task.sleep(nanoseconds: 500_000_000) // 500ms
@@ -404,7 +404,7 @@ struct StateContainerTests {
         
         // Create a sequence that emits with delays longer than debounce period
         let delayedSequence = initStateModel.loadDelayedSequence()
-        $state.observe(sequence: delayedSequence, debounced: .milliseconds(100))
+        $state.observe(delayedSequence, debounced: .milliseconds(100))
         
         // Wait for all emissions to complete
         try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
@@ -433,7 +433,7 @@ struct StateContainerTests {
         
         // Create a stream that emits with delays longer than debounce period
         let delayedStream = initStateModel.loadDelayedStream()
-        $state.observe(sequence: delayedStream, debounced: .milliseconds(100))
+        $state.observe(delayedStream, debounced: .milliseconds(100))
         
         // Wait for all emissions to complete
         try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second

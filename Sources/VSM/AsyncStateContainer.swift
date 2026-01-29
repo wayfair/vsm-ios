@@ -58,7 +58,7 @@ import os.signpost
 ///             HStack {
 ///                 Color.clear
 ///                     .onAppear {
-///                         $state.observe(sequence: viewModel.load())
+///                         $state.observe(viewModel.load())
 ///                     }
 ///             }
 ///         case .loading:
@@ -75,7 +75,7 @@ import os.signpost
 /// - Note: All state changes are automatically published to SwiftUI views through the `@Observable` macro.
 @Observable
 @MainActor
-public final class AsyncStateContainer<State: Sendable> {
+public final class AsyncStateContainer<State: Sendable>: StateObserving {
     /// The current state of the container.
     ///
     /// This property is observable and will trigger view updates when changed.
@@ -143,7 +143,7 @@ public extension AsyncStateContainer {
     ///             HStack {
     ///                 Color.clear
     ///                     .onAppear {
-    ///                         $state.observe(sequence: viewModel.load())
+    ///                         $state.observe(viewModel.load())
     ///                     }
     ///             }
     ///         case .loaded(let model):
@@ -182,9 +182,9 @@ public extension AsyncStateContainer {
     /// Any ongoing state observations are cancelled before starting the new observation.
     /// If the observation task is cancelled before completion, the state will not be updated.
     ///
-    /// - Parameter nextState: An async closure that produces the next state value.
-    ///                        This closure must not throw errors and must be `@Sendable`,
-    ///                        meaning all captured values must be thread-safe.
+    /// - Parameter nextStateClosure: An async closure that produces the next state value.
+    ///                                This closure must not throw errors and must be `@Sendable`,
+    ///                                meaning all captured values must be thread-safe.
     ///
     /// ## Example
     ///
@@ -198,7 +198,7 @@ public extension AsyncStateContainer {
     ///             HStack {
     ///                 Color.clear
     ///                     .onAppear {
-    ///                         $state.observe(sequence: viewModel.load())
+    ///                         $state.observe(viewModel.load())
     ///                     }
     ///             }
     ///         case .loaded(let model):
@@ -218,7 +218,7 @@ public extension AsyncStateContainer {
     /// - Note: The closure is captured with `@escaping @Sendable` and executed within a `Task` on the main actor.
     ///         The `@Sendable` requirement ensures thread-safe capture of values that may be accessed
     ///         across different concurrency domains.
-    func observe(_ nextState: @escaping @Sendable () async -> State) {
+    func observe(_ nextStateClosure: @escaping @Sendable () async -> State) {
         cancelRunningObservations()
         
         stateTask = Task { @MainActor [weak self] in
@@ -229,7 +229,7 @@ public extension AsyncStateContainer {
             let state = signposter.beginInterval(postName, id: signpostId)
             defer { signposter.endInterval(postName, state) }
             
-            let nextStateValue = await nextState()
+            let nextStateValue = await nextStateClosure()
             
             guard Task.isCancelled == false else {
                 return
@@ -325,8 +325,8 @@ public extension AsyncStateContainer {
     /// The observation continues until the sequence completes or the observation is cancelled.
     /// If cancelled, no further states from the sequence will be applied.
     ///
-    /// - Parameter sequence: A ``StateSequence`` that produces a series of state values.
-    ///                       This sequence is guaranteed to never throw errors.
+    /// - Parameter stateSequence: A ``StateSequence`` that produces a series of state values.
+    ///                            This sequence is guaranteed to never throw errors.
     ///
     /// ## Example
     ///
@@ -341,7 +341,7 @@ public extension AsyncStateContainer {
     ///                 Color.clear
     ///                     .onAppear {
     ///                         // viewModel.load() returns StateSequence that emits .loading, then .loaded
-    ///                         $state.observe(sequence: viewModel.load())
+    ///                         $state.observe(viewModel.load())
     ///                     }
     ///             }
     ///         case .loading:
@@ -356,7 +356,7 @@ public extension AsyncStateContainer {
     /// ```
     ///
     /// - Note: ``StateSequence`` is designed to never throw, ensuring reliable state transitions.
-    func observe(_ sequence: StateSequence<State>) {
+    func observe(_ stateSequence: StateSequence<State>) {
         cancelRunningObservations()
         stateChanges = 0
         
@@ -369,7 +369,7 @@ public extension AsyncStateContainer {
             let sequenceState = signposter.beginInterval(postName, id: sequenceID, "State Sequence")
             defer { signposter.endInterval(postName, sequenceState) }
             
-            var iterator = sequence.makeAsyncIterator()
+            var iterator = stateSequence.makeAsyncIterator()
             var iterationCount = 1
             
             while !Task.isCancelled {
@@ -413,8 +413,8 @@ public extension AsyncStateContainer {
     /// The observation continues until the stream finishes or the observation is cancelled.
     /// If cancelled, no further states from the stream will be applied.
     ///
-    /// - Parameter sequence: An `AsyncStream<State>` that emits state values. Since `AsyncStream`
-    ///                       cannot throw errors by design, this ensures reliable state transitions.
+    /// - Parameter stream: An `AsyncStream<State>` that emits state values. Since `AsyncStream`
+    ///                     cannot throw errors by design, this ensures reliable state transitions.
     ///
     /// ## Example
     ///
@@ -431,7 +431,7 @@ public extension AsyncStateContainer {
     ///                         // This is just an example. Typically you would define a method on your view state model that returns an AsyncStream.
     ///                         let (stream, continuation) = AsyncStream<ExampleViewState>.makeStream()
     ///                         
-    ///                         $state.observe(sequence: stream)
+    ///                         $state.observe(stream)
     ///                         
     ///                         // Emit states from elsewhere (e.g., background task)
     ///                         Task {
@@ -451,7 +451,7 @@ public extension AsyncStateContainer {
     /// ```
     ///
     /// - Note: `AsyncStream` is non-throwing by design, making it ideal for state management.
-    func observe(_ sequence: AsyncStream<State>) {
+    func observe(_ stream: AsyncStream<State>) {
         cancelRunningObservations()
         stateChanges = 0
         
@@ -464,7 +464,7 @@ public extension AsyncStateContainer {
             let sequenceState = signposter.beginInterval(postName, id: sequenceID, "AsyncStream Sequence")
             defer { signposter.endInterval(postName, sequenceState) }
             
-            var iterator = sequence.makeAsyncIterator()
+            var iterator = stream.makeAsyncIterator()
             var iterationCount = 1
             
             while !Task.isCancelled {
@@ -531,7 +531,7 @@ public extension AsyncStateContainer {
     ///                         // This is just an example. Typically you would define a method on your view state model that returns an AsyncStream.
     ///                         let (stream, continuation) = AsyncStream<ExampleViewState>.makeStream()
     ///                         
-    ///                         $state.observe(sequence: stream)
+    ///                         $state.observe(stream)
     ///                         
     ///                         // Emit states from elsewhere (e.g., background task)
     ///                         Task {
@@ -552,9 +552,11 @@ public extension AsyncStateContainer {
     ///
     /// - Note: The `Never` failure type is enforced at compile time, ensuring type safety.
     ///         Any errors thrown despite this constraint will cause a precondition failure.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, *)
-    func observe<SomeAsyncSequence: AsyncSequence>(_ sequence: SomeAsyncSequence)
-    where SomeAsyncSequence.Element == State, SomeAsyncSequence.Failure == Never {
+    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, macCatalyst 18.0, *)
+    func observe<SomeAsyncSequence>(_ sequence: SomeAsyncSequence)
+    where SomeAsyncSequence: AsyncSequence,
+          SomeAsyncSequence.Element == State,
+          SomeAsyncSequence.Failure == Never {
         cancelRunningObservations()
         stateChanges = 0
         
@@ -716,8 +718,8 @@ public extension AsyncStateContainer {
     /// If cancelled, no further states from the sequence will be applied.
     ///
     /// - Parameters:
-    ///   - sequence: A ``StateSequence`` that produces a series of state values.
-    ///              This sequence is guaranteed to never throw errors.
+    ///   - stateSequence: A ``StateSequence`` that produces a series of state values.
+    ///                    This sequence is guaranteed to never throw errors.
     ///   - duration: The amount of time that must pass without new values before the most recent
     ///              state value is applied to the container.
     ///
@@ -733,7 +735,7 @@ public extension AsyncStateContainer {
     ///             TextField("Search", text: $searchText)
     ///                 .onChange(of: searchText) { newValue in
     ///                     // Debounce rapid text changes - only observe after user stops typing for 0.5 seconds
-    ///                     $state.observe(sequence: viewModel.search(query: newValue), debounced: .seconds(0.5))
+    ///                     $state.observe(viewModel.search(query: newValue), debounced: .seconds(0.5))
     ///                 }
     ///         case .loading:
     ///             ProgressView()
@@ -745,14 +747,14 @@ public extension AsyncStateContainer {
     /// ```
     ///
     /// - Note: ``StateSequence`` is designed to never throw, ensuring reliable state transitions.
-    func observe(sequence: StateSequence<State>, debounced duration: Duration) {
+    func observe(_ stateSequence: StateSequence<State>, debounced duration: Duration) {
         cancelRunningObservations()
         stateChanges = 0
         
         // Convert StateSequence to AsyncStream first to avoid Sendable issues
         let stream = AsyncStream<State> { continuation in
             Task {
-                var iterator = sequence.makeAsyncIterator()
+                var iterator = stateSequence.makeAsyncIterator()
                 while let nextState = await iterator.next() {
                     continuation.yield(nextState)
                 }
@@ -784,8 +786,8 @@ public extension AsyncStateContainer {
     /// If cancelled, no further states from the stream will be applied.
     ///
     /// - Parameters:
-    ///   - sequence: An `AsyncStream<State>` that emits state values. Since `AsyncStream`
-    ///              cannot throw errors by design, this ensures reliable state transitions.
+    ///   - stream: An `AsyncStream<State>` that emits state values. Since `AsyncStream`
+    ///             cannot throw errors by design, this ensures reliable state transitions.
     ///   - duration: The amount of time that must pass without new values before the most recent
     ///              state value is applied to the container.
     ///
@@ -802,7 +804,7 @@ public extension AsyncStateContainer {
     ///                 .onChange(of: searchText) { newValue in
     ///                     // Debounce rapid text changes
     ///                     let stream = viewModel.searchStream(query: newValue)
-    ///                     $state.observe(sequence: stream, debounced: .seconds(0.5))
+    ///                     $state.observe(stream, debounced: .seconds(0.5))
     ///                 }
     ///         case .loaded(let model):
     ///             ContentView(model: model)
@@ -812,13 +814,13 @@ public extension AsyncStateContainer {
     /// ```
     ///
     /// - Note: `AsyncStream` is non-throwing by design, making it ideal for state management.
-    func observe(sequence: AsyncStream<State>, debounced duration: Duration) {
+    func observe(_ stream: AsyncStream<State>, debounced duration: Duration) {
         cancelRunningObservations()
         stateChanges = 0
         
         stateTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            for await nextState in sequence.debounce(for: duration) {
+            for await nextState in stream.debounce(for: duration) {
                 guard Task.isCancelled == false else { break }
                 self.performStateChange(nextState)
             }
@@ -863,7 +865,7 @@ public extension AsyncStateContainer {
     ///                 .onChange(of: searchText) { newValue in
     ///                     // Debounce rapid text changes
     ///                     let sequence = viewModel.searchSequence(query: newValue)
-    ///                     $state.observe(sequence: sequence, debounced: .seconds(0.5))
+    ///                     $state.observe(sequence, debounced: .seconds(0.5))
     ///                 }
     ///         case .loaded(let model):
     ///             ContentView(model: model)
@@ -874,11 +876,11 @@ public extension AsyncStateContainer {
     ///
     /// - Note: The `Never` failure type is enforced at compile time, ensuring type safety.
     ///         Any errors thrown despite this constraint will cause a precondition failure.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, *)
-    func observe<SomeAsyncSequence: AsyncSequence & Sendable>(
-        sequence: SomeAsyncSequence,
-        debounced duration: Duration
-    ) where SomeAsyncSequence.Element == State, SomeAsyncSequence.Failure == Never {
+    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, macCatalyst 18.0, *)
+    func observe<SomeAsyncSequence>(_ sequence: SomeAsyncSequence, debounced duration: Duration)
+    where SomeAsyncSequence: AsyncSequence & Sendable,
+          SomeAsyncSequence.Element == State,
+          SomeAsyncSequence.Failure == Never {
         cancelRunningObservations()
         stateChanges = 0
         
