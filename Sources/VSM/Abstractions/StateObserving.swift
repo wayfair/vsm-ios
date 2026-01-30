@@ -98,10 +98,10 @@ public protocol StateObserving<State> {
     /// The sequence is debounced, meaning rapid state changes will be throttled - only the most
     /// recent state value will be applied after a quiescence period has elapsed.
     @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, macCatalyst 18.0, *)
-    func observe<SomeAsyncSequence: AsyncSequence & Sendable>(
-        _ sequence: SomeAsyncSequence,
-        debounced duration: Duration
-    ) where SomeAsyncSequence.Element == State, SomeAsyncSequence.Failure == Never
+    func observe<SomeAsyncSequence>(_ sequence: SomeAsyncSequence, debounced duration: Duration)
+    where SomeAsyncSequence: AsyncSequence & Sendable,
+          SomeAsyncSequence.Element == State,
+          SomeAsyncSequence.Failure == Never
     
     /// Observes and updates the state from a debounced Combine `Publisher`.
     ///
@@ -109,6 +109,15 @@ public protocol StateObserving<State> {
     /// debounced, meaning rapid state changes will be throttled - only the most recent state value
     /// will be applied after a quiescence period has elapsed. Exists for ease of migration from VSM to AsyncVSM.
     func observe(_ publisher: some Publisher<State, Never>, debounced duration: Duration)
+    
 }
 
+// MARK: Legacy Methods
+
+extension StateObserving {
+    @available(*, deprecated, renamed: "observe(_:)", message: "This method has been renamed to 'observe(_:)' with the same signature. Please update your code to use the new method name.")
+    func observeAsync(_ nextState: @escaping @Sendable () async -> State) {
+        observe(nextState)
+    }
+}
 #endif
