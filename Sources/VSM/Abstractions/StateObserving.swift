@@ -116,7 +116,7 @@ public protocol StateObserving<State> {
 
 extension StateObserving {
     @available(*, deprecated, renamed: "observe(_:)", message: "This method has been renamed to 'observe(_:)' with the same signature. Please update your code to use the new method name.")
-    func observeAsync(_ nextState: @escaping @Sendable () async -> State) {
+    public func observeAsync(_ nextState: @escaping @Sendable () async -> State) {
         observe(nextState)
     }
 }

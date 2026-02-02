@@ -142,6 +142,27 @@ public struct RenderedViewState<State: Sendable> {
         )
     }
     
+    public init<Parent>(
+        wrappedValue: State,
+        render: @escaping @Sendable (Parent) -> (State) -> (),
+        subsystem: String = "com.wayfair.vsm"
+    )
+    where Parent: AnyObject & Sendable {
+        let observedViewType = String(describing: Parent.self)
+        let anyRender: @Sendable (AnyObject, State) -> () = { parent, state in
+            guard let parent = parent as? Parent else { return }
+            render(parent)(state)
+        }
+        
+        self.renderedContainer = RenderedContainer(
+            container: AsyncStateContainer(
+                state: wrappedValue,
+                logger: OSLog(subsystem: subsystem, category: observedViewType)
+            ),
+            render: anyRender
+        )
+    }
+    
     // MARK: Automatic Rendering
 
     /// Automatically calls `render()` when the state changes on any class that has a property decorated with this property wrapper. (Intended for UIKit only)
