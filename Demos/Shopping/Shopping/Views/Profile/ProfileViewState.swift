@@ -18,13 +18,13 @@ enum ProfileViewState {
 
 protocol ProfileLoaderModeling {
     var error: String? { get }
-    func load() async -> StateSequence<ProfileViewState>
+    func load() -> StateSequence<ProfileViewState>
 }
 
 protocol ProfileEditingModeling {
     var username: String { get }
     var editingState: ProfileEditingState { get }
-    func save(username: String) async -> StateSequence<ProfileViewState>
+    func save(username: String) -> StateSequence<ProfileViewState>
 }
 
 // MARK: - Model Implementations
@@ -34,7 +34,7 @@ struct ProfileLoaderModel: ProfileLoaderModeling {
     let dependencies: Dependencies
     let error: String?
     
-    func load() async -> StateSequence<ProfileViewState> {
+    func load() -> StateSequence<ProfileViewState> {
         return StateSequence<ProfileViewState>(
             { .loading },
             {
@@ -58,7 +58,7 @@ struct ProfileEditingModel: ProfileEditingModeling, MutatingCopyable {
     var username: String
     var editingState: ProfileEditingState
     
-    func save(username: String) async -> StateSequence<ProfileViewState> {
+    func save(username: String) -> StateSequence<ProfileViewState> {
         guard username != self.username else {
             return StateSequence({ ProfileViewState.editing(self) })
         }

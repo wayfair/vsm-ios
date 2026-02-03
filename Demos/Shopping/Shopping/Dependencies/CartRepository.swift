@@ -39,7 +39,7 @@ class CartDatabase: CartRepository {
     typealias Dependencies = ProductRepositoryDependency
     let dependencies: Dependencies
     @Published private var cart: Cart = Cart(products: []) // Not thread-safe
-    lazy private (set) var cartItemCountPublisher: AnyPublisher<Int, Never> = {
+    lazy private(set) var cartItemCountPublisher: AnyPublisher<Int, Never> = {
         $cart.map({ $0.products.count }).eraseToAnyPublisher()        
     }()
     private var cancellables = Set<AnyCancellable>()

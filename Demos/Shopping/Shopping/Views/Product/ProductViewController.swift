@@ -54,6 +54,7 @@ class ProductViewController: UIViewController {
         parent?.navigationItem.rightBarButtonItem = UIBarButtonItem(customView: cartButtonViewController.view)
     }
     
+    @MainActor
     func render() {
         switch state {
         case .initialized, .loading:

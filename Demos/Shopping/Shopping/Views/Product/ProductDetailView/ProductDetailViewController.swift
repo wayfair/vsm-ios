@@ -79,6 +79,7 @@ class ProductDetailViewController: UIViewController {
         $state.startRendering(on: self)
     }
     
+    @MainActor
     func render(newState: ProductDetailViewState) {
         switch newState {
         case .viewing:
