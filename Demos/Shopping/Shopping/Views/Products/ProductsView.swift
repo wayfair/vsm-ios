@@ -44,7 +44,7 @@ struct ProductsView: View {
     }
     
     @ViewBuilder
-    func loadedView(_ loadedModel: ProductsLoadedModeling) -> some View {
+    func loadedView(_ loadedModel: ProductsLoadedModel) -> some View {
         if loadedModel.products.isEmpty {
             ZStack {
                 Text("No products available.")

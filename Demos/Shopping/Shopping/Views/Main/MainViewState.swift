@@ -11,22 +11,14 @@ import Foundation
 // MARK: - State & Model Definitions
 
 enum MainViewState {
-    case initialized(DependenciesLoaderModeling)
+    case initialized(DependenciesLoaderModel)
     case loading
-    case loaded(MainViewLoadedModeling)
-}
-
-protocol DependenciesLoaderModeling {
-    func loadDependencies() -> AnyPublisher<MainViewState, Never>
-}
-
-protocol MainViewLoadedModeling {
-    var dependencies: MainView.Dependencies { get }
+    case loaded(MainViewLoadedModel)
 }
 
 // MARK: - Model Implementations
 
-struct DependenciesLoaderModel: DependenciesLoaderModeling {
+struct DependenciesLoaderModel {
     let appDependenciesProvider: AsyncResource<MainView.Dependencies>
     
     func loadDependencies() -> AnyPublisher<MainViewState, Never> {
@@ -45,6 +37,6 @@ struct DependenciesLoaderModel: DependenciesLoaderModeling {
     }
 }
 
-struct MainViewLoadedModel: MainViewLoadedModeling {
+struct MainViewLoadedModel {
     let dependencies: MainView.Dependencies
 }

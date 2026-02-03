@@ -11,19 +11,15 @@ import Foundation
 // MARK: - State & Model Definitions
 
 enum ProductDetailViewState {
-    case viewing(AddToCartModeling)
+    case viewing(AddToCartModel)
     case addingToCart
-    case addedToCart(AddToCartModeling)
-    case addToCartError(message: String, AddToCartModeling)
-}
-
-protocol AddToCartModeling {
-    func addToCart() -> AnyPublisher<ProductDetailViewState, Never>
+    case addedToCart(AddToCartModel)
+    case addToCartError(message: String, AddToCartModel)
 }
 
 // MARK: - Model Implementations
 
-struct AddToCartModel: AddToCartModeling {
+struct AddToCartModel {
     typealias Dependencies = CartRepositoryDependency & DispatchQueueSchedulingDependency
     let dependencies: Dependencies
     let productId: Int

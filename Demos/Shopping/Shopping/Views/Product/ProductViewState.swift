@@ -11,19 +11,15 @@ import Foundation
 // MARK: - State & Model Definitions
 
 enum ProductViewState {
-    case initialized(ProductDetailLoaderModeling)
+    case initialized(ProductDetailLoaderModel)
     case loading
     case loaded(ProductDetail)
     case error(message: String, retry: () -> AnyPublisher<ProductViewState, Never>)
 }
 
-protocol ProductDetailLoaderModeling {
-    func loadProductDetail() -> AnyPublisher<ProductViewState, Never>
-}
-
 // MARK: - Model Implementations
 
-struct ProductDetailLoaderModel: ProductDetailLoaderModeling {
+struct ProductDetailLoaderModel {
     typealias Dependencies = ProductRepositoryDependency
     let dependencies: Dependencies
     let productId: Int

@@ -11,38 +11,17 @@ import Foundation
 // MARK: - State & Model Definitions
 
 enum FavoritesViewState {
-    case initialized(FavoritesLoaderModeling)
+    case initialized(FavoritesLoaderModel)
     case loading
-    case loaded(FavoritesViewLoadedModeling)
-    case loadingError(FavoritesViewErrorModeling)
+    case loaded(FavoritesViewLoadedModel)
+    case loadingError(FavoritesViewErrorModel)
     case deleting([FavoritedProduct])
-    case deletingError(FavoritesViewDeletingErrorModeling)
-}
-
-protocol FavoritesLoaderModeling {
-    func loadFavorites() -> AnyPublisher<FavoritesViewState, Never>
-}
-
-protocol FavoritesViewLoadedModeling {
-    var favorites: [FavoritedProduct] { get }
-    func delete(productId: Int) -> AnyPublisher<FavoritesViewState, Never>
-}
-
-protocol FavoritesViewErrorModeling {
-    var message: String { get }
-    var retry: () -> AnyPublisher<FavoritesViewState, Never> { get }
-}
-
-protocol FavoritesViewDeletingErrorModeling {
-    var favorites: [FavoritedProduct] { get }
-    var message: String { get }
-    var retry: () -> AnyPublisher<FavoritesViewState, Never> { get }
-    var cancel: () -> AnyPublisher<FavoritesViewState, Never> { get }
+    case deletingError(FavoritesViewDeletingErrorModel)
 }
 
 protocol FavoritesViewModelBuilding {
-    func buildLoaderModel() -> FavoritesLoaderModeling
-    func buildFavoritesViewLoadedModel(favorites: [FavoritedProduct]) -> FavoritesViewLoadedModeling
+    func buildLoaderModel() -> FavoritesLoaderModel
+    func buildFavoritesViewLoadedModel(favorites: [FavoritedProduct]) -> FavoritesViewLoadedModel
 }
 
 // MARK: - Model Implementations
@@ -51,16 +30,16 @@ struct FavoritesViewModelBuilder: FavoritesViewModelBuilding {
     typealias Dependencies = FavoritesLoaderModel.Dependencies & FavoritesViewLoadedModel.Dependencies
     let dependencies: Dependencies
     
-    func buildLoaderModel() -> FavoritesLoaderModeling {
+    func buildLoaderModel() -> FavoritesLoaderModel {
         return FavoritesLoaderModel(dependencies: dependencies, modelBuilder: self)
     }
     
-    func buildFavoritesViewLoadedModel(favorites: [FavoritedProduct]) -> FavoritesViewLoadedModeling {
+    func buildFavoritesViewLoadedModel(favorites: [FavoritedProduct]) -> FavoritesViewLoadedModel {
         return FavoritesViewLoadedModel(dependencies: dependencies, modelBuilder: self, favorites: favorites)
     }
 }
 
-struct FavoritesLoaderModel: FavoritesLoaderModeling {
+struct FavoritesLoaderModel {
     typealias Dependencies = FavoritesRepositoryDependency
     let dependencies: Dependencies
     let modelBuilder: FavoritesViewModelBuilding
@@ -85,7 +64,7 @@ struct FavoritesLoaderModel: FavoritesLoaderModeling {
     }
 }
 
-struct FavoritesViewLoadedModel: FavoritesViewLoadedModeling {
+struct FavoritesViewLoadedModel {
     typealias Dependencies = FavoritesRepositoryDependency
     let dependencies: Dependencies
     let modelBuilder: FavoritesViewModelBuilding
@@ -108,12 +87,12 @@ struct FavoritesViewLoadedModel: FavoritesViewLoadedModeling {
     }
 }
 
-struct FavoritesViewErrorModel: FavoritesViewErrorModeling {
+struct FavoritesViewErrorModel {
     let message: String
     let retry: () -> AnyPublisher<FavoritesViewState, Never>
 }
 
-struct FavoritesViewDeletingErrorModel: FavoritesViewDeletingErrorModeling {
+struct FavoritesViewDeletingErrorModel {
     let favorites: [FavoritedProduct]
     let message: String
     let retry: () -> AnyPublisher<FavoritesViewState, Never>

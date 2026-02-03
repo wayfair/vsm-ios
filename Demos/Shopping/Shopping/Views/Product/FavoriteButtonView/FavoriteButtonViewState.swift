@@ -12,25 +12,17 @@ import SwiftUI
 // MARK: - State & Model Definitions
 
 enum FavoriteButtonViewState {
-    case initialized(FavoriteInfoLoaderModeling)
+    case initialized(FavoriteInfoLoaderModel)
     case loading
-    case loaded(FavoriteButtonLoadedModeling)
+    case loaded(FavoriteButtonLoadedModel)
     case error
-}
-
-protocol FavoriteInfoLoaderModeling {
-    typealias Dependencies = FavoritesRepositoryDependency & FavoriteButtonLoadedModel.Dependencies
-    func loadFavoriteInfo(dependencies: Dependencies, productId: Int, productName: String) -> AnyPublisher<FavoriteButtonViewState, Never>
-}
-
-protocol FavoriteButtonLoadedModeling {
-    var isFavorite: Bool { get }
-    func toggleFavorite()
 }
 
 // MARK: - Model Implementations
 
-struct FavoriteInfoLoaderModel: FavoriteInfoLoaderModeling {
+struct FavoriteInfoLoaderModel {
+    typealias Dependencies = FavoritesRepositoryDependency & FavoriteButtonLoadedModel.Dependencies
+    
     func loadFavoriteInfo(dependencies: Dependencies, productId: Int, productName: String) -> AnyPublisher<FavoriteButtonViewState, Never> {
         return dependencies.favoritesRepository.getFavoriteStatusPublisher(productId: productId)
             .map { favoriteState in
@@ -46,7 +38,7 @@ struct FavoriteInfoLoaderModel: FavoriteInfoLoaderModeling {
     }
 }
 
-struct FavoriteButtonLoadedModel: FavoriteButtonLoadedModeling {
+struct FavoriteButtonLoadedModel {
     typealias Dependencies = FavoritesRepositoryDependency
     let dependencies: Dependencies
     let productId: Int

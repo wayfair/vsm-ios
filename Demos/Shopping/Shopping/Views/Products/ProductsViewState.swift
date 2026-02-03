@@ -11,26 +11,15 @@ import Foundation
 // MARK: - State & Model Definitions
 
 enum ProductsViewState {
-    case initialized(ProductsLoaderModeling)
+    case initialized(ProductsLoaderModel)
     case loading
-    case loaded(ProductsLoadedModeling)
+    case loaded(ProductsLoadedModel)
     case error(message: String, retry: () -> AnyPublisher<ProductsViewState, Never>)
-}
-
-protocol ProductsLoaderModeling {
-    func loadProducts() -> AnyPublisher<ProductsViewState, Never>
-}
-
-protocol ProductsLoadedModeling {
-    var products: [GridProduct] { get }
-    var productDetailId: Int? { get }
-    
-    func showProductDetail(id: Int) -> ProductsViewState
 }
 
 // MARK: - Model Implementations
 
-struct ProductsLoaderModel: ProductsLoaderModeling {
+struct ProductsLoaderModel {
     typealias Dependencies = ProductRepositoryDependency
     let dependencies: Dependencies
     
@@ -45,7 +34,7 @@ struct ProductsLoaderModel: ProductsLoaderModeling {
     }
 }
 
-struct ProductsLoadedModel: ProductsLoadedModeling {
+struct ProductsLoadedModel {
     let products: [GridProduct]
     var productDetailId: Int? = nil
     

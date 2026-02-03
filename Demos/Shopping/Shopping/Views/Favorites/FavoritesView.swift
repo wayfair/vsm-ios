@@ -76,7 +76,7 @@ struct FavoritesView: View {
             .accessibilityIdentifier("Processing...")
     }
     
-    func errorView(_ errorModel: FavoritesViewErrorModeling) -> some View {
+    func errorView(_ errorModel: FavoritesViewErrorModel) -> some View {
         VStack {
             Text("Oops!").font(.title)
             Text(errorModel.message)
@@ -87,7 +87,7 @@ struct FavoritesView: View {
     }
     
     @ViewBuilder
-    func deletingErrorView(_ deletingErrorModel: FavoritesViewDeletingErrorModeling) -> some View {
+    func deletingErrorView(_ deletingErrorModel: FavoritesViewDeletingErrorModel) -> some View {
         if #available(iOS 15, *) {
             VStack { }
                 .alert("Oops!", isPresented: $showErrorAlert) {

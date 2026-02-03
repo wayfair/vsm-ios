@@ -34,7 +34,7 @@ struct MainView: View {
         }
     }
     
-    func loadedView(_ loadedModel: MainViewLoadedModeling) -> some View {
+    func loadedView(_ loadedModel: MainViewLoadedModel) -> some View {
         TabView {
             NavigationView {
                 ProductsView(dependencies: loadedModel.dependencies)
