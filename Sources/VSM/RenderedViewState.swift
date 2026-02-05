@@ -123,12 +123,12 @@ public struct RenderedViewState<State: Sendable> {
     ///   - render: The function to call when the view state _did change_.
     public init<Parent>(
         wrappedValue: State,
-        render: @escaping @Sendable (Parent) -> () -> (),
+        render: @escaping (Parent) -> () -> (),
         subsystem: String = "com.wayfair.vsm"
     )
     where Parent: AnyObject & Sendable {
         let observedViewType = String(describing: Parent.self)
-        let anyRender: @Sendable (AnyObject, State) -> () = { parent, state in
+        let anyRender: (AnyObject, State) -> () = { parent, state in
             guard let parent = parent as? Parent else { return }
             render(parent)()
         }
@@ -144,12 +144,12 @@ public struct RenderedViewState<State: Sendable> {
     
     public init<Parent>(
         wrappedValue: State,
-        render: @escaping @Sendable (Parent) -> (State) -> (),
+        render: @escaping (Parent) -> (State) -> (),
         subsystem: String = "com.wayfair.vsm"
     )
     where Parent: AnyObject & Sendable {
         let observedViewType = String(describing: Parent.self)
-        let anyRender: @Sendable (AnyObject, State) -> () = { parent, state in
+        let anyRender: (AnyObject, State) -> () = { parent, state in
             guard let parent = parent as? Parent else { return }
             render(parent)(state)
         }
@@ -204,7 +204,7 @@ public extension RenderedViewState {
         /// The wrapped state container for managing changes in state
         let container: AsyncStateContainer<State>
         /// Implicitly used by UIKit views to automatically call the provided function when the state changes
-        let render: @Sendable (AnyObject, State) -> Void
+        let render: (AnyObject, State) -> Void
         
         /// Subscribes a UIKit view or view controller to render each state change. If not called, rendering will automatically start when the `state` property is first accessed.
         ///
