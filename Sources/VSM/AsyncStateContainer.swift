@@ -44,6 +44,82 @@ import os.signpost
 /// - Only works with sequences whose `Failure` type is `Never`
 /// - Supports non-throwing `AsyncStream<State>` and `StateSequence<State>`
 ///
+/// ## State Models and Actions
+///
+/// In VSM, each state in your view's state enum should have an associated **state model** that contains
+/// the actions available in that state. This design ensures that:
+/// - Each state has a well-defined, limited set of actions
+/// - Actions are only available when they make sense for the current state
+/// - The compiler enforces that you handle all states in your view
+///
+/// ### Defining State Models
+///
+/// Every state that can perform actions should have an associated state model type:
+///
+/// ```swift
+/// enum ExampleViewState {
+///     case initialized(InitializedModel)  // Has a load() action
+///     case loading                         // No actions - just shows progress
+///     case loaded(LoadedModel)             // Has refresh(), delete() actions
+///     case loadedEmpty(LoadedEmptyModel)   // Has refresh() action
+///     case error(ErrorModel)               // Has retry() action
+/// }
+/// ```
+///
+/// States like `.loading` that don't need actions don't require an associated model.
+///
+/// ### Adding New Actions
+///
+/// When you need to add a new action to a state:
+/// 1. Add a method to the state's model that returns `State`, `StateSequence<State>`, or `AsyncStream<State>`
+/// 2. If the state doesn't have an associated model yet, create one
+/// 3. Never add actions directly in the view - always define them on state models
+///
+/// ### Sharing Actions Between States
+///
+/// When multiple states need the same action (e.g., both `loaded` and `loadedEmpty` need a `refresh` action),
+/// use a protocol to share the implementation:
+///
+/// ```swift
+/// protocol Refreshable {
+///     var repository: ItemRepository { get }
+/// }
+///
+/// extension Refreshable {
+///     func refresh() -> StateSequence<ExampleViewState> {
+///         StateSequence(
+///             { .loading },
+///             { await self.fetchItems() }
+///         )
+///     }
+///     
+///     @concurrent
+///     private func fetchItems() async -> ExampleViewState {
+///         do {
+///             let items = try await repository.fetchItems()
+///             if items.isEmpty {
+///                 return .loadedEmpty(LoadedEmptyModel(repository: repository))
+///             }
+///             return .loaded(LoadedModel(items: items, repository: repository))
+///         } catch {
+///             return .error(ErrorModel(error: error, retry: { await self.fetchItems() }))
+///         }
+///     }
+/// }
+///
+/// struct LoadedModel: Refreshable {
+///     let items: [Item]
+///     let repository: ItemRepository
+/// }
+///
+/// struct LoadedEmptyModel: Refreshable {
+///     let repository: ItemRepository
+/// }
+/// ```
+///
+/// This pattern ensures both states have access to the same `refresh()` action without code duplication,
+/// while still maintaining separate model types that can have their own state-specific actions.
+///
 /// ## Usage
 ///
 /// You interact with `AsyncStateContainer` through the `@ViewState` property wrapper in SwiftUI views:
@@ -272,6 +348,27 @@ public extension AsyncStateContainer {
     ///
     /// ## Example
     ///
+    /// First, define a state model that implements a `refresh()` action returning the next state:
+    ///
+    /// ```swift
+    /// struct LoadedViewStateModel: Sendable {
+    ///     let items: [Item]
+    ///     private let repository: ItemRepository
+    ///     
+    ///     func refresh() async -> ExampleViewState {
+    ///         do {
+    ///             let freshItems = try await repository.fetchItems()
+    ///             return .loaded(LoadedViewStateModel(items: freshItems, repository: repository))
+    ///         } catch {
+    ///             // Return the current state with items preserved, or handle error as appropriate
+    ///             return .loaded(self)
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Then use the `refresh(state:)` method in your view's `refreshable` modifier:
+    ///
     /// ```swift
     /// struct ExampleView: View {
     ///     @ViewState var state = ExampleViewState.loaded(LoadedViewStateModel())
@@ -334,6 +431,37 @@ public extension AsyncStateContainer {
     ///
     /// ## Example
     ///
+    /// First, define a state model that implements a `load()` action returning a `StateSequence`.
+    /// The sequence is constructed with multiple closures - the first returns a `.loading` state,
+    /// and subsequent closures perform async work and return either a `.loaded` or `.error` state:
+    ///
+    /// ```swift
+    /// struct InitializedViewStateModel: Sendable {
+    ///     private let repository: ItemRepository
+    ///     
+    ///     func load() -> StateSequence<ExampleViewState> {
+    ///         StateSequence(
+    ///             { .loading },
+    ///             { await self.fetchItems() }
+    ///         )
+    ///     }
+    ///     
+    ///     @concurrent
+    ///     private func fetchItems() async -> ExampleViewState {
+    ///         do {
+    ///             let items = try await repository.fetchItems()
+    ///             let loadedModel = LoadedViewStateModel(items: items, repository: repository)
+    ///             return .loaded(loadedModel)
+    ///         } catch {
+    ///             let errorModel = ErrorViewStateModel(error: error, retry: { await self.fetchItems() })
+    ///             return .error(errorModel)
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Then observe the sequence in your view:
+    ///
     /// ```swift
     /// struct ExampleView: View {
     ///     @ViewState var state = ExampleViewState.initialized(InitializedViewStateModel())
@@ -341,25 +469,23 @@ public extension AsyncStateContainer {
     ///     var body: some View {
     ///         switch state {
     ///         case .initialized(let viewModel):
-    ///             HStack {
-    ///                 Color.clear
-    ///                     .onAppear {
-    ///                         // viewModel.load() returns StateSequence that emits .loading, then .loaded
-    ///                         $state.observe(viewModel.load())
-    ///                     }
-    ///             }
+    ///             Color.clear
+    ///                 .onAppear {
+    ///                     $state.observe(viewModel.load())
+    ///                 }
     ///         case .loading:
     ///             ProgressView()
     ///         case .loaded(let model):
     ///             ContentView(model: model)
-    ///         case .error(let error):
-    ///             ErrorView(error: error)
+    ///         case .error(let model):
+    ///             ErrorView(model: model)
     ///         }
     ///     }
     /// }
     /// ```
     ///
     /// - Note: ``StateSequence`` is designed to never throw, ensuring reliable state transitions.
+    ///         Errors from async work should be caught and converted into appropriate error states.
     func observe(_ stateSequence: StateSequence<State>) {
         cancelRunningObservations()
         stateChanges = 0
@@ -422,39 +548,69 @@ public extension AsyncStateContainer {
     ///
     /// ## Example
     ///
+    /// First, define a state model that implements an action returning an `AsyncStream`.
+    /// Use `AsyncStream` when you need fine-grained control over when states are emitted,
+    /// such as multi-step operations where intermediate states depend on async results:
+    ///
+    /// ```swift
+    /// struct LoadedViewStateModel: Sendable {
+    ///     let items: [Item]
+    ///     private let repository: ItemRepository
+    ///     
+    ///     func checkout() -> AsyncStream<ExampleViewState> {
+    ///         AsyncStream { continuation in
+    ///             Task {
+    ///                 continuation.yield(.checkingOut)
+    ///                 await self.performCheckout(continuation)
+    ///                 continuation.finish()
+    ///             }
+    ///         }
+    ///     }
+    ///     
+    ///     @concurrent
+    ///     private func performCheckout(_ continuation: AsyncStream<ExampleViewState>.Continuation) async {
+    ///         do {
+    ///             try await repository.checkout()
+    ///             continuation.yield(.checkoutComplete)
+    ///             
+    ///             try? await Task.sleep(for: .seconds(2))
+    ///             continuation.yield(.loaded(LoadedViewStateModel(items: [], repository: repository)))
+    ///         } catch {
+    ///             continuation.yield(.checkoutError(error: error, model: self))
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Then observe the stream in your view:
+    ///
     /// ```swift
     /// struct ExampleView: View {
-    ///     @ViewState var state = ExampleViewState.initialized(.init())
+    ///     @ViewState var state = ExampleViewState.loaded(LoadedViewStateModel())
     ///     
     ///     var body: some View {
     ///         switch state {
-    ///         case .initialized(let viewModel):
-    ///             HStack {
-    ///                 Color.clear
-    ///                     .onAppear {
-    ///                         // This is just an example. Typically you would define a method on your view state model that returns an AsyncStream.
-    ///                         let (stream, continuation) = AsyncStream<ExampleViewState>.makeStream()
-    ///                         
-    ///                         $state.observe(stream)
-    ///                         
-    ///                         // Emit states from elsewhere (e.g., background task)
-    ///                         Task {
-    ///                             let data = await fetchData()
-    ///                             continuation.yield(.loaded(LoadedViewStateModel(data: data)))
-    ///                             continuation.finish()
-    ///                         }
-    ///                     }
-    ///             }
     ///         case .loaded(let model):
     ///             ContentView(model: model)
-    ///         case .error(let viewModel):
-    ///             ErrorView(viewModel: viewModel)
+    ///                 .toolbar {
+    ///                     Button("Checkout") {
+    ///                         $state.observe(model.checkout())
+    ///                     }
+    ///                 }
+    ///         case .checkingOut:
+    ///             ProgressView("Processing...")
+    ///         case .checkoutComplete:
+    ///             Text("Order complete!")
+    ///         case .checkoutError(let error, let model):
+    ///             ErrorView(error: error, retry: { $state.observe(model.checkout()) })
     ///         }
     ///     }
     /// }
     /// ```
     ///
     /// - Note: `AsyncStream` is non-throwing by design, making it ideal for state management.
+    ///         Use `AsyncStream` when you need to yield multiple states at specific points
+    ///         during an async operation, rather than just at the beginning and end.
     func observe(_ stream: AsyncStream<State>) {
         cancelRunningObservations()
         stateChanges = 0
@@ -522,40 +678,69 @@ public extension AsyncStateContainer {
     ///
     /// ## Example
     ///
+    /// This method accepts any `AsyncSequence` with a `Failure` type of `Never`. The most common
+    /// type that satisfies this constraint is `AsyncStream`. First, define a state model that
+    /// implements an action returning an `AsyncStream`:
+    ///
+    /// ```swift
+    /// struct LoadedViewStateModel: Sendable {
+    ///     let items: [Item]
+    ///     private let repository: ItemRepository
+    ///     
+    ///     func checkout() -> AsyncStream<ExampleViewState> {
+    ///         AsyncStream { continuation in
+    ///             Task {
+    ///                 continuation.yield(.checkingOut)
+    ///                 await self.performCheckout(continuation)
+    ///                 continuation.finish()
+    ///             }
+    ///         }
+    ///     }
+    ///     
+    ///     @concurrent
+    ///     private func performCheckout(_ continuation: AsyncStream<ExampleViewState>.Continuation) async {
+    ///         do {
+    ///             try await repository.checkout()
+    ///             continuation.yield(.checkoutComplete)
+    ///             
+    ///             try? await Task.sleep(for: .seconds(2))
+    ///             continuation.yield(.loaded(LoadedViewStateModel(items: [], repository: repository)))
+    ///         } catch {
+    ///             continuation.yield(.checkoutError(error: error, model: self))
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Then observe the stream in your view:
+    ///
     /// ```swift
     /// struct ExampleView: View {
-    ///     @ViewState var state = ExampleViewState.initialized(.init())
+    ///     @ViewState var state = ExampleViewState.loaded(LoadedViewStateModel())
     ///     
     ///     var body: some View {
     ///         switch state {
-    ///         case .initialized(let viewModel):
-    ///             HStack {
-    ///                 Color.clear
-    ///                     .onAppear {
-    ///                         // This is just an example. Typically you would define a method on your view state model that returns an AsyncStream.
-    ///                         let (stream, continuation) = AsyncStream<ExampleViewState>.makeStream()
-    ///                         
-    ///                         $state.observe(stream)
-    ///                         
-    ///                         // Emit states from elsewhere (e.g., background task)
-    ///                         Task {
-    ///                             let data = await fetchData()
-    ///                             continuation.yield(.loaded(LoadedViewStateModel(data: data)))
-    ///                             continuation.finish()
-    ///                         }
-    ///                     }
-    ///             }
     ///         case .loaded(let model):
     ///             ContentView(model: model)
-    ///         case .error(let viewModel):
-    ///             ErrorView(viewModel: viewModel)
+    ///                 .toolbar {
+    ///                     Button("Checkout") {
+    ///                         $state.observe(model.checkout())
+    ///                     }
+    ///                 }
+    ///         case .checkingOut:
+    ///             ProgressView("Processing...")
+    ///         case .checkoutComplete:
+    ///             Text("Order complete!")
+    ///         case .checkoutError(let error, let model):
+    ///             ErrorView(error: error, retry: { $state.observe(model.checkout()) })
     ///         }
     ///     }
     /// }
     /// ```
     ///
     /// - Note: The `Never` failure type is enforced at compile time, ensuring type safety.
-    ///         Any errors thrown despite this constraint will cause a precondition failure.
+    ///         Use this method when working with custom `AsyncSequence` types or when you
+    ///         need to apply sequence transformations before observing.
     @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, macCatalyst 18.0, *)
     func observe<SomeAsyncSequence>(_ sequence: SomeAsyncSequence)
     where SomeAsyncSequence: AsyncSequence,

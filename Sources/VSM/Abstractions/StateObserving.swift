@@ -42,12 +42,6 @@ public protocol StateObserving<State> {
     /// on any thread, but the resulting state change is guaranteed to occur on the main thread.
     func observe(_ nextStateClosure: @escaping @Sendable () async -> State)
     
-    /// Refreshes the state using an asynchronous closure, suspending until complete.
-    ///
-    /// Executes the provided closure asynchronously to produce the next state, suspending the caller
-    /// until the state has been produced and applied. Designed for pull-to-refresh functionality.
-    func refresh(state nextState: @escaping @Sendable () async -> State) async
-    
     // MARK: - Observe Sequence of State Changes Functions
     
     /// Observes and updates the state through a sequence of state values.

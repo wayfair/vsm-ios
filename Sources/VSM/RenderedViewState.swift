@@ -237,7 +237,8 @@ public extension RenderedViewState {
     }
 }
 
-// Forwards protocol member calls to underlying state container
+// MARK: - StateObserving Conformance
+
 @available(iOS, introduced: 17.0, deprecated: 26.0, renamed: "ViewState", message: "iOS 26 supports property observation in UIViewControllers and UIViews. Use @ViewState instead and override the updateProperties method which will replace your render method.")
 @available(iOS, introduced: 17.0, deprecated: 26.0, renamed: "ViewState", message: "iOS 26 supports property observation in UIViewControllers and UIViews. Use @ViewState instead and override the updateProperties method which will replace your render method.")
 @available(macOS, introduced: 14.0, deprecated: 26.0, renamed: "ViewState", message: "iOS 26 supports property observation in UIViewControllers and UIViews. Use @ViewState instead and override the updateProperties method which will replace your render method.")
@@ -246,26 +247,223 @@ public extension RenderedViewState {
 @available(macCatalyst, introduced: 17.0, deprecated: 26.0, renamed: "ViewState", message: "iOS 26 supports property observation in UIViewControllers and UIViews. Use @ViewState instead and override the updateProperties method which will replace your render method.")
 @available(watchOS, unavailable, message: "watchOS only uses SwiftUI, so this UIKit-specific property wrapper is not available")
 extension RenderedViewState.RenderedContainer {
+    
+    /// Immediately updates the container's state to the provided value.
+    ///
+    /// This method cancels any ongoing state observations and synchronously updates the state
+    /// on the main thread. Use this method when you have a state value ready and want to
+    /// update immediately without any asynchronous work.
+    ///
+    /// - Parameter nextState: The new state value to set.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// class ExampleViewController: UIViewController {
+    ///     @RenderedViewState(render: ExampleViewController.render)
+    ///     var state: ExampleViewState = .initialized(.init())
+    ///     
+    ///     func render() {
+    ///         switch state {
+    ///         case .loaded(let model):
+    ///             // Configure UI for loaded state
+    ///             resetButton.addAction(UIAction { [weak self] _ in
+    ///                 self?.$state.observe(.initialized(.init()))
+    ///             }, for: .touchUpInside)
+    ///         // ... other cases
+    ///         }
+    ///     }
+    /// }
+    /// ```
     public func observe(_ nextState: State) {
         container.observe(nextState)
     }
     
+    /// Observes and updates the state using an asynchronous closure.
+    ///
+    /// This method executes the provided closure asynchronously to produce the next state.
+    /// The closure can run on any thread based on Swift's concurrency model, but the resulting
+    /// state change is guaranteed to occur on the main thread. The method returns immediately
+    /// without waiting for the closure to complete.
+    ///
+    /// - Parameter nextStateClosure: An async closure that produces the next state value.
+    ///
+    /// ## Example
+    ///
+    /// First, define a state model with an async action:
+    ///
+    /// ```swift
+    /// struct ErrorViewStateModel: Sendable {
+    ///     let error: Error
+    ///     private let repository: ItemRepository
+    ///     
+    ///     func retry() async -> ExampleViewState {
+    ///         do {
+    ///             let items = try await repository.fetchItems()
+    ///             return .loaded(LoadedViewStateModel(items: items, repository: repository))
+    ///         } catch {
+    ///             return .error(ErrorViewStateModel(error: error, repository: repository))
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Then observe the action in your view controller:
+    ///
+    /// ```swift
+    /// class ExampleViewController: UIViewController {
+    ///     @RenderedViewState(render: ExampleViewController.render)
+    ///     var state: ExampleViewState = .error(ErrorViewStateModel())
+    ///     
+    ///     func render() {
+    ///         switch state {
+    ///         case .error(let model):
+    ///             retryButton.addAction(UIAction { [weak self] _ in
+    ///                 self?.$state.observe { await model.retry() }
+    ///             }, for: .touchUpInside)
+    ///         // ... other cases
+    ///         }
+    ///     }
+    /// }
+    /// ```
     public func observe(_ nextStateClosure: @escaping @Sendable () async -> State) {
         container.observe(nextStateClosure)
     }
     
-    public func refresh(state nextState: @escaping @Sendable () async -> State) async {
-        await container.refresh(state: nextState)
-    }
-    
+    /// Observes and updates the state through a sequence of state values.
+    ///
+    /// This method consumes a `StateSequence` that produces multiple state values over time.
+    /// Each state value is applied to the container as it becomes available from the sequence.
+    ///
+    /// - Parameter stateSequence: A `StateSequence` that produces a series of state values.
+    ///
+    /// ## Example
+    ///
+    /// First, define a state model that returns a `StateSequence`:
+    ///
+    /// ```swift
+    /// struct InitializedViewStateModel: Sendable {
+    ///     private let repository: ItemRepository
+    ///     
+    ///     func load() -> StateSequence<ExampleViewState> {
+    ///         StateSequence(
+    ///             { .loading },
+    ///             { await self.fetchItems() }
+    ///         )
+    ///     }
+    ///     
+    ///     @concurrent
+    ///     private func fetchItems() async -> ExampleViewState {
+    ///         do {
+    ///             let items = try await repository.fetchItems()
+    ///             return .loaded(LoadedViewStateModel(items: items, repository: repository))
+    ///         } catch {
+    ///             return .error(ErrorViewStateModel(error: error, retry: { await self.fetchItems() }))
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Then observe the sequence in your view controller:
+    ///
+    /// ```swift
+    /// class ExampleViewController: UIViewController {
+    ///     @RenderedViewState(render: ExampleViewController.render)
+    ///     var state: ExampleViewState = .initialized(InitializedViewStateModel())
+    ///     
+    ///     override func viewWillAppear(_ animated: Bool) {
+    ///         super.viewWillAppear(animated)
+    ///         if case .initialized(let model) = state {
+    ///             $state.observe(model.load())
+    ///         }
+    ///     }
+    ///     
+    ///     func render() {
+    ///         switch state {
+    ///         case .loading:
+    ///             activityIndicator.startAnimating()
+    ///         case .loaded(let model):
+    ///             activityIndicator.stopAnimating()
+    ///             // Configure UI with model.items
+    ///         // ... other cases
+    ///         }
+    ///     }
+    /// }
+    /// ```
     public func observe(_ stateSequence: StateSequence<State>) {
         container.observe(stateSequence)
     }
     
+    /// Observes and updates the state from an `AsyncStream`.
+    ///
+    /// This method consumes an `AsyncStream` that emits state values over time. Use `AsyncStream`
+    /// when you need fine-grained control over when states are emitted.
+    ///
+    /// - Parameter stream: An `AsyncStream<State>` that emits state values.
+    ///
+    /// ## Example
+    ///
+    /// First, define a state model that returns an `AsyncStream`:
+    ///
+    /// ```swift
+    /// struct LoadedViewStateModel: Sendable {
+    ///     let items: [Item]
+    ///     private let repository: ItemRepository
+    ///     
+    ///     func checkout() -> AsyncStream<ExampleViewState> {
+    ///         AsyncStream { continuation in
+    ///             Task {
+    ///                 continuation.yield(.checkingOut)
+    ///                 await self.performCheckout(continuation)
+    ///                 continuation.finish()
+    ///             }
+    ///         }
+    ///     }
+    ///     
+    ///     @concurrent
+    ///     private func performCheckout(_ continuation: AsyncStream<ExampleViewState>.Continuation) async {
+    ///         do {
+    ///             try await repository.checkout()
+    ///             continuation.yield(.checkoutComplete)
+    ///             try? await Task.sleep(for: .seconds(2))
+    ///             continuation.yield(.loaded(LoadedViewStateModel(items: [], repository: repository)))
+    ///         } catch {
+    ///             continuation.yield(.checkoutError(error: error, model: self))
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Then observe the stream in your view controller:
+    ///
+    /// ```swift
+    /// class ExampleViewController: UIViewController {
+    ///     @RenderedViewState(render: ExampleViewController.render)
+    ///     var state: ExampleViewState = .loaded(LoadedViewStateModel())
+    ///     
+    ///     func render() {
+    ///         switch state {
+    ///         case .loaded(let model):
+    ///             checkoutButton.addAction(UIAction { [weak self] _ in
+    ///                 self?.$state.observe(model.checkout())
+    ///             }, for: .touchUpInside)
+    ///         case .checkingOut:
+    ///             activityIndicator.startAnimating()
+    ///         // ... other cases
+    ///         }
+    ///     }
+    /// }
+    /// ```
     public func observe(_ stream: AsyncStream<State>) {
         container.observe(stream)
     }
     
+    /// Observes and updates the state from a generic `AsyncSequence` that never throws.
+    ///
+    /// This method consumes any `AsyncSequence` whose element type is `State` and failure type
+    /// is `Never`. The most common type that satisfies this constraint is `AsyncStream`.
+    ///
+    /// - Parameter sequence: Any `AsyncSequence` that emits `State` values with `Failure` type of `Never`.
     @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, macCatalyst 18.0, *)
     public func observe<SomeAsyncSequence>(_ sequence: SomeAsyncSequence)
     where SomeAsyncSequence: AsyncSequence,
@@ -274,18 +472,48 @@ extension RenderedViewState.RenderedContainer {
         container.observe(sequence)
     }
     
+    /// Observes and updates the state from a Combine `Publisher`.
+    ///
+    /// Consumes a Combine `Publisher` that emits state values over time. Exists for ease of
+    /// migration from VSM to AsyncVSM.
+    ///
+    /// - Parameter publisher: A Combine `Publisher` that emits `State` values and never fails.
     public func observe(_ publisher: some Publisher<State, Never>) {
         container.observe(publisher)
     }
     
+    /// Observes and updates the state through a debounced sequence of state values.
+    ///
+    /// Consumes a `StateSequence` where rapid state changes are throttled - only the most recent
+    /// state value will be applied after the debounce duration has elapsed.
+    ///
+    /// - Parameters:
+    ///   - stateSequence: A `StateSequence` that produces a series of state values.
+    ///   - duration: The debounce duration to wait before applying the most recent state.
     public func observe(_ stateSequence: StateSequence<State>, debounced duration: Duration) {
         container.observe(stateSequence, debounced: duration)
     }
     
+    /// Observes and updates the state from a debounced `AsyncStream`.
+    ///
+    /// Consumes an `AsyncStream` where rapid state changes are throttled - only the most recent
+    /// state value will be applied after the debounce duration has elapsed.
+    ///
+    /// - Parameters:
+    ///   - stream: An `AsyncStream<State>` that emits state values.
+    ///   - duration: The debounce duration to wait before applying the most recent state.
     public func observe(_ stream: AsyncStream<State>, debounced duration: Duration) {
         container.observe(stream, debounced: duration)
     }
     
+    /// Observes and updates the state from a debounced generic `AsyncSequence` that never throws.
+    ///
+    /// Consumes any `AsyncSequence` where rapid state changes are throttled - only the most recent
+    /// state value will be applied after the debounce duration has elapsed.
+    ///
+    /// - Parameters:
+    ///   - sequence: Any `AsyncSequence` that emits `State` values with `Failure` type of `Never`.
+    ///   - duration: The debounce duration to wait before applying the most recent state.
     @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, macCatalyst 18.0, *)
     public func observe<SomeAsyncSequence>(_ sequence: SomeAsyncSequence, debounced duration: Duration)
     where SomeAsyncSequence : Sendable,
@@ -295,6 +523,14 @@ extension RenderedViewState.RenderedContainer {
         container.observe(sequence, debounced: duration)
     }
     
+    /// Observes and updates the state from a debounced Combine `Publisher`.
+    ///
+    /// Consumes a Combine `Publisher` where rapid state changes are throttled - only the most recent
+    /// state value will be applied after the debounce duration has elapsed.
+    ///
+    /// - Parameters:
+    ///   - publisher: A Combine `Publisher` that emits `State` values and never fails.
+    ///   - duration: The debounce duration to wait before applying the most recent state.
     public func observe(_ publisher: some Publisher<State, Never>, debounced duration: Duration) {
         container.observe(publisher, debounced: duration)
     }
