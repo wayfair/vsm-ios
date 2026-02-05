@@ -75,7 +75,7 @@ import os.signpost
 /// - Note: All state changes are automatically published to SwiftUI views through the `@Observable` macro.
 @Observable
 @MainActor
-public final class AsyncStateContainer<State: Sendable>: StateObserving {
+public final class AsyncStateContainer<State: Sendable>: Sendable, StateObserving {
     /// The current state of the container.
     ///
     /// This property is observable and will trigger view updates when changed.

@@ -34,7 +34,13 @@ import SwiftUI
 @MainActor
 @propertyWrapper
 public struct ViewState<State>: DynamicProperty where State: Sendable {
-    public let container: AsyncStateContainer<State>
+    // @State gives us "init once" semantics: SwiftUI stores the container in its
+    // view graph on first appearance and restores it on every subsequent re-render
+    // of the same view identity, regardless of how many times the parent rebuilds
+    // the struct. AsyncStateContainer conforms to Sendable via @MainActor isolation.
+    @SwiftUI.State private var _container: AsyncStateContainer<State>
+
+    public var container: AsyncStateContainer<State> { _container }
     
     public var wrappedValue: State {
         get { container.state }
@@ -70,7 +76,7 @@ public struct ViewState<State>: DynamicProperty where State: Sendable {
             category = String(describing: observedViewType)
         }
         
-        self.container = AsyncStateContainer(state: initialState, logger: OSLog(subsystem: subsystem, category: category))
+        self.__container = SwiftUI.State(wrappedValue: AsyncStateContainer(state: initialState, logger: OSLog(subsystem: subsystem, category: category)))
     }
 }
 #endif
