@@ -7,6 +7,7 @@
 
 import Combine
 import Foundation
+import VSM
 
 // MARK: - State & Model Definitions
 
@@ -14,7 +15,7 @@ enum ProductViewState {
     case initialized(ProductDetailLoaderModel)
     case loading
     case loaded(ProductDetail)
-    case error(message: String, retry: () -> AnyPublisher<ProductViewState, Never>)
+    case error(message: String, retry: () async -> ProductViewState)
 }
 
 // MARK: - Model Implementations
@@ -24,13 +25,21 @@ struct ProductDetailLoaderModel {
     let dependencies: Dependencies
     let productId: Int
     
-    func loadProductDetail() -> AnyPublisher<ProductViewState, Never> {
-        let statePublisher = Just(ProductViewState.loading)
-        let productsPublisher = dependencies.productRepository.getProductDetail(id: productId)
-            .map { product in ProductViewState.loaded(product) }
-            .catch { error in Just(ProductViewState.error(message: "\(error)", retry: { self.loadProductDetail() })).eraseToAnyPublisher() }
-        return statePublisher
-            .merge(with: productsPublisher)
-            .eraseToAnyPublisher()
+    func loadProductDetail() -> StateSequence<ProductViewState> {
+        StateSequence(
+            { .loading },
+            { await self.getProductDetail() }
+        )
+    }
+    
+    @concurrent
+    func getProductDetail() async -> ProductViewState {
+        do {
+            let prodDetail = try await self.dependencies.productRepository.getProductDetail(id: productId)
+            return .loaded(prodDetail)
+        } catch {
+            return .error(message: "\(error)", retry: { await self.getProductDetail() })
+        }
     }
 }
+

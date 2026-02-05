@@ -11,6 +11,8 @@ enum AppConstants {
     static var simulatedNetworkDuration: TimeInterval = 1
     static var simulatedNetworkNanoseconds: UInt64 { UInt64(simulatedNetworkDuration * 1_000_000_000) }
     static var simulatedNetworkDelay: DispatchTime { .now() + simulatedNetworkDuration }
+    
+    static var simulatedAsyncNetworkDelay: Duration { .seconds(1) }
 }
 
 class AppDependencies: MainView.Dependencies {

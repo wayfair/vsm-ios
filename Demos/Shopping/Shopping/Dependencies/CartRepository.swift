@@ -5,16 +5,17 @@
 //  Created by Albert Bori on 2/9/22.
 //
 
-import Combine
+import AsyncAlgorithms
 import Foundation
 
 protocol CartRepository {
-    var cartItemCountPublisher: AnyPublisher<Int, Never> { get }
-    
-    func getCartProducts() -> AnyPublisher<Cart, Error>
+    func getCartProducts() async throws -> Cart
     func addProductToCart(productId: Int) async throws
-    func removeProductFromCart(cartId: Int) async throws -> Cart
+    func removeProductFromCart(cartId: UUID) async throws -> Cart
     func checkout() async throws
+    
+    func cartCountStream() async -> (UUID, AsyncStream<Int>)
+    func removeContinuation(for id: UUID) async
 }
 
 protocol CartRepositoryDependency {
@@ -27,7 +28,7 @@ struct Cart {
 }
 
 struct CartProduct: Decodable {
-    let cartId: Int
+    let cartId: UUID
     let productId: Int
     let name: String
     let price: Decimal
@@ -35,80 +36,84 @@ struct CartProduct: Decodable {
 
 //MARK: - Implementation
 
-class CartDatabase: CartRepository {
+actor CartDatabase: CartRepository {
     typealias Dependencies = ProductRepositoryDependency
-    let dependencies: Dependencies
-    @Published private var cart: Cart = Cart(products: []) // Not thread-safe
-    lazy private(set) var cartItemCountPublisher: AnyPublisher<Int, Never> = {
-        $cart.map({ $0.products.count }).eraseToAnyPublisher()        
-    }()
-    private var cancellables = Set<AnyCancellable>()
+    
+    private let dependencies: Dependencies
+    private var cartCountContinuations: [UUID: AsyncStream<Int>.Continuation] = [:]
+
+    private var cart: Cart = Cart(products: []) {
+        didSet {
+            let currentCount = cart.products.count
+            cartCountContinuations.values.forEach {
+                $0.yield(currentCount)
+            }
+        }
+    }
         
     init(dependencies: Dependencies) {
         self.dependencies = dependencies
     }
     
-    func getCartProducts() -> AnyPublisher<Cart, Error> {
-        // Pretend get from database or API
-        return Future<Cart, Error> { promise in
-            DispatchQueue.global().asyncAfter(deadline: AppConstants.simulatedNetworkDelay) {
-                // Pretend to sync fetched cart products with ones in memory
-                promise(.success(self.cart))
+    func cartCountStream() -> (UUID, AsyncStream<Int>) {
+        let currentCartCount = cart.products.count
+        let continuationId = UUID()
+        
+        let cartCountStream = AsyncStream { continuation in
+            self.cartCountContinuations[continuationId] = continuation
+            
+            continuation.yield(currentCartCount)
+            
+            continuation.onTermination = { [weak self] _ in
+                Task { await self?.removeContinuation(for: continuationId) }
             }
-        }.eraseToAnyPublisher()
+        }
+        
+        return (continuationId, cartCountStream)
+    }
+    
+    func removeContinuation(for id: UUID) {
+        cartCountContinuations[id] = nil
+    }
+    
+    func getCartProducts() async throws -> Cart {
+        // Pretend get from database or API
+        try await Task.sleep(for: AppConstants.simulatedAsyncNetworkDelay)
+        return self.cart
     }
     
     func addProductToCart(productId: Int) async throws {
-        return try await withCheckedThrowingContinuation({ continuation in
-            dependencies.productRepository.getProductDetail(id: productId)
-                .sink(receiveCompletion: { result in
-                    switch(result) {
-                    case .failure(let error):
-                        continuation.resume(throwing: error)
-                    case .finished:
-                        continuation.resume(returning: Void())
-                    }
-                }, receiveValue: { [weak self] productDetail in
-                    guard let strongSelf = self else { return }
-                    var cartProducts = strongSelf.cart.products
-                    cartProducts.append(
-                        CartProduct(
-                            cartId: cartProducts.count + 1,
-                            productId: productDetail.id,
-                            name: productDetail.name,
-                            price: productDetail.price
-                        )
-                    )
-                    strongSelf.cart = Cart(products: cartProducts)
-                })
-                .store(in: &cancellables)
-        })
+        let productDetail = try await dependencies.productRepository.getProductDetail(id: productId)
+        var cartProducts = self.cart.products
+        cartProducts.append(
+            CartProduct(
+                cartId: UUID(),
+                productId: productId,
+                name: productDetail.name,
+                price: productDetail.price
+            )
+        )
+            
+        self.cart = Cart(products: cartProducts)
     }
     
-    func removeProductFromCart(cartId: Int) async throws -> Cart {
-        return await withCheckedContinuation { continuation in
-            DispatchQueue.global().asyncAfter(deadline: AppConstants.simulatedNetworkDelay) {
-                var cartProducts = self.cart.products
-                cartProducts.removeAll(where: { $0.cartId == cartId })
-                self.cart = Cart(products: cartProducts)
-                continuation.resume(returning: self.cart)
-            }
-        }
+    func removeProductFromCart(cartId: UUID) async throws -> Cart {
+        var cartProducts = self.cart.products
+        cartProducts.removeAll(where: { $0.cartId == cartId })
+        self.cart = Cart(products: cartProducts)
+        
+        return self.cart
     }
     
     func checkout() async throws {
         enum Errors: Error {
             case insufficientFunds
         }
-        return try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global().asyncAfter(deadline: AppConstants.simulatedNetworkDelay) {
-                if self.cart.total >= 600 {
-                    continuation.resume(with: .failure(Errors.insufficientFunds))
-                } else {
-                    self.cart = Cart(products: [])
-                    continuation.resume(with: .success(Void()))
-                }
-            }
+        
+        if self.cart.total >= 600 {
+            throw Errors.insufficientFunds
+        } else {
+            self.cart = Cart(products: [])
         }
     }
 }
@@ -122,19 +127,26 @@ struct CartDatabaseDependencies: CartDatabase.Dependencies {
 struct MockCartRepository: CartRepository {
     static var noOp: Self {
         Self.init(
-            cartItemCountPublisher: .empty(),
-            getCartProductsImpl: { .empty() },
+            getCartProductsImpl: { Cart(products: []) },
             addProductToCartImpl: { _ in },
             removeProductFromCartImpl: { _ in Cart(products: [])},
-            checkoutImpl: { }
+            checkoutImpl: { },
+            cartCountStreamImpl: {
+                let streamUUID = UUID()
+                let stream = AsyncStream<Int> { continuation in
+                    continuation.yield(0)
+                    continuation.finish()
+                }
+                
+                return (streamUUID, stream)
+            },
+            removeContinuationImpl: { _ in }
         )
     }
     
-    var cartItemCountPublisher: AnyPublisher<Int, Never>
-    
-    var getCartProductsImpl: () -> AnyPublisher<Cart, Error>
-    func getCartProducts() -> AnyPublisher<Cart, Error> {
-        getCartProductsImpl()
+    var getCartProductsImpl: () async throws -> Cart
+    func getCartProducts() async throws -> Cart {
+        try await getCartProductsImpl()
     }
     
     var addProductToCartImpl: (Int) async throws -> Void
@@ -142,8 +154,8 @@ struct MockCartRepository: CartRepository {
         try await addProductToCartImpl(productId)
     }
     
-    var removeProductFromCartImpl: (Int) async throws -> Cart
-    func removeProductFromCart(cartId: Int) async throws -> Cart {
+    var removeProductFromCartImpl: (UUID) async throws -> Cart
+    func removeProductFromCart(cartId: UUID) async throws -> Cart {
         try await removeProductFromCartImpl(cartId)
     }
     
@@ -151,4 +163,15 @@ struct MockCartRepository: CartRepository {
     func checkout() async throws {
         try await checkoutImpl()
     }
+    
+    var cartCountStreamImpl: () async -> (UUID, AsyncStream<Int>)
+    func cartCountStream() async -> (UUID, AsyncStream<Int>) {
+        await cartCountStreamImpl()
+    }
+    
+    var removeContinuationImpl: (UUID) async -> Void
+    func removeContinuation(for id: UUID) async {
+        await removeContinuationImpl(id)
+    }
 }
+

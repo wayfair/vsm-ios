@@ -10,9 +10,12 @@ import UIKit
 import VSM
 
 class ProductViewController: UIViewController {
-    typealias Dependencies = ProductDetailLoaderModel.Dependencies & ProductDetailView.Dependencies & CartButtonView.Dependencies
+    typealias Dependencies = ProductDetailLoaderModel.Dependencies
+                           & ProductDetailView.Dependencies
+    
     let dependencies: Dependencies
     let productId: Int
+    
     @RenderedViewState var state: ProductViewState
     
     lazy var activityIndicatorView: UIActivityIndicatorView = UIActivityIndicatorView.init()
@@ -47,13 +50,6 @@ class ProductViewController: UIViewController {
         }
     }
     
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        
-        let cartButtonViewController = UIHostingController(rootView: CartButtonView(dependencies: dependencies))
-        parent?.navigationItem.rightBarButtonItem = UIBarButtonItem(customView: cartButtonViewController.view)
-    }
-    
     @MainActor
     func render() {
         switch state {
@@ -85,10 +81,15 @@ class ProductViewController: UIViewController {
             productDetailViewController = contentViewController
             contentViewController.didMove(toParent: self)
         case .error(message: let message, retry: let retry):
-            showErrorAlert(message: message,
-                           button: (title: "Retry", action: { [weak self] in
-                               self?.$state.observe(retry())
-                           }))
+            showErrorAlert(
+                message: message,
+                button: (
+                    title: "Retry",
+                    action: { [weak self] in
+                        self?.$state.observe { await retry() }
+                    }
+                )
+            )
         }
     }
     

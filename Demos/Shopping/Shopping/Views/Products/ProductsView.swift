@@ -8,14 +8,23 @@
 import SwiftUI
 import VSM
 
+enum ProductsNavDestination: Hashable {
+    case product(id: Int)
+}
+
 struct ProductsView: View {
-    typealias Dependencies = ProductsLoaderModel.Dependencies & ProductGridItemView.Dependencies & CartButtonView.Dependencies
+    typealias Dependencies = ProductsLoaderModel.Dependencies
+                           & ProductView.Dependencies
+                           & UIFrameworkDependency
+    
     let dependencies: Dependencies
+    
     @ViewState var state: ProductsViewState
     
     init(dependencies: Dependencies) {
         self.dependencies = dependencies
         let loaderModel = ProductsLoaderModel(dependencies: dependencies)
+        
         _state = .init(wrappedValue: .initialized(loaderModel))
     }
     
@@ -27,18 +36,26 @@ struct ProductsView: View {
             case .loaded(let loadedModel):
                 loadedView(loadedModel)
             case .error(let message, let retryAction):
-                errorView(message: message, retryAction: { $state.observe(retryAction()) })
+                errorView(message: message, retryAction: {
+                    $state.observe { await retryAction() }
+                })
             }
         }
         .navigationTitle("Products")
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                CartButtonView(dependencies: dependencies)
-            }
-        }
         .onAppear {
             if case .initialized(let loaderModel) = state {
                 $state.observe(loaderModel.loadProducts())
+            }
+        }
+        .navigationDestination(for: ProductsNavDestination.self) { destination in
+            switch destination {
+            case .product(let productId):
+                switch dependencies.frameworkProvider.framework {
+                case .swiftUI:
+                    ProductView(dependencies: dependencies, productId: productId)
+                case .uiKit:
+                    ProductUIKitView(dependencies: dependencies, productId: productId)
+                }
             }
         }
     }
@@ -54,7 +71,9 @@ struct ProductsView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVGrid(columns: columns) {
                     ForEach(loadedModel.products, id: \.id) { product in
-                        ProductGridItemView(dependencies: dependencies, product: product)
+                        NavigationLink(value: ProductsNavDestination.product(id: product.id)) {
+                            ProductGridItemView(product: product)
+                        }
                     }
                 }
             }

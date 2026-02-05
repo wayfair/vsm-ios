@@ -7,131 +7,198 @@
 
 import Combine
 import Foundation
+import VSM
 
 // MARK: - State & Model Definitions
 
 enum CartViewState {
-    case initialized(CartLoaderModeling)
+    case initialized(CartLoaderModel)
     case loading
-    case loaded(CartLoadedModeling)
-    case loadedEmpty
-    case loadingError(CartLoadingErrorModeling)
-    case removingProduct(CartRemovingProductModeling)
-    case removingProductError(message: String, CartLoadedModeling)
-    case checkingOut(CartCheckoutOutModeling)
-    case checkoutError(message: String, CartLoadedModeling)
-    case orderComplete(CartOrderCompleteModeling)
+    case loaded(CartLoadedModel)
+    case loadedEmpty(CartLoadedEmptyModel)
+    case loadingError(CartLoadingErrorModel)
+    case removingProduct(CartRemovingProductModel)
+    case removingProductError(message: String, CartLoadedModel)
+    case checkingOut(CartCheckoutOutModel)
+    case checkoutError(message: String, CartLoadedModel)
+    case orderComplete(CartOrderCompleteModel)
 }
 
-protocol CartLoaderModeling {
-    func loadCart() -> AnyPublisher<CartViewState, Never>
+// MARK: - Protocols
+
+// Protocol that allows both CartLoadedModel and CartLoadedEmptyModel to share
+// the same reloadCart() implementation. This avoids code duplication since both
+// states need to reload the cart when external changes occur (e.g., cart count changes).
+protocol CartReloadable {
+    var dependencies: CartLoadedModel.Dependencies { get }
 }
 
-protocol CartLoadedModeling {
-    var cart: Cart { get }
-    func removeProduct(id: Int) -> AnyPublisher<CartViewState, Never>
-    func checkout() -> AnyPublisher<CartViewState, Never>
-}
-
-protocol CartLoadingErrorModeling {
-    var message: String { get }
-    var retry: () -> AnyPublisher<CartViewState, Never> { get }
-}
-
-protocol CartRemovingProductModeling {
-    var cart: Cart { get }
-}
-
-protocol CartCheckoutOutModeling {
-    var cart: Cart { get }
-}
-
-protocol CartOrderCompleteModeling {
-    var cart: Cart { get }
+extension CartReloadable {
+    func reloadCart() -> StateSequence<CartViewState> {
+        StateSequence(
+            { .loading },
+            { await getCartProducts() }
+        )
+    }
+    
+    @concurrent
+    private func getCartProducts() async -> CartViewState {
+        do {
+            let cart = try await dependencies.cartRepository.getCartProducts()
+            if cart.products.isEmpty {
+                return CartViewState.loadedEmpty(CartLoadedEmptyModel(dependencies: dependencies))
+            }
+            return CartViewState.loaded(CartLoadedModel(dependencies: dependencies, cart: cart))
+            
+        } catch {
+            return .loadingError(CartLoadingErrorModel(
+                message: "Failed to load cart: \(error)",
+                retry: { await getCartProducts() }
+            ))
+        }
+    }
 }
 
 // MARK: - Model Implementations
 
-struct CartLoaderModel: CartLoaderModeling {
+struct CartLoaderModel {
     typealias Dependencies = CartRepositoryDependency & CartLoadedModel.Dependencies
     let dependencies: Dependencies
     
-    func loadCart() -> AnyPublisher<CartViewState, Never> {
-        let statePublisher = Just(CartViewState.loading)
-        let cartLoadingPublisher = dependencies.cartRepository.getCartProducts()
-            .map { cart in
-                if cart.products.isEmpty {
-                    return CartViewState.loadedEmpty
-                }
-                return CartViewState.loaded(CartLoadedModel(dependencies: dependencies, cart: cart))
+    func loadCart() -> StateSequence<CartViewState> {
+        StateSequence(
+            { .loading },
+            { await getCartProducts() }
+        )
+    }
+    
+    func refreshCart() async -> CartViewState {
+        await getCartProducts()
+    }
+    
+    @concurrent
+    private func getCartProducts() async -> CartViewState {
+        do {
+            let cart = try await dependencies.cartRepository.getCartProducts()
+            if cart.products.isEmpty {
+                return CartViewState.loadedEmpty(CartLoadedEmptyModel(dependencies: dependencies))
             }
-            .catch { error in
-                Just(CartViewState.loadingError(CartLoadingErrorModel(message: "Failed to load cart: \(error)",
-                                                                      retry: { loadCart() })))
-            }
-        return statePublisher
-            .merge(with: cartLoadingPublisher)
-            .eraseToAnyPublisher()
+            return CartViewState.loaded(CartLoadedModel(dependencies: dependencies, cart: cart))
+            
+        } catch {
+            return .loadingError(CartLoadingErrorModel(
+                message: "Failed to load cart: \(error)",
+                retry: { await getCartProducts() }
+            ))
+        }
     }
 }
 
-struct CartLoadedModel: CartLoadedModeling {
+// Represents the cart in a loaded state with products. Conforms to CartReloadable
+// to share reload logic with CartLoadedEmptyModel.
+struct CartLoadedModel: CartReloadable {
     typealias Dependencies = CartRepositoryDependency & CartRemovingProductModel.Dependencies & DispatchQueueSchedulingDependency
     let dependencies: Dependencies
     let cart: Cart
     
-    func removeProduct(id: Int) -> AnyPublisher<CartViewState, Never> {
-        let loadingCart = Cart(products: cart.products.filter({ $0.cartId != id }))
-        let statePublisher = CurrentValueSubject<CartViewState, Never>(CartViewState.removingProduct(CartRemovingProductModel(dependencies: dependencies, cart: loadingCart)))
-        Task {
-            do {
-                let cart = try await dependencies.cartRepository.removeProductFromCart(cartId: id)
-                if cart.products.isEmpty {
-                    statePublisher.value = CartViewState.loadedEmpty
-                } else {
-                    statePublisher.value = .loaded(CartLoadedModel(dependencies: dependencies, cart: cart))
-                }
-            } catch {
-                statePublisher.value = .removingProductError(message: "Failed to remove cart item: \(error)", self)
-            }
-        }
-        return statePublisher.eraseToAnyPublisher()
+    func refreshCart() async -> CartViewState {
+        await getCartProducts()
     }
     
-    func checkout() -> AnyPublisher<CartViewState, Never> {
-        let statePublisher = CurrentValueSubject<CartViewState, Never>(CartViewState.checkingOut(CartCheckoutOutModel(cart: cart)))
-        Task {
-            do {
-                try await dependencies.cartRepository.checkout()
-                statePublisher.value = .orderComplete(CartOrderCompleteModel(cart: cart))
-            } catch {
-                statePublisher.value = .checkoutError(message: "Insufficient funds!", self)
-                // Using a scheduler dependency allows time control for unit tests
-                dependencies.dispatchQueue.global.schedule(after: .init(.now() + 2)) {
-                    statePublisher.value = .loaded(self)
-                }
+    @concurrent
+    private func getCartProducts() async -> CartViewState {
+        do {
+            let cart = try await dependencies.cartRepository.getCartProducts()
+            if cart.products.isEmpty {
+                return CartViewState.loadedEmpty(CartLoadedEmptyModel(dependencies: dependencies))
+            }
+            return CartViewState.loaded(CartLoadedModel(dependencies: dependencies, cart: cart))
+            
+        } catch {
+            return .loadingError(CartLoadingErrorModel(
+                message: "Failed to load cart: \(error)",
+                retry: { await getCartProducts() }
+            ))
+        }
+    }
+    
+    func removeProduct(id: UUID) async -> CartViewState {
+        do {
+            let cart = try await dependencies.cartRepository.removeProductFromCart(cartId: id)
+            if cart.products.isEmpty {
+                return .loadedEmpty(.init(dependencies: dependencies))
+            } else {
+                return .loaded(CartLoadedModel(dependencies: dependencies, cart: cart))
+            }
+        } catch {
+            return .removingProductError(message: "Failed to remove cart item: \(error)", self)
+        }
+    }
+    
+    func checkout() -> AsyncStream<CartViewState> {
+        AsyncStream { continuation in
+            Task {
+                continuation.yield(.checkingOut(CartCheckoutOutModel(cart: cart)))
+                await performingCheckout(continuation)
+                continuation.finish()
             }
         }
-        return statePublisher.eraseToAnyPublisher()
+    }
+    
+    @concurrent
+    private func performingCheckout(_ continuation: AsyncStream<CartViewState>.Continuation) async {
+        do {
+            try await dependencies.cartRepository.checkout()
+            continuation.yield(.orderComplete(CartOrderCompleteModel(cart: cart)))
+            
+            try? await Task.sleep(for: .seconds(2))
+            continuation.yield(.loadedEmpty(.init(dependencies: dependencies)))
+            
+        } catch {
+            continuation.yield(.checkoutError(message: "Insufficient funds!", self))
+        }
     }
 }
 
-struct CartLoadingErrorModel: CartLoadingErrorModeling {
+struct CartLoadingErrorModel {
     let message: String
-    let retry: () -> AnyPublisher<CartViewState, Never>
+    let retry: () async -> CartViewState
 }
 
-struct CartRemovingProductModel: CartRemovingProductModeling {
+// Represents the cart in an empty state (no products). Conforms to CartReloadable
+// to share reload logic with CartLoadedModel, allowing both states to respond to
+// external cart changes (e.g., when items are added from other screens).
+struct CartLoadedEmptyModel: CartReloadable {
+    typealias Dependencies = CartRepositoryDependency & CartLoadedModel.Dependencies
+    let dependencies: Dependencies
+    
+    func refreshCart() async -> CartViewState {
+        do {
+            let cart = try await dependencies.cartRepository.getCartProducts()
+            if cart.products.isEmpty {
+                return CartViewState.loadedEmpty(CartLoadedEmptyModel(dependencies: dependencies))
+            }
+            return CartViewState.loaded(CartLoadedModel(dependencies: dependencies, cart: cart))
+        } catch {
+            return .loadingError(CartLoadingErrorModel(
+                message: "Failed to load cart: \(error)",
+                retry: { await self.refreshCart() }
+            ))
+        }
+    }
+}
+
+struct CartRemovingProductModel {
     typealias Dependencies = CartRepositoryDependency
     let dependencies: Dependencies
     let cart: Cart
 }
 
-struct CartCheckoutOutModel: CartCheckoutOutModeling {
+struct CartCheckoutOutModel {
     var cart: Cart
 }
 
-struct CartOrderCompleteModel: CartOrderCompleteModeling {
+struct CartOrderCompleteModel {
     var cart: Cart
 }
 

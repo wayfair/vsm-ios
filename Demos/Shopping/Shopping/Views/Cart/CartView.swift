@@ -10,53 +10,62 @@ import VSM
 
 struct CartView: View {
     typealias Dependencies = CartLoaderModel.Dependencies & CartLoadedModel.Dependencies & CartRemovingProductModel.Dependencies
-    let dependencies: Dependencies
-    @Binding var showModal: Bool
-    @ViewState var state: CartViewState
     
-    init(dependencies: Dependencies, showModal: Binding<Bool>) {
+    let dependencies: Dependencies
+
+    @ViewState var state: CartViewState
+    @State private var cartCountStore: CartCountStore
+    
+    init(dependencies: Dependencies) {
         self.dependencies = dependencies
-        self._showModal = showModal
         _state = .init(wrappedValue: .initialized(CartLoaderModel(dependencies: dependencies)))
+        _cartCountStore = .init(wrappedValue: CartCountStore(dependencies: dependencies))
     }
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                cartView(title: state.isOrderComplete ? "Receipt" : "Cart", cart: state.cart)
-                switch state {
-                case .initialized, .loading:
-                    ProgressView()
-                        .accessibilityIdentifier("Loading Cart...")
-                case .loadedEmpty:
-                    Text("Your cart is empty.")
-                case .loaded:
-                    EmptyView()
-                case .loadingError(let errorModel):
-                    loadingErrorView(errorModel)
-                case .removingProduct, .checkingOut:
-                    progressOverlayView()
-                case .removingProductError(message: let message, _), .checkoutError(let message, _):
-                    errorView(message: message)
-                case .orderComplete:
-                    EmptyView()
-                }
+        ZStack {
+            cartView(title: state.isOrderComplete ? "Receipt" : "Cart", cart: state.cart)
+            switch state {
+            case .initialized, .loading:
+                ProgressView()
+                    .accessibilityIdentifier("Loading Cart...")
+            case .loadedEmpty:
+                Text("Your cart is empty.")
+            case .loaded:
+                EmptyView()
+            case .loadingError(let errorModel):
+                loadingErrorView(errorModel)
+            case .removingProduct, .checkingOut:
+                progressOverlayView()
+            case .removingProductError(message: let message, _), .checkoutError(let message, _):
+                errorView(message: message)
+            case .orderComplete:
+                EmptyView()
             }
-            .navigationBarItems(trailing: dismissButtonView())
         }
         .onAppear {
             if case .initialized(let loaderModel) = state {
                 $state.observe(loaderModel.loadCart())
             }
         }
+        .onChange(of: cartCountStore.productCount) { oldValue, newValue in
+            switch state {
+            case .loaded(let model):
+                $state.observe(model.reloadCart())
+            case .loadedEmpty(let model):
+                $state.observe(model.reloadCart())
+            default:
+                break
+            }
+        }
     }
     
-    func loadingErrorView(_ errorModel: CartLoadingErrorModeling) -> some View {
+    func loadingErrorView(_ errorModel: CartLoadingErrorModel) -> some View {
         VStack {
             Text("Oops!").font(.title)
             Text(errorModel.message)
             Button("Retry") {
-                $state.observe(errorModel.retry())
+                $state.observe { await errorModel.retry() }
             }
             .buttonStyle(DemoButtonStyle())
         }
@@ -92,7 +101,7 @@ struct CartView: View {
                     switch state {
                     case .loaded(let loadedModel), .removingProductError(_, let loadedModel), .checkoutError(_, let loadedModel):
                         Button(role: .destructive) {
-                            $state.observe(loadedModel.removeProduct(id: product.cartId))
+                            $state.observe { await loadedModel.removeProduct(id: product.cartId) }
                         } label : {
                             Label("Delete", systemImage: "trash.fill")
                         }
@@ -100,6 +109,20 @@ struct CartView: View {
                     default:
                         EmptyView()
                     }
+                }
+            }
+            .refreshable {
+                switch state {
+                case .loaded(let loadedModel), .removingProductError(_, let loadedModel), .checkoutError(_, let loadedModel):
+                    await $state.refresh(state: {
+                        await loadedModel.refreshCart()
+                    })
+                case .loadedEmpty(let emptyModel):
+                    await $state.refresh(state: {
+                        await emptyModel.refreshCart()
+                    })
+                default:
+                    break
                 }
             }
             if case .orderComplete = state { } else {
@@ -114,18 +137,6 @@ struct CartView: View {
                 }
                 .buttonStyle(DemoButtonStyle(enabled: state.canCheckout))
                 .padding()
-            }
-        }
-    }
-    
-    func dismissButtonView() -> some View {
-        Button(action: {
-            if state.allowModalDismissal {
-                self.showModal = false
-            }
-        }) {
-            if state.allowModalDismissal {
-                Image(systemName: "xmark")
             }
         }
     }
@@ -154,8 +165,8 @@ extension CartViewState {
 extension CartView {
     init(state: CartViewState) {
         dependencies = MockAppDependencies.noOp
-        _showModal = .init(get: { true }, set: { _ in })
         _state = .init(wrappedValue: state)
+        _cartCountStore = .init(wrappedValue: CartCountStore(dependencies: MockAppDependencies.noOp))
     }
 }
 
@@ -164,8 +175,8 @@ extension CartView {
 struct CartView_Previews: PreviewProvider {
     static var previewCart: Cart {
         Cart(products: [
-            .init(cartId: 1, productId: 1, name: "Product One", price: 199.99),
-            .init(cartId: 2, productId: 2, name: "Product Two", price: 299.99)
+            .init(cartId: UUID(), productId: 1, name: "Product One", price: 199.99),
+            .init(cartId: UUID(), productId: 2, name: "Product Two", price: 299.99)
         ])
     }
     
@@ -176,7 +187,7 @@ struct CartView_Previews: PreviewProvider {
         CartView(state: .loading)
             .previewDisplayName("loading State")
         
-        CartView(state: .loadedEmpty)
+        CartView(state: .loadedEmpty(CartLoadedEmptyModel(dependencies: MockAppDependencies.noOp)))
             .previewDisplayName("loadedEmpty State")
         
         CartView(state: .loaded(
@@ -184,7 +195,7 @@ struct CartView_Previews: PreviewProvider {
         ))
         .previewDisplayName("loaded State")
         
-        CartView(state: .loadingError(CartLoadingErrorModel(message: "Load Error!", retry: { .empty() })))
+        CartView(state: .loadingError(CartLoadingErrorModel(message: "Load Error!", retry: { .loadingError(.init(message: "Mock Error Message", retry: { .loadedEmpty(CartLoadedEmptyModel(dependencies: MockAppDependencies.noOp)) })) })))
             .previewDisplayName("loadingError State")
         
         CartView(state: .removingProduct(

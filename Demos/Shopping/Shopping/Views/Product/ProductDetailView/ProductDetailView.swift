@@ -9,9 +9,12 @@ import SwiftUI
 import VSM
 
 struct ProductDetailView: View {
-    typealias Dependencies = AddToCartModel.Dependencies & FavoriteButtonView.Dependencies
+    typealias Dependencies = AddToCartModel.Dependencies
+                           & FavoriteButtonView.Dependencies
+    
     let dependencies: Dependencies
     let productDetail: ProductDetail
+    
     @ViewState var state: ProductDetailViewState
     
     init(dependencies: Dependencies, productDetail: ProductDetail) {
@@ -29,34 +32,36 @@ struct ProductDetailView: View {
             }
             .navigationTitle(productDetail.name)
             
-            if case .addedToCart = state {
+            VStack {
                 addToCartToastView()
+                    .opacity(state.isAddedToCart ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.2), value: state.isAddedToCart)
+                addToCartErrorView(message: state.addToCartErrorMessage ?? "")
+                    .opacity(state.isAddToCartError ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.2), value: state.isAddToCartError)
             }
-            if case .addToCartError(let message, _) = state {
-                addToCartErrorView(message: message)
-            }
+            .allowsHitTesting(false)
         }
     }
     
     func productDetailsView() -> some View {
-        VStack(alignment: .leading) {
-            HStack {
+        VStack(alignment: .center) {
+            HStack(alignment: .firstTextBaseline) {
                 Text(productDetail.price, format: .currency(code: "USD"))
                 Spacer()
                 FavoriteButtonView(dependencies: dependencies, productId: productDetail.id, productName: productDetail.name)
             }
             .padding()
+            
             AsyncImage(url: productDetail.imageURL) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fit)
             } placeholder: {
-                GeometryReader { geometry in
-                    ProgressView()
-                        .frame(width: geometry.size.width, height: geometry.size.width, alignment: .center)
-                }
+                ProgressView()
             }
             .accessibilityIdentifier("\(productDetail.name) Image")
+            
             Text(productDetail.description).font(.body)
                 .padding()
         }

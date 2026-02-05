@@ -185,9 +185,9 @@ Then your model and view can declare a Dependency type alias which contains all 
 
 ```swift
 typealias Dependencies = UserDataProvidingDependency
-                         & FooDepencency
-                         & BarDependency
-                         & BazDependency
+                       & FooDepencency
+                       & BarDependency
+                       & BazDependency
 ```
 
 The resulting initializer chain will end up looking something like this:
@@ -195,7 +195,7 @@ The resulting initializer chain will end up looking something like this:
 ```swift
 struct UserBioView: View {
     typealias Dependencies = UserBioViewState.LoaderModel.Dependencies
-                             & UserBioViewState.ErrorModel.Dependencies
+                           & UserBioViewState.ErrorModel.Dependencies
     init(dependencies: Dependencies) {
         let loaderModel = UserBioViewState.LoaderModel(dependencies: Dependencies)
         let state = UserBioViewState.initialized(loaderModel)

@@ -9,8 +9,8 @@ import Combine
 import Foundation
 
 protocol ProductRepository {
-    func getGridProducts() -> AnyPublisher<[GridProduct], Error>
-    func getProductDetail(id: Int) -> AnyPublisher<ProductDetail, Error>
+    func getGridProducts() async throws -> [GridProduct]
+    func getProductDetail(id: Int) async throws -> ProductDetail
 }
 
 protocol ProductRepositoryDependency {
@@ -33,7 +33,7 @@ struct ProductDetail: Decodable {
 
 //MARK: - Implementation
 
-class ProductDatabase: ProductRepository {
+actor ProductDatabase: ProductRepository {
     static let allProducts: [ProductDetail] = [
         .init(id: 1,
               name: "Ottoman",
@@ -52,24 +52,20 @@ class ProductDatabase: ProductRepository {
               description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer ornare sit amet lacus eget vehicula.")
     ]
     
-    func getGridProducts() -> AnyPublisher<[GridProduct], Error> {
-        return Future { promise in
-            DispatchQueue.global().asyncAfter(deadline: AppConstants.simulatedNetworkDelay) {
-                promise(.success(Self.allProducts.map({ .init(id: $0.id, name: $0.name, imageURL: $0.imageURL) })))
-            }
-        }.eraseToAnyPublisher()
+    func getGridProducts() async throws -> [GridProduct] {
+        try await Task.sleep(for: AppConstants.simulatedAsyncNetworkDelay)
+        return Self.allProducts.map({ .init(id: $0.id, name: $0.name, imageURL: $0.imageURL) })
     }
     
-    func getProductDetail(id: Int) -> AnyPublisher<ProductDetail, Error> {
+    func getProductDetail(id: Int) async throws -> ProductDetail {
         struct NotFoundError: Error { }
-        return Future { promise in
-            DispatchQueue.global().asyncAfter(deadline: AppConstants.simulatedNetworkDelay) {
-                guard let productDetail = Self.allProducts.first(where: { $0.id == id }) else {
-                    return promise(.failure(NotFoundError()))
-                }
-                promise(.success(productDetail))
-            }
-        }.eraseToAnyPublisher()
+        
+        try await Task.sleep(for: AppConstants.simulatedAsyncNetworkDelay)
+        guard let productDetail = Self.allProducts.first(where: { $0.id == id }) else {
+            throw NotFoundError()
+        }
+        
+        return productDetail
     }
 }
 
@@ -78,18 +74,21 @@ class ProductDatabase: ProductRepository {
 struct MockProductRepository: ProductRepository {
     static var noOp: Self {
         Self.init(
-            getGridProductsImpl: { .empty() },
-            getProductsDetailImpl: { _ in .empty() }
+            getGridProductsImpl: { [] },
+            getProductsDetailImpl: { _ in
+                struct MockNoProductError: Error { }
+                throw MockNoProductError()
+            }
         )
     }
     
-    var getGridProductsImpl: () -> AnyPublisher<[GridProduct], Error>
-    func getGridProducts() -> AnyPublisher<[GridProduct], Error> {
-        getGridProductsImpl()
+    var getGridProductsImpl: () async throws -> [GridProduct]
+    func getGridProducts() async throws -> [GridProduct] {
+        try await getGridProductsImpl()
     }
     
-    var getProductsDetailImpl: (Int) -> AnyPublisher<ProductDetail, Error>
-    func getProductDetail(id: Int) -> AnyPublisher<ProductDetail, Error> {
-        getProductsDetailImpl(id)
+    var getProductsDetailImpl: (Int) async throws -> ProductDetail
+    func getProductDetail(id: Int) async throws -> ProductDetail {
+        try await getProductsDetailImpl(id)
     }
 }

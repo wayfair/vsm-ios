@@ -7,6 +7,7 @@
 
 import Combine
 import Foundation
+import VSM
 
 // MARK: - State & Model Definitions
 
@@ -14,7 +15,7 @@ enum ProductsViewState {
     case initialized(ProductsLoaderModel)
     case loading
     case loaded(ProductsLoadedModel)
-    case error(message: String, retry: () -> AnyPublisher<ProductsViewState, Never>)
+    case error(message: String, retry: () async -> ProductsViewState)
 }
 
 // MARK: - Model Implementations
@@ -23,14 +24,21 @@ struct ProductsLoaderModel {
     typealias Dependencies = ProductRepositoryDependency
     let dependencies: Dependencies
     
-    func loadProducts() -> AnyPublisher<ProductsViewState, Never> {
-        let statePublisher = Just(ProductsViewState.loading)
-        let productsPublisher = dependencies.productRepository.getGridProducts()
-            .map { products in ProductsViewState.loaded(ProductsLoadedModel(products: products)) }
-            .catch { error in Just(ProductsViewState.error(message: "\(error)", retry: { self.loadProducts() })).eraseToAnyPublisher() }
-        return statePublisher
-            .merge(with: productsPublisher)
-            .eraseToAnyPublisher()
+    func loadProducts() -> StateSequence<ProductsViewState> {
+        StateSequence(
+            { .loading },
+            { await fetchProductsFromServer() }
+        )
+    }
+    
+    @concurrent
+    func fetchProductsFromServer() async -> ProductsViewState {
+        do {
+            let products = try await dependencies.productRepository.getGridProducts()
+            return .loaded(ProductsLoadedModel(products: products))
+        } catch {
+            return .error(message: "\(error)", retry: { await self.fetchProductsFromServer() })
+        }
     }
 }
 

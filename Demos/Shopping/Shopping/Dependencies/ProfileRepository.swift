@@ -18,7 +18,7 @@ protocol ProfileRepositoryDependency {
 
 //MARK: - Implementation
 
-class ProfileDatabase: ProfileRepository {
+actor ProfileDatabase: ProfileRepository {
     var username = "SomeUser"
     
     func loadUsername() async throws -> String {

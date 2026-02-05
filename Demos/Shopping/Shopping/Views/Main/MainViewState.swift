@@ -39,4 +39,21 @@ struct DependenciesLoaderModel {
 
 struct MainViewLoadedModel {
     let dependencies: MainView.Dependencies
+    let cardCount: Int
+    
+    init(dependencies: MainView.Dependencies, cardCount: Int = 0) {
+        self.dependencies = dependencies
+        self.cardCount = cardCount
+    }
+    
+    func observeCardCount() -> AsyncStream<MainViewState> {
+        AsyncStream { continuation in
+            Task {
+                let cardCountStream = await dependencies.cartRepository.cartCountStream().1
+                for await cardCount in cardCountStream {
+                    continuation.yield(.loaded(.init(dependencies: dependencies, cardCount: cardCount)))
+                }
+            }
+        }
+    }
 }

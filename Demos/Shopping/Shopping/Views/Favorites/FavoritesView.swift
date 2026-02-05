@@ -38,11 +38,11 @@ struct FavoritesView: View {
             }
         }
         .navigationTitle("Favorites")
-        .onReceive($state.willSetPublisher) { state in
-            if case .deletingError = state {
-                showErrorAlert = true
-            }
-        }
+//        .onReceive($state.willSetPublisher) { state in
+//            if case .deletingError = state {
+//                showErrorAlert = true
+//            }
+//        }
         .onAppear {
             if case .initialized(let loaderModel) = state {
                 $state.observe(loaderModel.loadFavorites())

@@ -7,24 +7,39 @@
 
 import SwiftUI
 
+enum AccountNavDestination: Hashable {
+    case profile, favorites, settings
+}
+
 struct AccountView: View {
-    typealias Dependencies = CartButtonView.Dependencies
-                             & ProfileView.Dependencies
-                             & FavoritesView.Dependencies
-                             & SettingsView.Dependencies
+    typealias Dependencies = ProfileView.Dependencies
+                           & FavoritesView.Dependencies
+                           & SettingsView.Dependencies
+    
     let dependencies: Dependencies
     
     var body: some View {
         List {
-            NavigationLink("Profile", destination: ProfileView(dependencies: dependencies))
-            NavigationLink("Favorites", destination: FavoritesView(dependencies: dependencies))
-            NavigationLink("Settings", destination: SettingsView(dependencies: dependencies))
+            NavigationLink(value: AccountNavDestination.profile) {
+                Text("Profile")
+            }
+            NavigationLink(value: AccountNavDestination.favorites) {
+                Text("Favorites")
+            }
+            NavigationLink(value: AccountNavDestination.settings) {
+                Text("Settings")
+            }
         }
         .listStyle(.grouped)
         .navigationTitle("Account")
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                CartButtonView(dependencies: dependencies)
+        .navigationDestination(for: AccountNavDestination.self) { destination in
+            switch destination {
+            case .profile:
+                ProfileView(dependencies: dependencies)
+            case .favorites:
+                FavoritesView(dependencies: dependencies)
+            case .settings:
+                SettingsView(dependencies: dependencies)
             }
         }
     }

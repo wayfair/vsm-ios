@@ -9,9 +9,12 @@ import SwiftUI
 import VSM
 
 struct ProductView: View {
-    typealias Dependencies = ProductDetailLoaderModel.Dependencies & ProductDetailView.Dependencies & CartButtonView.Dependencies
+    typealias Dependencies = ProductDetailLoaderModel.Dependencies
+                           & ProductDetailView.Dependencies
+    
     let dependencies: Dependencies
     let productId: Int
+    
     @ViewState var state: ProductViewState
     
     init(dependencies: Dependencies, productId: Int) {
@@ -32,13 +35,10 @@ struct ProductView: View {
             case .loaded(let productDetail):
                 ProductDetailView(dependencies: dependencies, productDetail: productDetail)
             case .error(message: let message, retry: let retryAction):
-                loadingErrorView(message: message, retryAction: { $state.observe(retryAction()) })
+                loadingErrorView(message: message, retryAction: {
+                    $state.observe { await retryAction() }
+                })
                 
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                CartButtonView(dependencies: dependencies)
             }
         }
         .onAppear {
@@ -100,7 +100,9 @@ struct ProductView_Previews: PreviewProvider {
         .previewDisplayName("loaded State")
         
         NavigationView {
-            ProductView(state: .error(message: "Loading Error!", retry: { .empty() }))
+            ProductView(state: .error(message: "Loading Error!", retry: {
+                ProductViewState.loading
+            }))
         }
         .previewDisplayName("error State")
     }

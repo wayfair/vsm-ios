@@ -36,7 +36,7 @@ class ProductDetailViewController: UIViewController {
         self.dependencies = dependencies
         self.productDetail = productDetail
         let addToCartModel = AddToCartModel(dependencies: dependencies, productId: productDetail.id)
-        _state = .init(wrappedValue: .viewing(addToCartModel), render: Self.render)
+        _state = .init(wrappedValue: .viewing(addToCartModel), render: { (self: ProductDetailViewController) in self.render(newState:) })
         super.init(coder: coder)
     }
     

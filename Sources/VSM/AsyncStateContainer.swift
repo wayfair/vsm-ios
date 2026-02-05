@@ -110,6 +110,10 @@ public final class AsyncStateContainer<State: Sendable>: StateObserving {
         self.signposter = OSSignposter(logHandle: logger)
     }
     
+    deinit {
+        stateTask?.cancel()
+    }
+    
     internal func stateChangeStream(last numberOfChanges: Int) -> AsyncStream<State> {
         numberOfWatchedStates = numberOfChanges
         let stateChangeStream = AsyncStream<State>.makeStream(of: State.self, bufferingPolicy: .bufferingNewest(numberOfChanges))

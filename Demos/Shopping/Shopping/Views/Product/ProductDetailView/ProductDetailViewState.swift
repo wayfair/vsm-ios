@@ -7,6 +7,7 @@
 
 import Combine
 import Foundation
+import VSM
 
 // MARK: - State & Model Definitions
 
@@ -24,25 +25,34 @@ struct AddToCartModel {
     let dependencies: Dependencies
     let productId: Int
     
-    func addToCart() -> AnyPublisher<ProductDetailViewState, Never> {
-        let publisher = CurrentValueSubject<ProductDetailViewState, Never>(.addingToCart)
-        Task {
-            do {
-                try await dependencies.cartRepository.addProductToCart(productId: productId)
-                publisher.value = .addedToCart(self)
-                // Using a scheduler dependency allows time control for unit tests
-                dependencies.dispatchQueue.global.schedule(after: .init(.now() + 2)) {
-                    publisher.value = .viewing(self)
-                }
-            } catch {
-                publisher.value = .addToCartError(message: "\(error)", self)
-                // Using a scheduler dependency allows time control for unit tests
-                dependencies.dispatchQueue.global.schedule(after: .init(.now() + 2)) {
-                    publisher.value = .viewing(self)
-                }
-            }
+    func addToCart() -> StateSequence<ProductDetailViewState> {
+        StateSequence(
+            { .addingToCart },
+            { await performAddToCart() },
+            { await resumeViewingState() }
+        )
+    }
+    
+    @concurrent
+    func performAddToCart() async -> ProductDetailViewState {
+        do {
+            try await Task.sleep(for: .seconds(2))
+            try await dependencies.cartRepository.addProductToCart(productId: productId)
+            
+            return .addedToCart(self)
+        } catch {
+            return .addToCartError(message: error.localizedDescription, self)
         }
-        return publisher.eraseToAnyPublisher()
+    }
+    
+    func resumeViewingState() async -> ProductDetailViewState {
+        do {
+            try await Task.sleep(for: .seconds(2))
+            return .viewing(self)
+            
+        } catch {
+            return .addToCartError(message: error.localizedDescription, self)
+        }
     }
 }
 
@@ -62,5 +72,28 @@ extension ProductDetailViewState {
         } else {
             return false
         }
+    }
+    
+    var isAddedToCart: Bool {
+        if case .addedToCart = self {
+            return true
+        } else {
+            return false
+        }
+    }
+    
+    var isAddToCartError: Bool {
+        if case .addToCartError = self {
+            return true
+        } else {
+            return false
+        }
+    }
+    
+    var addToCartErrorMessage: String? {
+        if case .addToCartError(let message, _) = self {
+            return message
+        }
+        return nil
     }
 }

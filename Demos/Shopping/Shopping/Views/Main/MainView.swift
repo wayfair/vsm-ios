@@ -9,7 +9,10 @@ import SwiftUI
 import VSM
 
 struct MainView: View {
-    typealias Dependencies = ProductsView.Dependencies & AccountView.Dependencies
+    typealias Dependencies = ProductsView.Dependencies
+                           & AccountView.Dependencies
+                           & CartView.Dependencies
+    
     @ViewState var state: MainViewState
     
     init(appDependenciesProvider: AsyncResource<MainView.Dependencies>) {
@@ -35,26 +38,7 @@ struct MainView: View {
     }
     
     func loadedView(_ loadedModel: MainViewLoadedModel) -> some View {
-        TabView {
-            NavigationView {
-                ProductsView(dependencies: loadedModel.dependencies)
-            }
-            .tabItem {
-                Image(systemName: "square.grid.2x2")
-                Text("Products")
-            }
-            .navigationViewStyle(.stack) // Fixes Layout Constraint errors
-            
-            NavigationView {
-                AccountView(dependencies: loadedModel.dependencies)
-            }
-            .tabItem {
-                Image(systemName: "person")
-                Text("Account")
-            }
-            .navigationViewStyle(.stack) // Fixes Layout Constraint errors
-        }
-        .font(.headline)
+        MainTabView(dependencies: loadedModel.dependencies, viewDependencies: loadedModel.dependencies)
     }
 }
 
