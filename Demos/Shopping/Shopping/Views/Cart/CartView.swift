@@ -18,7 +18,7 @@ struct CartView: View {
     
     init(dependencies: Dependencies) {
         self.dependencies = dependencies
-        _state = .init(wrappedValue: .initialized(CartLoaderModel(dependencies: dependencies)))
+        _state = .init(wrappedValue: .initialized(CartLoaderModel(dependencies: dependencies)), loggingEnabled: true)
         _cartCountStore = .init(wrappedValue: CartCountStore(dependencies: dependencies))
     }
     

@@ -69,6 +69,27 @@ import OSLog
 ///     }
 /// }
 /// ```
+///
+/// ## Debugging
+///
+/// You can enable debug logging to trace state changes in the Console. This is useful during development
+/// to understand when and how your view's state is changing. Logging is disabled by default.
+///
+/// To enable logging, set `loggingEnabled` to `true`:
+///
+/// ```swift
+/// class MyViewController: UIViewController {
+///     @RenderedViewState(render: MyViewController.render, loggingEnabled: true)
+///     var state: MyViewState = .initialized(.init())
+///
+///     func render() {
+///         // ...
+///     }
+/// }
+/// ```
+///
+/// When enabled, you'll see debug messages in the Console showing state transitions, which can help
+/// diagnose unexpected behavior or verify that actions are triggering the correct state changes.
 @available(iOS, introduced: 17.0, deprecated: 26.0, renamed: "ViewState", message: "iOS 26 supports property observation in UIViewControllers and UIViews. Use @ViewState instead and override the updateProperties method which will replace your render method.")
 @available(iOS, introduced: 17.0, deprecated: 26.0, renamed: "ViewState", message: "iOS 26 supports property observation in UIViewControllers and UIViews. Use @ViewState instead and override the updateProperties method which will replace your render method.")
 @available(macOS, introduced: 14.0, deprecated: 26.0, renamed: "ViewState", message: "iOS 26 supports property observation in UIViewControllers and UIViews. Use @ViewState instead and override the updateProperties method which will replace your render method.")
@@ -121,10 +142,13 @@ public struct RenderedViewState<State: Sendable> {
     /// - Parameters:
     ///   - wrappedValue: The view state to be managed by the state container.
     ///   - render: The function to call when the view state _did change_.
+    ///   - subsystem: The subsystem identifier for logging (defaults to "com.wayfair.vsm").
+    ///   - loggingEnabled: When `true`, enables debug logging of state changes to the Console. Defaults to `false`.
     public init<Parent>(
         wrappedValue: State,
         render: @escaping (Parent) -> () -> (),
-        subsystem: String = "com.wayfair.vsm"
+        subsystem: String = "com.wayfair.vsm",
+        loggingEnabled: Bool = false
     )
     where Parent: AnyObject & Sendable {
         let observedViewType = String(describing: Parent.self)
@@ -136,7 +160,8 @@ public struct RenderedViewState<State: Sendable> {
         self.renderedContainer = RenderedContainer(
             container: AsyncStateContainer(
                 state: wrappedValue,
-                logger: OSLog(subsystem: subsystem, category: observedViewType)
+                logger: OSLog(subsystem: subsystem, category: observedViewType),
+                loggingEnabled: loggingEnabled
             ),
             render: anyRender
         )
@@ -145,7 +170,8 @@ public struct RenderedViewState<State: Sendable> {
     public init<Parent>(
         wrappedValue: State,
         render: @escaping (Parent) -> (State) -> (),
-        subsystem: String = "com.wayfair.vsm"
+        subsystem: String = "com.wayfair.vsm",
+        loggingEnabled: Bool = false
     )
     where Parent: AnyObject & Sendable {
         let observedViewType = String(describing: Parent.self)
@@ -157,7 +183,8 @@ public struct RenderedViewState<State: Sendable> {
         self.renderedContainer = RenderedContainer(
             container: AsyncStateContainer(
                 state: wrappedValue,
-                logger: OSLog(subsystem: subsystem, category: observedViewType)
+                logger: OSLog(subsystem: subsystem, category: observedViewType),
+                loggingEnabled: loggingEnabled
             ),
             render: anyRender
         )

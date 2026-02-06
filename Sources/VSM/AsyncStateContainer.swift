@@ -148,6 +148,24 @@ import os.signpost
 /// }
 /// ```
 ///
+/// ## Debugging
+///
+/// `AsyncStateContainer` supports debug logging to help you trace state changes during development.
+/// When enabled, state changes are logged to the Console using Apple's unified logging system (`os_log`)
+/// at the `.debug` level.
+///
+/// Logging is disabled by default to avoid flooding the Console. You can enable it on a per-view basis
+/// by setting `loggingEnabled: true` when initializing the `@ViewState` or `@RenderedViewState` property wrapper.
+///
+/// When logging is enabled, you'll see messages like:
+/// - `"observe(State) called"` - when a synchronous state observation begins
+/// - `"observe(StateSequence) called"` - when a sequence observation begins
+/// - `"State changed to: <state>"` - when the state actually changes
+/// - `"StateSequence completed after N state changes"` - when a sequence finishes
+///
+/// If your state type conforms to `CustomDebugStringConvertible`, the `debugDescription` will be used
+/// in log output for more readable state representations.
+///
 /// - Note: All state changes are automatically published to SwiftUI views through the `@Observable` macro.
 @Observable
 @MainActor
@@ -180,10 +198,14 @@ public final class AsyncStateContainer<State: Sendable>: Sendable, StateObservin
     @ObservationIgnored
     private let signposter: OSSignposter
     
-    init(state: State, logger: OSLog) {
+    @ObservationIgnored
+    private let loggingEnabled: Bool
+    
+    init(state: State, logger: OSLog, loggingEnabled: Bool = false) {
         self.state = state
         self.logger = logger
         self.signposter = OSSignposter(logHandle: logger)
+        self.loggingEnabled = loggingEnabled
     }
     
     deinit {
@@ -240,6 +262,10 @@ public extension AsyncStateContainer {
     /// }
     /// ```
     func observe(_ nextState: State) {
+        if loggingEnabled {
+            os_log(.info, log: logger, "observe(State) called")
+        }
+        
         cancelRunningObservations()
         stateChanges = 0
         
@@ -299,6 +325,10 @@ public extension AsyncStateContainer {
     ///         The `@Sendable` requirement ensures thread-safe capture of values that may be accessed
     ///         across different concurrency domains.
     func observe(_ nextStateClosure: @escaping @Sendable () async -> State) {
+        if loggingEnabled {
+            os_log(.info, log: logger, "observe(async closure) called")
+        }
+        
         cancelRunningObservations()
         
         stateTask = Task { @MainActor [weak self] in
@@ -312,6 +342,9 @@ public extension AsyncStateContainer {
             let nextStateValue = await nextStateClosure()
             
             guard Task.isCancelled == false else {
+                if self.loggingEnabled {
+                    os_log(.info, log: self.logger, "observe(async closure) cancelled before state change")
+                }
                 return
             }
             
@@ -400,6 +433,10 @@ public extension AsyncStateContainer {
     ///         The closure must be `@Sendable` to ensure thread-safe capture of values that may be
     ///         accessed across different concurrency domains.
     func refresh(state nextState: @escaping @Sendable () async -> State) async {
+        if loggingEnabled {
+            os_log(.info, log: logger, "refresh(state:) called")
+        }
+        
         cancelRunningObservations()
         let signpostId = signposter.makeSignpostID()
         let postName: StaticString = "Refresh"
@@ -407,7 +444,12 @@ public extension AsyncStateContainer {
         defer { signposter.endInterval(postName, state) }
         
         let nextStateValue = await nextState()
-        guard Task.isCancelled == false else { return }
+        guard Task.isCancelled == false else {
+            if loggingEnabled {
+                os_log(.info, log: logger, "refresh(state:) cancelled before state change")
+            }
+            return
+        }
         performStateChange(nextStateValue)
     }
     
@@ -487,6 +529,10 @@ public extension AsyncStateContainer {
     /// - Note: ``StateSequence`` is designed to never throw, ensuring reliable state transitions.
     ///         Errors from async work should be caught and converted into appropriate error states.
     func observe(_ stateSequence: StateSequence<State>) {
+        if loggingEnabled {
+            os_log(.info, log: logger, "observe(StateSequence) called")
+        }
+        
         cancelRunningObservations()
         stateChanges = 0
         
@@ -507,6 +553,9 @@ public extension AsyncStateContainer {
                 
                 guard let state = nextState else {
                     // Sequence completed naturally
+                    if self.loggingEnabled {
+                        os_log(.info, log: self.logger, "StateSequence completed after %d state changes", iterationCount - 1)
+                    }
                     let eventName: StaticString = "State Sequence Ended"
                     signposter.emitEvent(eventName, id: sequenceID,
                                          "Ended after \(iterationCount - 1) iterations")
@@ -514,6 +563,9 @@ public extension AsyncStateContainer {
                 }
                 
                 guard !Task.isCancelled else {
+                    if self.loggingEnabled {
+                        os_log(.info, log: self.logger, "StateSequence cancelled during iteration %d", iterationCount)
+                    }
                     let eventName: StaticString = "State Sequence Cancelled"
                     signposter.emitEvent(eventName, id: sequenceID,
                                          "Cancelled during iteration \(iterationCount)")
@@ -612,6 +664,10 @@ public extension AsyncStateContainer {
     ///         Use `AsyncStream` when you need to yield multiple states at specific points
     ///         during an async operation, rather than just at the beginning and end.
     func observe(_ stream: AsyncStream<State>) {
+        if loggingEnabled {
+            os_log(.info, log: logger, "observe(AsyncStream) called")
+        }
+        
         cancelRunningObservations()
         stateChanges = 0
         
@@ -632,6 +688,9 @@ public extension AsyncStateContainer {
                 
                 guard let state = nextState else {
                     // Sequence completed naturally
+                    if self.loggingEnabled {
+                        os_log(.info, log: self.logger, "AsyncStream completed after %d state changes", iterationCount - 1)
+                    }
                     let eventName: StaticString = "AsyncStream Sequence Ended"
                     signposter.emitEvent(eventName, id: sequenceID,
                                          "Ended after \(iterationCount - 1) iterations")
@@ -639,6 +698,9 @@ public extension AsyncStateContainer {
                 }
                 
                 guard !Task.isCancelled else {
+                    if self.loggingEnabled {
+                        os_log(.info, log: self.logger, "AsyncStream cancelled during iteration %d", iterationCount)
+                    }
                     let eventName: StaticString = "AsyncStream Sequence Cancelled"
                     signposter.emitEvent(eventName, id: sequenceID,
                                          "Cancelled during iteration \(iterationCount)")
@@ -746,6 +808,10 @@ public extension AsyncStateContainer {
     where SomeAsyncSequence: AsyncSequence,
           SomeAsyncSequence.Element == State,
           SomeAsyncSequence.Failure == Never {
+        if loggingEnabled {
+            os_log(.info, log: logger, "observe(AsyncSequence) called")
+        }
+        
         cancelRunningObservations()
         stateChanges = 0
         
@@ -766,6 +832,9 @@ public extension AsyncStateContainer {
                 
                 guard let state = nextState else {
                     // Sequence completed naturally
+                    if self.loggingEnabled {
+                        os_log(.info, log: self.logger, "AsyncSequence completed after %d state changes", iterationCount - 1)
+                    }
                     let eventName: StaticString = "Some AsyncSequence Sequence Ended"
                     signposter.emitEvent(eventName, id: sequenceID,
                                          "Ended after \(iterationCount - 1) iterations")
@@ -773,6 +842,9 @@ public extension AsyncStateContainer {
                 }
                 
                 guard !Task.isCancelled else {
+                    if self.loggingEnabled {
+                        os_log(.info, log: self.logger, "AsyncSequence cancelled during iteration %d", iterationCount)
+                    }
                     let eventName: StaticString = "Some AsyncSequence Sequence Cancelled"
                     signposter.emitEvent(eventName, id: sequenceID,
                                          "Cancelled during iteration \(iterationCount)")
@@ -849,6 +921,10 @@ public extension AsyncStateContainer {
     /// - Note: This method exists for ease of migration from VSM to AsyncVSM and may be removed
     ///         in the future if Apple ever deprecates Combine in favor of Swift Concurrency.
     func observe(_ publisher: some Publisher<State, Never>) {
+        if loggingEnabled {
+            os_log(.info, log: logger, "observe(Publisher) called")
+        }
+        
         cancelRunningObservations()
         stateChanges = 0
         
@@ -868,6 +944,9 @@ public extension AsyncStateContainer {
                 
                 guard let state = nextState else {
                     // Sequence completed naturally
+                    if self.loggingEnabled {
+                        os_log(.info, log: self.logger, "Publisher subscription finished")
+                    }
                     let eventName: StaticString = "Subscription Ended"
                     signposter.emitEvent(eventName, id: sequenceID,
                                          "Subscription finished")
@@ -875,6 +954,9 @@ public extension AsyncStateContainer {
                 }
                 
                 guard !Task.isCancelled else {
+                    if self.loggingEnabled {
+                        os_log(.info, log: self.logger, "Publisher subscription cancelled")
+                    }
                     let eventName: StaticString = "Subscription Cancelled"
                     signposter.emitEvent(eventName, id: sequenceID,
                                          "Subscription was cancelled")
@@ -937,6 +1019,10 @@ public extension AsyncStateContainer {
     ///
     /// - Note: ``StateSequence`` is designed to never throw, ensuring reliable state transitions.
     func observe(_ stateSequence: StateSequence<State>, debounced duration: Duration) {
+        if loggingEnabled {
+            os_log(.info, log: logger, "observe(StateSequence, debounced: %{public}@) called", String(describing: duration))
+        }
+        
         cancelRunningObservations()
         stateChanges = 0
         
@@ -1004,6 +1090,10 @@ public extension AsyncStateContainer {
     ///
     /// - Note: `AsyncStream` is non-throwing by design, making it ideal for state management.
     func observe(_ stream: AsyncStream<State>, debounced duration: Duration) {
+        if loggingEnabled {
+            os_log(.info, log: logger, "observe(AsyncStream, debounced: %{public}@) called", String(describing: duration))
+        }
+        
         cancelRunningObservations()
         stateChanges = 0
         
@@ -1070,6 +1160,10 @@ public extension AsyncStateContainer {
     where SomeAsyncSequence: AsyncSequence & Sendable,
           SomeAsyncSequence.Element == State,
           SomeAsyncSequence.Failure == Never {
+        if loggingEnabled {
+            os_log(.info, log: logger, "observe(AsyncSequence, debounced: %{public}@) called", String(describing: duration))
+        }
+        
         cancelRunningObservations()
         stateChanges = 0
         
@@ -1139,6 +1233,10 @@ public extension AsyncStateContainer {
     /// - Note: This method exists for ease of migration from VSM to AsyncVSM and may be removed
     ///         in the future if Apple ever deprecates Combine in favor of Swift Concurrency.
     func observe(_ publisher: some Publisher<State, Never>, debounced duration: Duration) {
+        if loggingEnabled {
+            os_log(.info, log: logger, "observe(Publisher, debounced: %{public}@) called", String(describing: duration))
+        }
+        
         cancelRunningObservations()
         stateChanges = 0
         
@@ -1176,6 +1274,10 @@ private extension AsyncStateContainer {
     }
     
     private func performStateChange(_ newState: State) {
+        if loggingEnabled {
+            os_log(.debug, log: logger, "State changed to: %{public}@", String(describing: newState))
+        }
+        
         self.state = newState
         
         // This code tracks state changes for testing purposes only. It should only be invoked
