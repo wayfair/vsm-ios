@@ -201,6 +201,9 @@ public final class AsyncStateContainer<State: Sendable>: Sendable, StateObservin
     @ObservationIgnored
     private let loggingEnabled: Bool
     
+    @ObservationIgnored
+    private var streamTimeoutTask: Task<Void, Never>?
+    
     init(state: State, logger: OSLog, loggingEnabled: Bool = false) {
         self.state = state
         self.logger = logger
@@ -210,13 +213,104 @@ public final class AsyncStateContainer<State: Sendable>: Sendable, StateObservin
     
     deinit {
         stateTask?.cancel()
+        streamTimeoutTask?.cancel()
+        streamContinuation?.finish()
+        streamContinuation = nil
     }
     
-    internal func stateChangeStream(last numberOfChanges: Int) -> AsyncStream<State> {
+    /// Creates an `AsyncStream` that collects a specified number of state changes for unit testing.
+    ///
+    /// This method is intended for **unit testing only**. It creates an `AsyncStream` that emits
+    /// state values as they occur, allowing tests to verify state transitions in VSM-managed views.
+    ///
+    /// To access this method in your unit tests, add `@testable import VSM` at the top of your
+    /// test file.
+    ///
+    /// - Parameters:
+    ///   - numberOfChanges: The number of state changes to collect before the stream finishes.
+    ///   - timeout: An optional timeout duration. If specified, the stream will automatically
+    ///              finish after this duration elapses, even if the expected number of state
+    ///              changes has not been reached. This prevents unit tests from hanging indefinitely.
+    ///
+    /// - Returns: An `AsyncStream<State>` that emits each state change as it occurs.
+    ///
+    /// ## Stream Lifecycle
+    ///
+    /// The returned stream will finish when **any** of the following conditions is met:
+    /// - The specified number of state changes (`numberOfChanges`) has been observed
+    /// - The optional `timeout` duration elapses
+    /// - The `AsyncStateContainer` instance is deallocated from memory
+    ///
+    /// ## Single Stream Limitation
+    ///
+    /// **Only one `AsyncStream` can be active at a time.** If you call this method while a
+    /// previous stream is still active, the previous stream will immediately finish and only
+    /// the newly created stream will receive subsequent state changes. This prevents potential
+    /// deadlocks where a caller might otherwise wait indefinitely on a stream that will never
+    /// receive updates.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// @testable import VSM
+    /// import Testing
+    ///
+    /// @Test @MainActor
+    /// func testLoadingSequence() async {
+    ///     // Create the container with an initial state
+    ///     let container = AsyncStateContainer<MyViewState>(
+    ///         state: .initialized(InitializedModel()),
+    ///         logger: OSLog.disabled
+    ///     )
+    ///
+    ///     // Start observing state changes before triggering the action
+    ///     // Use a timeout to prevent the test from hanging if something goes wrong
+    ///     let stateStream = container.stateChangeStream(last: 2, timeout: .seconds(5))
+    ///
+    ///     // Trigger the state sequence
+    ///     container.observe(model.load())
+    ///
+    ///     // Collect the states from the stream
+    ///     var states: [MyViewState] = []
+    ///     for await state in stateStream {
+    ///         states.append(state)
+    ///     }
+    ///
+    ///     // Verify the state transitions
+    ///     #expect(states.count == 2)
+    ///     #expect(states[0] == .loading)
+    ///     #expect(states[1] == .loaded)
+    /// }
+    /// ```
+    ///
+    /// - Important: Call this method **before** triggering the action that causes state changes
+    ///   to ensure all transitions are captured.
+    internal func stateChangeStream(last numberOfChanges: Int, timeout: Duration? = nil) -> AsyncStream<State> {
+        // Cancel any existing timeout task
+        streamTimeoutTask?.cancel()
+        streamTimeoutTask = nil
+        
+        // Finish any existing stream to prevent deadlocks on previous callers
+        streamContinuation?.finish()
+        
         numberOfWatchedStates = numberOfChanges
         let stateChangeStream = AsyncStream<State>.makeStream(of: State.self, bufferingPolicy: .bufferingNewest(numberOfChanges))
         
         streamContinuation = stateChangeStream.continuation
+        
+        // Set up timeout if specified.
+        // The Task.sleep(for:) suspends without holding the actor, allowing state changes
+        // to proceed in parallel. When the sleep completes, cleanup runs on the main actor.
+        if let timeout {
+            streamTimeoutTask = Task { [weak self] in
+                try? await Task.sleep(for: timeout)
+                guard !Task.isCancelled else { return }
+                self?.streamContinuation?.finish()
+                self?.streamContinuation = nil
+                self?.streamTimeoutTask = nil
+            }
+        }
+        
         return stateChangeStream.stream
     }
 }
