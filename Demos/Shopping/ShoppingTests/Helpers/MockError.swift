@@ -7,6 +7,10 @@
 
 import Foundation
 
-struct MockError: Error {
+struct MockError: Error, LocalizedError {
     var message: String = "Mock Error!"
+    
+    var errorDescription: String? {
+        return message
+    }
 }

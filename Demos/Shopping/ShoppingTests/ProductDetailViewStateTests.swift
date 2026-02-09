@@ -5,29 +5,80 @@
 //  Created by Albert Bori on 2/26/22.
 //
 
-import XCTest
+import Testing
 @testable import Shopping
 
-class ProductDetailViewStateTests: XCTestCase {
+struct ProductDetailViewStateTests {
 
-    /// Tests the state progression of the add-to-cart behavior of `AddToCartModel` (including time-control with an "immediate" scheduler)
-    /// Scheduling convenience types are from https://github.com/pointfreeco/combine-schedulers
-    func testAddToCart() throws {
+    /// Tests the state progression of the add-to-cart behavior of `AddToCartModel`
+    @Test("AddToCartModel progresses through states correctly")
+    func testAddToCart() async throws {
         var mockDependencies = MockAppDependencies.noOp
         mockDependencies.mockCartRepository.addProductToCartImpl = { _ in
-            usleep(1000) // Added 1ms delay because `addingToCart` state is skipped, if closure is instant
+            try await Task.sleep(for: .milliseconds(10))
         }
         let subject = AddToCartModel(dependencies: mockDependencies, productId: 0)
-        let output = try waitForPublisher(subject.addToCart(), expectedCount: 3, timeout: 5).get()
-        if let firstOutput = output.first, case ProductDetailViewState.addingToCart = firstOutput { } else {
-            XCTFail("Expected first state of .addingToCart, but got: \(output)")
+        
+        var states: [ProductDetailViewState] = []
+        var iterator = subject.addToCart().makeAsyncIterator()
+        
+        // Collect exactly 3 states from the sequence
+        while let state = await iterator.next(), states.count < 3 {
+            states.append(state)
         }
-        if let secondOutput = output.dropFirst().first, case ProductDetailViewState.addedToCart = secondOutput { } else {
-            XCTFail("Expected first state of .addedToCart, but got: \(output)")
+        
+        #expect(states.count == 3, "Expected 3 states but got \(states.count)")
+        
+        guard case .addingToCart = states[safe: 0] else {
+            Issue.record("Expected first state of .addingToCart, but got: \(states)")
+            return
         }
-        if let thirdOutput = output.last, case ProductDetailViewState.viewing = thirdOutput { } else {
-            XCTFail("Expected first state of .viewing, but got: \(output)")
+        
+        guard case .addedToCart = states[safe: 1] else {
+            Issue.record("Expected second state of .addedToCart, but got: \(states)")
+            return
         }
+        
+        guard case .viewing = states[safe: 2] else {
+            Issue.record("Expected third state of .viewing, but got: \(states)")
+            return
+        }
+    }
+    
+    /// Tests error handling in the add-to-cart behavior
+    @Test("AddToCartModel handles errors correctly", .timeLimit(.minutes(1)))
+    func testAddToCartError() async throws {
+        var mockDependencies = MockAppDependencies.noOp
+        mockDependencies.mockCartRepository.addProductToCartImpl = { _ in
+            throw MockError(message: "Test error")
+        }
+        let subject = AddToCartModel(dependencies: mockDependencies, productId: 0)
+        
+        var states: [ProductDetailViewState] = []
+        var iterator = subject.addToCart().makeAsyncIterator()
+        
+        // Collect first 2 states (addingToCart and error)
+        // Note: StateSequence will have 3 states total, but we only check the error state
+        if let state1 = await iterator.next() {
+            states.append(state1)
+        }
+        if let state2 = await iterator.next() {
+            states.append(state2)
+        }
+        
+        #expect(states.count >= 2, "Expected at least 2 states but got \(states.count)")
+        
+        guard case .addingToCart = states[safe: 0] else {
+            Issue.record("Expected first state of .addingToCart, but got: \(states)")
+            return
+        }
+        
+        guard case .addToCartError(let message, _) = states[safe: 1] else {
+            Issue.record("Expected second state of .addToCartError, but got: \(states)")
+            return
+        }
+        
+        #expect(message.contains("Test error"), "Expected error message to contain 'Test error', but got: \(message)")
     }
 
 }

@@ -5,60 +5,90 @@
 //  Created by Albert Bori on 2/26/22.
 //
 
-import Combine
-import XCTest
+import Testing
 @testable import Shopping
 
-class ProductsViewStateTests: XCTestCase {
+struct ProductsViewStateTests {
     
     /// Tests the successful load state progression for `ProductsLoaderModel`
-    func testLoadSuccess() throws {
+    @Test("ProductsLoaderModel loads products successfully")
+    func testLoadSuccess() async throws {
         var mockDependencies = MockAppDependencies.noOp
-        mockDependencies.mockProductRepository.getGridProductsImpl = { return .just([]) }
+        mockDependencies.mockProductRepository.getGridProductsImpl = { return [] }
         let subject = ProductsLoaderModel(dependencies: mockDependencies)
-        let output = try waitForPublisher(subject.loadProducts()).get()
-        if let firstOutput = output.first, case ProductsViewState.loading = firstOutput { } else {
-            XCTFail("Expected first state of .loading, but got: \(output)")
+        
+        var states: [ProductsViewState] = []
+        var iterator = subject.loadProducts().makeAsyncIterator()
+        
+        // Collect exactly 2 states from the sequence
+        while let state = await iterator.next(), states.count < 2 {
+            states.append(state)
         }
-        if let lastOuput = output.last, case ProductsViewState.loaded = lastOuput { } else {
-            XCTFail("Expected first state of .loading, but got: \(output)")
+        
+        #expect(states.count == 2, "Expected 2 states but got \(states.count)")
+        
+        guard case .loading = states[safe: 0] else {
+            Issue.record("Expected first state of .loading, but got: \(states)")
+            return
+        }
+        
+        guard case .loaded = states[safe: 1] else {
+            Issue.record("Expected second state of .loaded, but got: \(states)")
+            return
         }
     }
     
     /// Tests the failure load state and retry state progression for `ProductsLoaderModel`
-    func testLoadFailRetry() throws {
+    @Test("ProductsLoaderModel handles load failure and retry")
+    func testLoadFailRetry() async throws {
         var mockDependencies = MockAppDependencies.noOp
-        mockDependencies.mockProductRepository.getGridProductsImpl = { return .fail(MockError()) }
+        mockDependencies.mockProductRepository.getGridProductsImpl = { throw MockError() }
         let subject = ProductsLoaderModel(dependencies: mockDependencies)
-        let output = try waitForPublisher(subject.loadProducts()).get()
-        if let firstOutput = output.first, case ProductsViewState.loading = firstOutput { } else {
-            XCTFail("Expected first state of .loading, but got: \(output)")
+        
+        var states: [ProductsViewState] = []
+        var iterator = subject.loadProducts().makeAsyncIterator()
+        
+        // Collect exactly 2 states from the sequence
+        while let state = await iterator.next(), states.count < 2 {
+            states.append(state)
         }
-        if let lastOuput = output.last, case ProductsViewState.error(message: let message, retry: let retry) = lastOuput {
-            XCTAssertEqual(message, "\(MockError())")
-            // test retry
-            let output = try waitForPublisher(retry()).get()
-            if let firstOutput = output.first, case ProductsViewState.loading = firstOutput { } else {
-                XCTFail("Expected first state of .loading, but got: \(output)")
-            }
-            if let lastOuput = output.last, case ProductsViewState.error(message: let message, retry: _) = lastOuput {
-                XCTAssertEqual(message, "\(MockError())")
-            } else {
-                XCTFail("Expected first state of .error, but got: \(output)")
-            }
-        } else {
-            XCTFail("Expected first state of .error, but got: \(output)")
+        
+        #expect(states.count == 2, "Expected 2 states but got \(states.count)")
+        
+        guard case .loading = states[safe: 0] else {
+            Issue.record("Expected first state of .loading, but got: \(states)")
+            return
         }
+        
+        guard case .error(let message, let retry) = states[safe: 1] else {
+            Issue.record("Expected second state of .error, but got: \(states)")
+            return
+        }
+        
+        #expect(message == "\(MockError())", "Expected error message to match MockError")
+        
+        // Test retry - retry returns a single state directly, not a sequence
+        let retryState = await retry()
+        guard case .error(let retryMessage, _) = retryState else {
+            Issue.record("Expected retry to return .error state, but got: \(retryState)")
+            return
+        }
+        
+        #expect(retryMessage == "\(MockError())", "Expected retry error message to match MockError")
     }
     
     /// Tests the navigation binding action for `ProductsLoadedModel`
+    @Test("ProductsLoadedModel handles navigation to product detail")
     func testNavigation() throws {
         let subject = ProductsLoadedModel(products: [], productDetailId: nil)
         let output = subject.showProductDetail(id: 1)
-        if case ProductsViewState.loaded(let loadedModel) = output {
-            XCTAssertEqual(loadedModel.productDetailId, 1)
-        } else {
-            XCTFail("Expected state of .loaded, but got: \(output)")
+        
+        guard case .loaded(let loadedModel) = output else {
+            Issue.record("Expected state of .loaded, but got: \(output)")
+            return
         }
+        
+        #expect(loadedModel.productDetailId == 1, "Expected productDetailId to be 1")
     }
 }
+
