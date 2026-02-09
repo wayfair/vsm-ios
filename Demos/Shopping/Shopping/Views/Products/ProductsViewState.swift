@@ -32,7 +32,7 @@ struct ProductsLoaderModel {
     }
     
     @concurrent
-    func fetchProductsFromServer() async -> ProductsViewState {
+    private func fetchProductsFromServer() async -> ProductsViewState {
         do {
             let products = try await dependencies.productRepository.getGridProducts()
             return .loaded(ProductsLoadedModel(products: products))

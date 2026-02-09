@@ -12,7 +12,8 @@ import VSM
 // Note that in this example, the "S" in "VSM" is silent, because the corresponding view has a single state, which is implied by a single State-Model type
 struct SettingsView: View {
     typealias Dependencies = SettingsViewState.Dependencies
-    @ViewState var state: SettingsViewStating
+    
+    @ViewState var state: any SettingsViewStating
     
     // a. Custom Binding Approach (generally recommended)
     var isCustomBindingExampleEnabled: Binding<Bool> {
@@ -43,12 +44,13 @@ struct SettingsView: View {
     
     // c.2
     var isConvenienceBindingExampleEnabled2: Binding<Bool> {
-        $state.bind(\.isConvenienceBindingExampleEnabled2, to: SettingsViewStating.toggleIsConvenienceBindingExampleEnabled2)
+        $state.bind(\.isConvenienceBindingExampleEnabled2, to: (any SettingsViewStating).toggleIsConvenienceBindingExampleEnabled2)
     }
     
     init(dependencies: Dependencies) {
         let state = SettingsViewState(dependencies: dependencies)
-        _state = .init(wrappedValue: state)
+        // Console logging enabled for this demo app. Logging is disabled by default.
+        _state = .init(wrappedValue: state, observedViewType: Self.self, loggingEnabled: true)
         _isStateBindingExampleEnabled = .init(initialValue: state.isStateBindingExampleEnabled)
     }
     
@@ -63,9 +65,6 @@ struct SettingsView: View {
                 .onChange(of: isStateBindingExampleEnabled) { _, enabled in
                     $state.observe(state.toggleIsStateBindingExampleEnabled(enabled))
                 }
-//                .onReceive($state.willSetPublisher.map(\.isStateBindingExampleEnabled)) { enabled in
-//                    isStateBindingExampleEnabled = enabled
-//                }
                 .accessibilityIdentifier("State Binding Toggle")
             
             // c.1

@@ -18,7 +18,13 @@ struct CartView: View {
     
     init(dependencies: Dependencies) {
         self.dependencies = dependencies
-        _state = .init(wrappedValue: .initialized(CartLoaderModel(dependencies: dependencies)), loggingEnabled: true)
+        
+        // Console logging enabled for this demo app. Logging is disabled by default.
+        _state = .init(
+            wrappedValue: .initialized(CartLoaderModel(dependencies: dependencies)),
+            observedViewType: Self.self,
+            loggingEnabled: true
+        )
         _cartCountStore = .init(wrappedValue: CartCountStore(dependencies: dependencies))
     }
     

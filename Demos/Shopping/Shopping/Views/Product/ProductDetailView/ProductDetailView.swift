@@ -20,7 +20,8 @@ struct ProductDetailView: View {
     init(dependencies: Dependencies, productDetail: ProductDetail) {
         self.dependencies = dependencies
         self.productDetail = productDetail
-        _state = .init(wrappedValue: .viewing(AddToCartModel(dependencies: dependencies, productId: productDetail.id)))
+        // Console logging enabled for this demo app. Logging is disabled by default.
+        _state = .init(wrappedValue: .viewing(AddToCartModel(dependencies: dependencies, productId: productDetail.id)), loggingEnabled: true)
     }
     
     var body: some View {

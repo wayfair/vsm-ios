@@ -24,7 +24,8 @@ struct ProductView: View {
             dependencies: dependencies,
             productId: productId
         )
-        _state = .init(wrappedValue: .initialized(initializedModule))
+        // Console logging enabled for this demo app. Logging is disabled by default.
+        _state = .init(wrappedValue: .initialized(initializedModule), observedViewType: Self.self, loggingEnabled: true)
     }
     
     var body: some View {

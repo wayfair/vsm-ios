@@ -20,7 +20,7 @@ protocol FavoritesRepositoryDependency {
     var favoritesRepository: FavoritesRepository { get }
 }
 
-struct FavoritedProduct {
+struct FavoritedProduct: Equatable {
     let id: Int
     let name: String
 }

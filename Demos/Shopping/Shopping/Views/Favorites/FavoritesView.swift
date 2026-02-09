@@ -14,9 +14,13 @@ struct FavoritesView: View {
     @State var showErrorAlert: Bool = false
     
     init(dependencies: Dependencies) {
-        let loaderModel = FavoritesLoaderModel(dependencies: dependencies,
-                                                             modelBuilder: FavoritesViewModelBuilder(dependencies: dependencies))
-        _state = .init(wrappedValue: .initialized(loaderModel))
+        let loaderModel = FavoritesLoaderModel(
+            dependencies: dependencies,
+            modelBuilder: FavoritesViewModelBuilder(dependencies: dependencies)
+        )
+        
+        // Console logging enabled for this demo app. Logging is disabled by default.
+        _state = .init(wrappedValue: .initialized(loaderModel), observedViewType: Self.self, loggingEnabled: true)
     }
     
     var body: some View {
@@ -38,11 +42,11 @@ struct FavoritesView: View {
             }
         }
         .navigationTitle("Favorites")
-//        .onReceive($state.willSetPublisher) { state in
-//            if case .deletingError = state {
-//                showErrorAlert = true
-//            }
-//        }
+        .onChange(of: state) { oldStateValue, newStateValue in
+            if case .deletingError = newStateValue {
+                showErrorAlert = true
+            }
+        }
         .onAppear {
             if case .initialized(let loaderModel) = state {
                 $state.observe(loaderModel.loadFavorites())

@@ -9,7 +9,7 @@ import Foundation
 import VSM
 
 // Note that in this example, the "S" in "VSM" is silent, because the corresponding view has a single state, which is implied by a single State-Model type
-protocol SettingsViewStating {
+protocol SettingsViewStating: Equatable {
     var isCustomBindingExampleEnabled: Bool { get }
     var isStateBindingExampleEnabled: Bool { get }
     var isConvenienceBindingExampleEnabled1: Bool { get }
@@ -22,6 +22,13 @@ protocol SettingsViewStating {
 }
 
 struct SettingsViewState: SettingsViewStating, MutatingCopyable {
+    static func == (lhs: SettingsViewState, rhs: SettingsViewState) -> Bool {
+        lhs.isStateBindingExampleEnabled == rhs.isStateBindingExampleEnabled &&
+        lhs.isCustomBindingExampleEnabled == rhs.isCustomBindingExampleEnabled &&
+        lhs.isConvenienceBindingExampleEnabled1 == rhs.isConvenienceBindingExampleEnabled1 &&
+        lhs.isConvenienceBindingExampleEnabled2 == rhs.isConvenienceBindingExampleEnabled2
+    }
+    
     typealias Dependencies = UserDefaultsDependency
     
     enum SettingKey {

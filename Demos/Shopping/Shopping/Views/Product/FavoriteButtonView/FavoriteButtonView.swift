@@ -13,7 +13,10 @@ struct FavoriteButtonView: View {
     let dependencies: Dependencies
     let productId: Int
     let productName: String
-    @ViewState var state: FavoriteButtonViewState = .initialized(FavoriteInfoLoaderModel())
+    
+    // Console logging enabled for this demo app. Logging is disabled by default.
+    @ViewState(observedViewType: Self.self, loggingEnabled: true)
+    var state: FavoriteButtonViewState = .initialized(FavoriteInfoLoaderModel())
     
     var isLoading: Bool {
         switch state {

@@ -40,12 +40,16 @@ struct ProfileLoaderModel: ProfileLoaderModeling {
             {
                 do {
                     let username = try await dependencies.profileRepository.loadUsername()
-                    return .editing(ProfileEditingModel(dependencies: dependencies,
-                                                        username: username,
-                                                        editingState: .editing))
+                    return .editing(ProfileEditingModel(
+                        dependencies: dependencies,
+                        username: username,
+                        editingState: .editing
+                    ))
                 } catch {
-                    return .initialized(ProfileLoaderModel(dependencies: dependencies,
-                                                           error: error.localizedDescription))
+                    return .initialized(ProfileLoaderModel(
+                        dependencies: dependencies,
+                        error: error.localizedDescription
+                    ))
                 }
             }
         )

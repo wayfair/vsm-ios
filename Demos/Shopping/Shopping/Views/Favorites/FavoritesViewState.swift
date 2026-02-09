@@ -10,7 +10,7 @@ import Foundation
 
 // MARK: - State & Model Definitions
 
-enum FavoritesViewState {
+enum FavoritesViewState: Equatable {
     case initialized(FavoritesLoaderModel)
     case loading
     case loaded(FavoritesViewLoadedModel)
@@ -39,8 +39,15 @@ struct FavoritesViewModelBuilder: FavoritesViewModelBuilding {
     }
 }
 
-struct FavoritesLoaderModel {
+struct FavoritesLoaderModel: Equatable {
     typealias Dependencies = FavoritesRepositoryDependency
+
+    static func == (lhs: FavoritesLoaderModel, rhs: FavoritesLoaderModel) -> Bool {
+        // This is just to help with automatic conformance with Equatable on FavoritesViewState
+        // Normally you would be more thorough
+        true
+    }
+    
     let dependencies: Dependencies
     let modelBuilder: FavoritesViewModelBuilding
     
@@ -64,8 +71,13 @@ struct FavoritesLoaderModel {
     }
 }
 
-struct FavoritesViewLoadedModel {
+struct FavoritesViewLoadedModel: Equatable {
     typealias Dependencies = FavoritesRepositoryDependency
+
+    static func == (lhs: FavoritesViewLoadedModel, rhs: FavoritesViewLoadedModel) -> Bool {
+        lhs.favorites == rhs.favorites
+    }
+    
     let dependencies: Dependencies
     let modelBuilder: FavoritesViewModelBuilding
     let favorites: [FavoritedProduct]
@@ -87,12 +99,20 @@ struct FavoritesViewLoadedModel {
     }
 }
 
-struct FavoritesViewErrorModel {
+struct FavoritesViewErrorModel: Equatable {
+    static func == (lhs: FavoritesViewErrorModel, rhs: FavoritesViewErrorModel) -> Bool {
+        lhs.message == rhs.message
+    }
+    
     let message: String
     let retry: () -> AnyPublisher<FavoritesViewState, Never>
 }
 
-struct FavoritesViewDeletingErrorModel {
+struct FavoritesViewDeletingErrorModel: Equatable {
+    static func == (lhs: FavoritesViewDeletingErrorModel, rhs: FavoritesViewDeletingErrorModel) -> Bool {
+        lhs.message == rhs.message && lhs.favorites == rhs.favorites
+    }
+    
     let favorites: [FavoritedProduct]
     let message: String
     let retry: () -> AnyPublisher<FavoritesViewState, Never>

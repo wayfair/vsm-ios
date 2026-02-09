@@ -15,7 +15,8 @@ struct ProfileView: View {
     
     init(dependencies: Dependencies) {
         let loaderModel = ProfileLoaderModel(dependencies: dependencies, error: nil)
-        _state = .init(wrappedValue: .initialized(loaderModel))
+        // Console logging enabled for this demo app. Logging is disabled by default.
+        _state = .init(wrappedValue: .initialized(loaderModel), observedViewType: Self.self, loggingEnabled: true)
     }
     
     var body: some View {
