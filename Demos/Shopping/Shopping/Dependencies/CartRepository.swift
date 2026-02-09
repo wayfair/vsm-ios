@@ -110,6 +110,8 @@ actor CartDatabase: CartRepository {
             case insufficientFunds
         }
         
+        try await Task.sleep(for: AppConstants.simulatedAsyncNetworkDelay)
+        
         if self.cart.total >= 600 {
             throw Errors.insufficientFunds
         } else {

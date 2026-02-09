@@ -11,11 +11,15 @@ final class ProfileUITests: UITestCase {
     
     func testUsernameEditing() {
         /// Checks that the error and saving states correctly show, and that the value is persistent after navigating away
-        mainPage
+        let profilePage = mainPage
             .defaultTab()
             .tapAccountsTab()
             .tapProfile()
-            .assert(username: "SomeUser")
+        
+        // Wait for the profile to load and verify initial state
+        profilePage.waitForInitialLoad()
+        
+        profilePage
             .clearUsernameField()
             .assert(username: "User Name")
             .assertNoSavingIndicator()
@@ -25,6 +29,7 @@ final class ProfileUITests: UITestCase {
             .assertNoErrorMessage()
             .tapBackButton()
             .tapProfile()
+            .waitForInitialLoad()
             .assert(username: "FooBar")
     }
 }

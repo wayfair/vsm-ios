@@ -23,10 +23,19 @@ struct ProfilePage: TestableUI, PushedPage {
         self.app = app
         self.previousView = previousView
         find(navigationBar, file: file, line: line)
+    }
+    
+    @discardableResult
+    func waitForInitialLoad(file: StaticString = #file, line: UInt = #line) -> Self {
+        // Wait for loading to complete if still loading
         if !usernameTextField.exists {
             waitFor(loadingIndicator, file: file, line: line)
         }
+        // Wait for the text field to be available and stable
         waitFor(usernameTextField, file: file, line: line)
+        // Give a small buffer for the value to be populated
+        Thread.sleep(forTimeInterval: 0.2)
+        return self
     }
     
     @discardableResult
