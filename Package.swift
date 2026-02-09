@@ -17,7 +17,7 @@ let package = Package(
         .library(
             name: "VSM",
             targets: ["VSM"]
-        ),
+        )
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
@@ -29,13 +29,13 @@ let package = Package(
             name: "VSM",
             dependencies: [
                 .product(name: "AsyncAlgorithms", package: "swift-async-algorithms")
-            ],
+            ]
         ),
         .testTarget(
             name: "VSMTests",
             dependencies: [
                 "VSM",
-            ],
-        ),
+            ]
+        )
     ]
 )
