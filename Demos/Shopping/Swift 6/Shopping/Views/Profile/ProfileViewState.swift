@@ -1,0 +1,114 @@
+//
+//  ProfileViewState.swift
+//  Shopping
+//
+//  Created by Albert Bori on 1/26/23.
+//
+
+import VSM
+
+// MARK: - State & Model Definitions
+
+enum ProfileViewState: Sendable {
+    case initialized(ProfileLoaderModeling)
+    case loading
+    case editing(ProfileEditingModeling)
+}
+
+protocol ProfileLoaderModeling: Sendable {
+    var error: String? { get }
+    func load() -> StateSequence<ProfileViewState>
+}
+
+protocol ProfileEditingModeling: Sendable {
+    var username: String { get }
+    var editingState: ProfileEditingState { get }
+    func save(username: String) -> StateSequence<ProfileViewState>
+}
+
+// MARK: - Model Implementations
+
+struct ProfileLoaderModel: ProfileLoaderModeling, Sendable {
+    typealias Dependencies = ProfileRepositoryDependency
+    let dependencies: Dependencies
+    let error: String?
+    
+    func load() -> StateSequence<ProfileViewState> {
+        return StateSequence<ProfileViewState>(
+            { .loading },
+            {
+                do {
+                    let username = try await dependencies.profileRepository.loadUsername()
+                    return .editing(ProfileEditingModel(
+                        dependencies: dependencies,
+                        username: username,
+                        editingState: .editing
+                    ))
+                } catch {
+                    return .initialized(ProfileLoaderModel(
+                        dependencies: dependencies,
+                        error: error.localizedDescription
+                    ))
+                }
+            }
+        )
+    }
+}
+
+struct ProfileEditingModel: ProfileEditingModeling, MutatingCopyable, Sendable {
+    typealias Dependencies = ProfileRepositoryDependency
+    let dependencies: Dependencies
+    var username: String
+    var editingState: ProfileEditingState
+    
+    func save(username: String) -> StateSequence<ProfileViewState> {
+        guard username != self.username else {
+            return StateSequence({ ProfileViewState.editing(self) })
+        }
+        guard !username.isEmpty else {
+            return StateSequence({
+                ProfileViewState.editing(self.copy(mutating: { $0.editingState = .error(Errors.emptyUsername) }))
+            })
+        }
+        return StateSequence<ProfileViewState>(
+            {
+                return .editing(self.copy(mutating: { $0.editingState = .saving }))
+            },
+            {
+                do {
+                    try await dependencies.profileRepository.save(username: username)
+                    return .editing(self.copy(mutating: {
+                        $0.editingState = .editing
+                        $0.username = username
+                    }))
+                } catch {
+                    return .editing(self.copy(mutating: { $0.editingState = .error(error) }))
+                }
+            }
+        )
+    }
+    
+    enum Errors: Error {
+        case emptyUsername
+    }
+}
+
+enum ProfileEditingState: Sendable {
+    case editing
+    case saving
+    case error(Error)
+    
+    var errorMessage: String? {
+        if case .error(let error) = self {
+            switch error {
+            case ProfileEditingModel.Errors.emptyUsername:
+                return "Username must not be empty."
+            default:
+                return error.localizedDescription
+            }
+        }
+        return nil
+    }
+    
+    var isError: Bool { errorMessage != nil }
+}

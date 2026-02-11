@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 55;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -70,6 +70,7 @@
 		32F1B64727CABA3D00819F76 /* VSM in Frameworks */ = {isa = PBXBuildFile; productRef = 32F1B64627CABA3D00819F76 /* VSM */; };
 		32F1B64B27CABF0D00819F76 /* CombineSchedulers in Frameworks */ = {isa = PBXBuildFile; productRef = 32F1B64A27CABF0D00819F76 /* CombineSchedulers */; };
 		32F1B64D27CAC48D00819F76 /* ProductDetailViewStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32F1B64C27CAC48D00819F76 /* ProductDetailViewStateTests.swift */; };
+		BE7145422F3CD0E600CA009E /* VSM in Frameworks */ = {isa = PBXBuildFile; productRef = BE7145412F3CD0E600CA009E /* VSM */; };
 		BE8D0ACA2F33B571002DD617 /* CartCountStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE8D0AC92F33B571002DD617 /* CartCountStore.swift */; };
 		BE8D0ACC2F33B7FE002DD617 /* CartTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE8D0ACB2F33B7FE002DD617 /* CartTab.swift */; };
 		BE8D0ACE2F34E4FF002DD617 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE8D0ACD2F34E4FF002DD617 /* MainTabView.swift */; };
@@ -169,6 +170,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BE7145422F3CD0E600CA009E /* VSM in Frameworks */,
 				32F1B64B27CABF0D00819F76 /* CombineSchedulers in Frameworks */,
 				32F1B64727CABA3D00819F76 /* VSM in Frameworks */,
 			);
@@ -470,6 +472,7 @@
 			packageProductDependencies = (
 				32F1B64627CABA3D00819F76 /* VSM */,
 				32F1B64A27CABF0D00819F76 /* CombineSchedulers */,
+				BE7145412F3CD0E600CA009E /* VSM */,
 			);
 			productName = Shopping;
 			productReference = 32EEC6ED27B482B5001AB9C7 /* Shopping.app */;
@@ -549,6 +552,7 @@
 			mainGroup = 32EEC6E427B482B5001AB9C7;
 			packageReferences = (
 				32F1B63927CAAE7100819F76 /* XCRemoteSwiftPackageReference "combine-schedulers" */,
+				BE7145402F3CD0E600CA009E /* XCLocalSwiftPackageReference "../../../../vsm-ios" */,
 			);
 			productRefGroup = 32EEC6EE27B482B5001AB9C7 /* Products */;
 			projectDirPath = "";
@@ -986,6 +990,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		BE7145402F3CD0E600CA009E /* XCLocalSwiftPackageReference "../../../../vsm-ios" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../../../../vsm-ios";
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		32F1B63927CAAE7100819F76 /* XCRemoteSwiftPackageReference "combine-schedulers" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -1021,6 +1032,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 32F1B63927CAAE7100819F76 /* XCRemoteSwiftPackageReference "combine-schedulers" */;
 			productName = CombineSchedulers;
+		};
+		BE7145412F3CD0E600CA009E /* VSM */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VSM;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
