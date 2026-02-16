@@ -218,101 +218,7 @@ public final class AsyncStateContainer<State: Sendable>: Sendable, StateObservin
         streamContinuation = nil
     }
     
-    /// Creates an `AsyncStream` that collects a specified number of state changes for unit testing.
-    ///
-    /// This method is intended for **unit testing only**. It creates an `AsyncStream` that emits
-    /// state values as they occur, allowing tests to verify state transitions in VSM-managed views.
-    ///
-    /// To access this method in your unit tests, add `@testable import VSM` at the top of your
-    /// test file.
-    ///
-    /// - Parameters:
-    ///   - numberOfChanges: The number of state changes to collect before the stream finishes.
-    ///   - timeout: An optional timeout duration. If specified, the stream will automatically
-    ///              finish after this duration elapses, even if the expected number of state
-    ///              changes has not been reached. This prevents unit tests from hanging indefinitely.
-    ///
-    /// - Returns: An `AsyncStream<State>` that emits each state change as it occurs.
-    ///
-    /// ## Stream Lifecycle
-    ///
-    /// The returned stream will finish when **any** of the following conditions is met:
-    /// - The specified number of state changes (`numberOfChanges`) has been observed
-    /// - The optional `timeout` duration elapses
-    /// - The `AsyncStateContainer` instance is deallocated from memory
-    ///
-    /// ## Single Stream Limitation
-    ///
-    /// **Only one `AsyncStream` can be active at a time.** If you call this method while a
-    /// previous stream is still active, the previous stream will immediately finish and only
-    /// the newly created stream will receive subsequent state changes. This prevents potential
-    /// deadlocks where a caller might otherwise wait indefinitely on a stream that will never
-    /// receive updates.
-    ///
-    /// ## Example
-    ///
-    /// ```swift
-    /// @testable import VSM
-    /// import Testing
-    ///
-    /// @Test @MainActor
-    /// func testLoadingSequence() async {
-    ///     // Create the container with an initial state
-    ///     let container = AsyncStateContainer<MyViewState>(
-    ///         state: .initialized(InitializedModel()),
-    ///         logger: OSLog.disabled
-    ///     )
-    ///
-    ///     // Start observing state changes before triggering the action
-    ///     // Use a timeout to prevent the test from hanging if something goes wrong
-    ///     let stateStream = container.stateChangeStream(last: 2, timeout: .seconds(5))
-    ///
-    ///     // Trigger the state sequence
-    ///     container.observe(model.load())
-    ///
-    ///     // Collect the states from the stream
-    ///     var states: [MyViewState] = []
-    ///     for await state in stateStream {
-    ///         states.append(state)
-    ///     }
-    ///
-    ///     // Verify the state transitions
-    ///     #expect(states.count == 2)
-    ///     #expect(states[0] == .loading)
-    ///     #expect(states[1] == .loaded)
-    /// }
-    /// ```
-    ///
-    /// - Important: Call this method **before** triggering the action that causes state changes
-    ///   to ensure all transitions are captured.
-    internal func stateChangeStream(last numberOfChanges: Int, timeout: Duration? = nil) -> AsyncStream<State> {
-        // Cancel any existing timeout task
-        streamTimeoutTask?.cancel()
-        streamTimeoutTask = nil
-        
-        // Finish any existing stream to prevent deadlocks on previous callers
-        streamContinuation?.finish()
-        
-        numberOfWatchedStates = numberOfChanges
-        let stateChangeStream = AsyncStream<State>.makeStream(of: State.self, bufferingPolicy: .bufferingNewest(numberOfChanges))
-        
-        streamContinuation = stateChangeStream.continuation
-        
-        // Set up timeout if specified.
-        // The Task.sleep(for:) suspends without holding the actor, allowing state changes
-        // to proceed in parallel. When the sleep completes, cleanup runs on the main actor.
-        if let timeout {
-            streamTimeoutTask = Task { [weak self] in
-                try? await Task.sleep(for: timeout)
-                guard !Task.isCancelled else { return }
-                self?.streamContinuation?.finish()
-                self?.streamContinuation = nil
-                self?.streamTimeoutTask = nil
-            }
-        }
-        
-        return stateChangeStream.stream
-    }
+
 }
 
 public extension AsyncStateContainer {
@@ -357,7 +263,7 @@ public extension AsyncStateContainer {
     /// ```
     func observe(_ nextState: State) {
         if loggingEnabled {
-            os_log(.info, log: logger, "observe(State) called")
+            os_log(.debug, log: logger, "observe(State) called")
         }
         
         cancelRunningObservations()
@@ -420,7 +326,7 @@ public extension AsyncStateContainer {
     ///         across different concurrency domains.
     func observe(_ nextStateClosure: @escaping @Sendable () async -> State) {
         if loggingEnabled {
-            os_log(.info, log: logger, "observe(async closure) called")
+            os_log(.debug, log: logger, "observe(async closure) called")
         }
         
         cancelRunningObservations()
@@ -437,7 +343,7 @@ public extension AsyncStateContainer {
             
             guard Task.isCancelled == false else {
                 if self.loggingEnabled {
-                    os_log(.info, log: self.logger, "observe(async closure) cancelled before state change")
+                    os_log(.debug, log: self.logger, "observe(async closure) cancelled before state change")
                 }
                 return
             }
@@ -528,7 +434,7 @@ public extension AsyncStateContainer {
     ///         accessed across different concurrency domains.
     func refresh(state nextState: @escaping @Sendable () async -> State) async {
         if loggingEnabled {
-            os_log(.info, log: logger, "refresh(state:) called")
+            os_log(.debug, log: logger, "refresh(state:) called")
         }
         
         cancelRunningObservations()
@@ -540,7 +446,7 @@ public extension AsyncStateContainer {
         let nextStateValue = await nextState()
         guard Task.isCancelled == false else {
             if loggingEnabled {
-                os_log(.info, log: logger, "refresh(state:) cancelled before state change")
+                os_log(.debug, log: logger, "refresh(state:) cancelled before state change")
             }
             return
         }
@@ -624,7 +530,7 @@ public extension AsyncStateContainer {
     ///         Errors from async work should be caught and converted into appropriate error states.
     func observe(_ stateSequence: StateSequence<State>) {
         if loggingEnabled {
-            os_log(.info, log: logger, "observe(StateSequence) called")
+            os_log(.debug, log: logger, "observe(StateSequence) called")
         }
         
         cancelRunningObservations()
@@ -648,7 +554,7 @@ public extension AsyncStateContainer {
                 guard let state = nextState else {
                     // Sequence completed naturally
                     if self.loggingEnabled {
-                        os_log(.info, log: self.logger, "StateSequence completed after %d state changes", iterationCount - 1)
+                        os_log(.debug, log: self.logger, "StateSequence completed after %d state changes", iterationCount - 1)
                     }
                     let eventName: StaticString = "State Sequence Ended"
                     signposter.emitEvent(eventName, id: sequenceID,
@@ -658,7 +564,7 @@ public extension AsyncStateContainer {
                 
                 guard !Task.isCancelled else {
                     if self.loggingEnabled {
-                        os_log(.info, log: self.logger, "StateSequence cancelled during iteration %d", iterationCount)
+                        os_log(.debug, log: self.logger, "StateSequence cancelled during iteration %d", iterationCount)
                     }
                     let eventName: StaticString = "State Sequence Cancelled"
                     signposter.emitEvent(eventName, id: sequenceID,
@@ -759,7 +665,7 @@ public extension AsyncStateContainer {
     ///         during an async operation, rather than just at the beginning and end.
     func observe(_ stream: AsyncStream<State>) {
         if loggingEnabled {
-            os_log(.info, log: logger, "observe(AsyncStream) called")
+            os_log(.debug, log: logger, "observe(AsyncStream) called")
         }
         
         cancelRunningObservations()
@@ -783,7 +689,7 @@ public extension AsyncStateContainer {
                 guard let state = nextState else {
                     // Sequence completed naturally
                     if self.loggingEnabled {
-                        os_log(.info, log: self.logger, "AsyncStream completed after %d state changes", iterationCount - 1)
+                        os_log(.debug, log: self.logger, "AsyncStream completed after %d state changes", iterationCount - 1)
                     }
                     let eventName: StaticString = "AsyncStream Sequence Ended"
                     signposter.emitEvent(eventName, id: sequenceID,
@@ -793,7 +699,7 @@ public extension AsyncStateContainer {
                 
                 guard !Task.isCancelled else {
                     if self.loggingEnabled {
-                        os_log(.info, log: self.logger, "AsyncStream cancelled during iteration %d", iterationCount)
+                        os_log(.debug, log: self.logger, "AsyncStream cancelled during iteration %d", iterationCount)
                     }
                     let eventName: StaticString = "AsyncStream Sequence Cancelled"
                     signposter.emitEvent(eventName, id: sequenceID,
@@ -903,7 +809,7 @@ public extension AsyncStateContainer {
           SomeAsyncSequence.Element == State,
           SomeAsyncSequence.Failure == Never {
         if loggingEnabled {
-            os_log(.info, log: logger, "observe(AsyncSequence) called")
+            os_log(.debug, log: logger, "observe(AsyncSequence) called")
         }
         
         cancelRunningObservations()
@@ -927,7 +833,7 @@ public extension AsyncStateContainer {
                 guard let state = nextState else {
                     // Sequence completed naturally
                     if self.loggingEnabled {
-                        os_log(.info, log: self.logger, "AsyncSequence completed after %d state changes", iterationCount - 1)
+                        os_log(.debug, log: self.logger, "AsyncSequence completed after %d state changes", iterationCount - 1)
                     }
                     let eventName: StaticString = "Some AsyncSequence Sequence Ended"
                     signposter.emitEvent(eventName, id: sequenceID,
@@ -937,7 +843,7 @@ public extension AsyncStateContainer {
                 
                 guard !Task.isCancelled else {
                     if self.loggingEnabled {
-                        os_log(.info, log: self.logger, "AsyncSequence cancelled during iteration %d", iterationCount)
+                        os_log(.debug, log: self.logger, "AsyncSequence cancelled during iteration %d", iterationCount)
                     }
                     let eventName: StaticString = "Some AsyncSequence Sequence Cancelled"
                     signposter.emitEvent(eventName, id: sequenceID,
@@ -1016,7 +922,7 @@ public extension AsyncStateContainer {
     ///         in the future if Apple ever deprecates Combine in favor of Swift Concurrency.
     func observe(_ publisher: some Publisher<State, Never>) {
         if loggingEnabled {
-            os_log(.info, log: logger, "observe(Publisher) called")
+            os_log(.debug, log: logger, "observe(Publisher) called")
         }
         
         cancelRunningObservations()
@@ -1039,7 +945,7 @@ public extension AsyncStateContainer {
                 guard let state = nextState else {
                     // Sequence completed naturally
                     if self.loggingEnabled {
-                        os_log(.info, log: self.logger, "Publisher subscription finished")
+                        os_log(.debug, log: self.logger, "Publisher subscription finished")
                     }
                     let eventName: StaticString = "Subscription Ended"
                     signposter.emitEvent(eventName, id: sequenceID,
@@ -1049,7 +955,7 @@ public extension AsyncStateContainer {
                 
                 guard !Task.isCancelled else {
                     if self.loggingEnabled {
-                        os_log(.info, log: self.logger, "Publisher subscription cancelled")
+                        os_log(.debug, log: self.logger, "Publisher subscription cancelled")
                     }
                     let eventName: StaticString = "Subscription Cancelled"
                     signposter.emitEvent(eventName, id: sequenceID,
@@ -1114,7 +1020,7 @@ public extension AsyncStateContainer {
     /// - Note: ``StateSequence`` is designed to never throw, ensuring reliable state transitions.
     func observe(_ stateSequence: StateSequence<State>, debounced duration: Duration) {
         if loggingEnabled {
-            os_log(.info, log: logger, "observe(StateSequence, debounced: %{public}@) called", String(describing: duration))
+            os_log(.debug, log: logger, "observe(StateSequence, debounced: %{public}@) called", String(describing: duration))
         }
         
         cancelRunningObservations()
@@ -1185,7 +1091,7 @@ public extension AsyncStateContainer {
     /// - Note: `AsyncStream` is non-throwing by design, making it ideal for state management.
     func observe(_ stream: AsyncStream<State>, debounced duration: Duration) {
         if loggingEnabled {
-            os_log(.info, log: logger, "observe(AsyncStream, debounced: %{public}@) called", String(describing: duration))
+            os_log(.debug, log: logger, "observe(AsyncStream, debounced: %{public}@) called", String(describing: duration))
         }
         
         cancelRunningObservations()
@@ -1255,7 +1161,7 @@ public extension AsyncStateContainer {
           SomeAsyncSequence.Element == State,
           SomeAsyncSequence.Failure == Never {
         if loggingEnabled {
-            os_log(.info, log: logger, "observe(AsyncSequence, debounced: %{public}@) called", String(describing: duration))
+            os_log(.debug, log: logger, "observe(AsyncSequence, debounced: %{public}@) called", String(describing: duration))
         }
         
         cancelRunningObservations()
@@ -1328,7 +1234,7 @@ public extension AsyncStateContainer {
     ///         in the future if Apple ever deprecates Combine in favor of Swift Concurrency.
     func observe(_ publisher: some Publisher<State, Never>, debounced duration: Duration) {
         if loggingEnabled {
-            os_log(.info, log: logger, "observe(Publisher, debounced: %{public}@) called", String(describing: duration))
+            os_log(.debug, log: logger, "observe(Publisher, debounced: %{public}@) called", String(describing: duration))
         }
         
         cancelRunningObservations()
@@ -1369,13 +1275,13 @@ private extension AsyncStateContainer {
     
     private func performStateChange(_ newState: State) {
         if loggingEnabled {
-            os_log(.debug, log: logger, "State changed to: %{public}@", String(describing: newState))
+            os_log(.info, log: logger, "State changed to: %{public}@", String(describing: newState))
         }
         
         self.state = newState
         
         // This code tracks state changes for testing purposes only. It should only be invoked
-        // if the user called the stateChangeStream function and that should be accessible via
+        // if the user called the stateChangeStream function and that should only be accessible via
         // unit tests.
         guard let streamContinuation else { return }
         streamContinuation.yield(newState)
@@ -1385,6 +1291,76 @@ private extension AsyncStateContainer {
             streamContinuation.finish()
             self.streamContinuation = nil
         }
+    }
+}
+
+// MARK: - Internal Testing Extension
+
+internal extension AsyncStateContainer {
+    /// Creates an `AsyncStream` that collects a specified number of state changes for unit testing.
+    ///
+    /// - Warning: **This method is exclusively for VSM's internal unit tests.**
+    ///
+    /// This method is marked `internal` intentionally and should **only** be accessed by the unit tests
+    /// within the VSM framework itself. It was created to enable testing of `AsyncStateContainer` to verify
+    /// that state changes occur in the expected order.
+    ///
+    /// **This method is unsupported for any code outside of VSM's test suite.** Do not use this method
+    /// in your own application code or tests. VSM does not guarantee the stability or continued availability
+    /// of this API.
+    ///
+    /// - Parameters:
+    ///   - numberOfChanges: The number of state changes to collect before the stream finishes.
+    ///   - timeout: An optional timeout duration. If specified, the stream will automatically
+    ///              finish after this duration elapses, even if the expected number of state
+    ///              changes has not been reached. This prevents unit tests from hanging indefinitely.
+    ///
+    /// - Returns: An `AsyncStream<State>` that emits each state change as it occurs.
+    ///
+    /// ## Stream Lifecycle
+    ///
+    /// The returned stream will finish when **any** of the following conditions is met:
+    /// - The specified number of state changes (`numberOfChanges`) has been observed
+    /// - The optional `timeout` duration elapses
+    /// - The `AsyncStateContainer` instance is deallocated from memory
+    ///
+    /// ## Single Stream Limitation
+    ///
+    /// **Only one `AsyncStream` can be active at a time.** If you call this method while a
+    /// previous stream is still active, the previous stream will immediately finish and only
+    /// the newly created stream will receive subsequent state changes. This prevents potential
+    /// deadlocks where a caller might otherwise wait indefinitely on a stream that will never
+    /// receive updates.
+    ///
+    /// - Important: Call this method **before** triggering the action that causes state changes
+    ///   to ensure all transitions are captured.
+    func stateChangeStream(last numberOfChanges: Int, timeout: Duration? = nil) -> AsyncStream<State> {
+        // Cancel any existing timeout task
+        streamTimeoutTask?.cancel()
+        streamTimeoutTask = nil
+        
+        // Finish any existing stream to prevent deadlocks on previous callers
+        streamContinuation?.finish()
+        
+        numberOfWatchedStates = numberOfChanges
+        let stateChangeStream = AsyncStream<State>.makeStream(of: State.self, bufferingPolicy: .bufferingNewest(numberOfChanges))
+        
+        streamContinuation = stateChangeStream.continuation
+        
+        // Set up timeout if specified.
+        // The Task.sleep(for:) suspends without holding the actor, allowing state changes
+        // to proceed in parallel. When the sleep completes, cleanup runs on the main actor.
+        if let timeout {
+            streamTimeoutTask = Task { [weak self] in
+                try? await Task.sleep(for: timeout)
+                guard !Task.isCancelled else { return }
+                self?.streamContinuation?.finish()
+                self?.streamContinuation = nil
+                self?.streamTimeoutTask = nil
+            }
+        }
+        
+        return stateChangeStream.stream
     }
 }
 
