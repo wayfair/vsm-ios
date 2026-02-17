@@ -614,6 +614,8 @@ struct ProductsView: View {
 }
 ```
 
+> Tip: Rather than passing dependencies into each model at initialization time, an alternative is to let the view hold the dependencies and pass them directly into action functions at call time. This can simplify how models are constructed, at the cost of threading dependencies through any private helper functions the action calls. See <doc:ModelStyles> for a detailed comparison of both approaches.
+
 #### Step 4: Create Concrete Dependencies
 
 Implement all dependency protocols at the app root:

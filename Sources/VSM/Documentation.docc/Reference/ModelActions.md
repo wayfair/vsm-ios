@@ -1,108 +1,74 @@
 # Model Actions
 
-A reference for choosing the best Action types for your VSM Models
+A reference for choosing the best action types for your VSM models.
 
 ## Overview
 
-Actions are responsible for progressing the "State Journey" of the feature and need to be flexible to account for any functionality. The VSM framework supports several Action types within the `StateObserving`'s `observe()` overloads. This article covers each and gives examples of how to use them appropriately.
+Actions are responsible for progressing the "State Journey" of a feature and need to be flexible enough to account for any functionality. The VSM framework supports several action types through the `observe()` overloads on ``AsyncStateContainer`` (accessed via the `$state` projected value in ``ViewState`` or ``RenderedViewState``). This article covers each action type and gives examples of when and how to use them.
 
-## State Publisher
-
-```swift
-func loadUser() -> AnyPublisher<UserViewState, Never>
-```
-
-This is the most common action shape used in VSM because it allows the action to return any number of states to the view until another action is called. The ``ViewState`` accomplishes this through the ``StateObserving/observe(_:)-31ocs`` function by subscribing to the publisher, which is returned from your action. It will only observe (subscribe to) one action at a time. It does this to prevent view state corruption by previously called actions.
-
-The best way to implement this function is to return the Combine publisher result from your data repository. To do this, you will have to convert the data/error output of the repository to the state/never output of the action. This can be done like so:
-
-```swift
-func loadUser() -> AnyPublisher<UserViewState, Never>
-    UserRepository().loadUser()
-        .map { userData in UserViewState.loaded(userData) }
-        .catch { error in Just(UserViewState.loadingError(error)) }
-        .eraseToAnyPublisher()
-}
-```
-
-If you want to return a loading state for the view to show while the data is being loaded, you can do this by a) merging Combine Publishers or b) by using a `CurrentValueSubject` publisher.
-
-_Figure a._
-
-```swift
-func loadUser() -> AnyPublisher<UserViewState, Never>
-    let dataLoadPublisher = UserRepository().loadUser()
-        .map { userData in UserViewState.loaded(userData) }
-        .catch { error in Just(UserViewState.loadingError(error)) }
-
-    Just(UserViewState.loading)
-        .merge(with: dataLoadPublisher)
-        .eraseToAnyPublisher()
-}
-```
-
-_Figure b._
-
-```swift
-func loadUser() -> AnyPublisher<UserViewState, Never>
-    let stateSubject = CurrentValueSubject<UserViewState, Never>(.loading)
-    
-    UserRepository().loadUser(completion: { result in 
-        switch result {
-        case .success(let userData):
-            stateSubject.value = UserViewState.loaded(userData)
-        case .failure(let error):
-            stateSubject.value = UserViewState.loadingError(error)
-        }
-    })
-
-    return stateSubject
-}
-```
-
-> Tip: Combine publishers do not guarantee that the order of operations will follow the order of these statements. When writing unit tests, you may encounter flaky tests that fail when expecting a specific order of states.
->
-> To guarantee that the loading view state is always returned before the loaded state, you may need to employ the [`Deferred`](https://developer.apple.com/documentation/combine/deferred) Combine publisher, subscribe to the data publisher on a background queue, or both.
->
-> ```swift
-> func loadUser() -> AnyPublisher<UserViewState, Never>
->     let dataLoadPublisher = Deferred {
->         UserRepository().loadUser()
->                 .map { userData in UserViewState.loaded(userData) }
->                 .catch { error in Just(UserViewState.loadingError(error)) }
->     }
->     .subscribe(on: DispatchQueue.global())
-> 
->     Just(UserViewState.loading)
->         .merge(with: dataLoadPublisher)
->         .eraseToAnyPublisher()
-> }
-> ```
+All action types follow the same **never-throw** design: errors must be caught within the action and converted into an appropriate error view state. The framework does not accept actions that throw.
 
 ## Asynchronous State Sequence
 
 ```swift
-func loadUser() -> StateSequence<UserViewState>
+func load() -> StateSequence<UserViewState>
 ```
 
-This action type allows multiple states to be returned as an [AsyncSequence](https://developer.apple.com/documentation/swift/asyncsequence) protocol, which is part of the Swift Concurrency standard library. It is a solid alternative to the State Publisher action type because the code can read a little bit cleaner and guarantees the order of states without additional coding.
+This is the most common action shape in VSM. ``StateSequence`` is a concrete `AsyncSequence` type that accepts a variadic list of async closures, each of which returns one state. The framework evaluates each closure in order, applying each resulting state to the view as it becomes available.
 
-However, since the `AsyncSequence` is a protocol that "has Self or associated type requirements," we cannot use that type directly. To solve this problem, the VSM iOS framework provides a custom type called ``StateSequence``, a concrete type that conforms to the `AsyncSequence` protocol. You can use it like so:
+This is the preferred pattern for actions that need to emit an interim state (e.g., `.loading`) before performing async work, because the order of states is always guaranteed.
 
 ```swift
-func loadUser() -> AnyPublisher<UserViewState, Never>
-    StateSequence<UserViewState>({
-        UserViewState.loading
-    }, {
-        do {
-            let userData try await UserRepository().loadUser()
-            return UserViewState.loaded(userData)
-        } catch {
-            return UserViewState.loadingError(error)
-        }
-    })
+func load() -> StateSequence<UserViewState> {
+    StateSequence(
+        { .loading },
+        { await self.fetchUser() }
+    )
+}
+
+@concurrent
+private func fetchUser() async -> UserViewState {
+    do {
+        let user = try await UserRepository().loadUser()
+        return .loaded(LoadedModel(user: user))
+    } catch {
+        return .loadingError(ErrorModel(error: error))
+    }
 }
 ```
+
+Errors from async work must be caught and returned as an appropriate error state.
+
+> Note: The `@concurrent` attribute on the private helper moves its execution off the main thread. This is not something you should apply automatically — there is a small cost to hopping threads. Use `@concurrent` with judgement: apply it to work that has a real chance of blocking the main thread, such as large database reads or writes that require sorting through results, network requests that return large amounts of data to parse, or image processing operations. If an action or any function it relies on has the potential to block the main thread for a noticeable amount of time, that is a good signal to mark it `@concurrent`.
+
+## Asynchronous Closure
+
+```swift
+func retry() async -> UserViewState
+```
+
+Use this action shape when you need to perform async work and return a single state without an interim state. The view calls this via a closure passed to `observe()`.
+
+```swift
+func retry() async -> UserViewState {
+    do {
+        let user = try await UserRepository().loadUser()
+        return .loaded(LoadedModel(user: user))
+    } catch {
+        return .loadingError(ErrorModel(error: error))
+    }
+}
+```
+
+In the view, call it like this:
+
+```swift
+Button("Retry") {
+    $state.observe { await viewModel.retry() }
+}
+```
+
+This is a good choice when no interim state is needed and the user expects the result immediately (e.g., fast operations or cases where showing a spinner is not necessary).
 
 ## Synchronous State
 
@@ -110,43 +76,80 @@ func loadUser() -> AnyPublisher<UserViewState, Never>
 func cancel() -> UserViewState
 ```
 
-You can use this action shape if your action immediately returns a single view state. For example, if you have a button that cancels an operation and returns to the previous state.
+Use this action shape when your action immediately returns a single view state without performing any async work. A common example is a cancel button that returns to a previous state.
 
 ```swift
-func cancel() -> UserViewState
-    return UserViewState.loaded(userData)
+func cancel() -> UserViewState {
+    return .loaded(userData)
 }
 ```
 
-Any errors thrown within this action must be handled within a `do { ... } catch { ... }` structure, returning an appropriate view state to represent the caught error.
-
-## Asynchronous State
+In the view, pass the result directly to `observe()`:
 
 ```swift
-func toggleFavorite() async -> ProductViewState
-```
-
-Like the Synchronous State, this action type returns only a single view state, but it does so asynchronously using Swift Concurrency. This action type is rarely used because it is a best practice to return an interim state (i.e., "loading") while the user waits for the asynchronous operation to complete. In some cases, the interim state may not be necessary, in which case, the following may be used:
-
-```swift
-func toggleFavorite() async -> ProductViewState
-    let isFavorite = await FavoritesRepository().toggleFavorite(for: productId)
-    return ProductViewState.loaded(isFavorite: isFavorite)
+Button("Cancel") {
+    $state.observe(viewModel.cancel())
 }
 ```
 
-Any errors thrown within this action must be handled within a `do { ... } catch { ... }` structure, returning an appropriate view state to represent the caught error. For example:
+Any errors that occur within this action must be handled with a `do { ... } catch { ... }` block, returning an appropriate view state for the error.
+
+## AsyncStream
 
 ```swift
-func toggleFavorite() async -> ProductViewState
+func checkout() -> AsyncStream<CheckoutViewState>
+```
+
+Use `AsyncStream` when you need full control over how and when states are emitted throughout a complex, multi-step async operation. Unlike ``StateSequence``, `AsyncStream` lets you yield states at any point within a single async closure.
+
+```swift
+func checkout() -> AsyncStream<CheckoutViewState> {
+    AsyncStream { continuation in
+        Task {
+            continuation.yield(.checkingOut)
+            await self.performCheckout(continuation)
+            continuation.finish()
+        }
+    }
+}
+
+@concurrent
+private func performCheckout(_ continuation: AsyncStream<CheckoutViewState>.Continuation) async {
     do {
-        let isFavorite = try await FavoritesRepository().toggleFavorite(for: productId)
-        return ProductViewState.loaded(isFavorite: isFavorite)
+        try await CartRepository().checkout()
+        continuation.yield(.checkoutComplete)
+        try? await Task.sleep(for: .seconds(2))
+        continuation.yield(.loaded(LoadedModel(items: [])))
     } catch {
-        return ProductViewState.toggleFavoriteError(error)
+        continuation.yield(.checkoutError(error: error, model: self))
     }
 }
 ```
+
+## Generic AsyncSequence
+
+```swift
+func streamUpdates() -> some AsyncSequence<UserViewState, Never>
+```
+
+Available on iOS 18+, this overload accepts any `AsyncSequence` whose element type is `State` and failure type is `Never`. This is useful when your data layer vends a custom `AsyncSequence` type that you want to observe directly.
+
+```swift
+func streamUpdates() -> AsyncStream<UserViewState> {
+    UserRepository().userUpdateStream
+        .map { .loaded(LoadedModel(user: $0)) }
+}
+```
+
+Pass it to `observe()` directly in the view:
+
+```swift
+.onAppear {
+    $state.observe(viewModel.streamUpdates())
+}
+```
+
+> Note: The generic `AsyncSequence` overload requires iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, or macCatalyst 18.0. Use ``StateSequence`` or `AsyncStream` for broader OS support.
 
 ## No State
 
@@ -154,30 +157,91 @@ func toggleFavorite() async -> ProductViewState
 func toggleFavorite()
 ```
 
-Sometimes you need to kick off a process or call a function on a repository without needing a direct view state result. This action type is usable in a VSM feature in situations where a direct view state change is _not_ required. You can't use the `observe()` function to call this function from the view because the `observe()` function's only purpose is to track view state changes from action invocations.
+Sometimes you need to call a function on a repository without needing a direct view state result. This action type is valid in VSM when no state change is required. Because there is no return value, you call this directly from the view — **not** through `observe()`.
 
 ```swift
-func toggleFavorite()
+func toggleFavorite() {
     sharedFavoritesRepository.toggleFavorite(for: productId)
 }
 ```
 
-Usually, this action type is used in conjunction with an observable repository. A `load()` action would map the data from the repository's data publisher into a view state for the view to render. The ``ViewState`` will hold on to that view state subscription (and, consequently, the repository data subscription) indefinitely unless another action is observed. Any future changes to the data will translate instantly into a change in the view.
-
-For example, if you used the `load` action below, the view would always be updated when the data changes, even though the `toggleFavorite` action doesn't return any new view states.
+In the view:
 
 ```swift
-// In LoaderModel model:
-func load() -> AnyPublisher<UserViewState, Never>
-    sharedFavoritesRepository.favoritePublisher(for: productId)
-        .map { isFavorite in 
-            FavoriteButtonViewState.loaded(LoadedModel(isFavorite: isFavorite))
+Button("Favorite") {
+    viewModel.toggleFavorite()
+}
+```
+
+This pattern is typically paired with an observable repository. A `load()` action observes the repository's data stream, so any future changes to the data automatically update the view state — even without the no-state action returning anything.
+
+```swift
+// In LoaderModel:
+func load() -> AsyncStream<FavoriteButtonViewState> {
+    sharedFavoritesRepository.favoriteStream(for: productId)
+        .map { isFavorite in
+            .loaded(LoadedModel(isFavorite: isFavorite))
         }
+}
+
+// In LoadedModel:
+func toggleFavorite() {
+    sharedFavoritesRepository.toggleFavorite(for: productId)
+}
+```
+
+## Pull-to-Refresh
+
+```swift
+await $state.refresh(state: { await viewModel.refresh() })
+```
+
+When using SwiftUI's `refreshable` modifier, use the `refresh(state:)` method on the container. Unlike `observe()`, this method is `async` and suspends until the state update completes, keeping the pull-to-refresh indicator visible for the full duration of the operation.
+
+```swift
+func refresh() async -> UserViewState {
+    do {
+        let user = try await UserRepository().loadUser()
+        return .loaded(LoadedModel(user: user))
+    } catch {
+        return .loaded(self) // preserve existing state on error
+    }
+}
+```
+
+In the view:
+
+```swift
+List { ... }
+    .refreshable {
+        await $state.refresh(state: { await viewModel.refresh() })
+    }
+```
+
+## Combine Publisher (Migration Only)
+
+```swift
+func loadUser() -> AnyPublisher<UserViewState, Never>
+```
+
+The `observe(_ publisher:)` overload exists solely to ease migration from the previous Combine-based VSM framework. If you are writing new code, prefer ``StateSequence``, `AsyncStream`, or the async closure patterns above.
+
+```swift
+func loadUser() -> AnyPublisher<UserViewState, Never> {
+    UserRepository().loadUser()
+        .map { userData in .loaded(userData) }
+        .catch { error in Just(.loadingError(error)) }
         .eraseToAnyPublisher()
 }
-
-// In LoadedModel model:
-func toggleFavorite()
-    sharedFavoritesRepository.toggleFavorite(for: productId)
-}
 ```
+
+## Debounced Observations
+
+All sequence-based `observe()` overloads (``StateSequence``, `AsyncStream`, generic `AsyncSequence`, and Combine `Publisher`) have a corresponding debounced variant that accepts a `Duration`:
+
+```swift
+$state.observe(viewModel.search(query: text), debounced: .milliseconds(300))
+```
+
+Debouncing throttles rapid state changes so that only the most recent state is applied after the quiescence period has elapsed. This is useful for search fields or other inputs where the user types quickly and you want to avoid redundant work.
+

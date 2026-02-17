@@ -4,342 +4,313 @@ A compendium of styles for building Models in VSM
 
 ## Overview
 
-There are several acceptable coding styles for building models in VSM. The best overall style is generally considered to be "Protocols with Structs". However, there may be cases where your particular feature would benefit more from a slightly different style. In this article, we'll demonstrate some common styles and discuss their tradeoffs.
+There are several acceptable coding styles for building models in VSM. The best overall style is generally considered to be "Plain Structs". However, there may be cases where your particular feature would benefit from a slightly different style. In this article, we'll demonstrate some common styles and discuss their tradeoffs.
 
-## Protocols with Structs
+## Plain Structs
 
-This is the primary recommended style for building models in VSM. With this style, the view state is defined by using a combination of structs and enums, but _all models are defined along side the view state with protocols_.
+This is the primary recommended style for building models in VSM. With this style, the view state is defined by using a combination of enums and/or structs, and _all models are defined as plain structs_.
 
-These protocols are not used for injection, mind you. VSM models are inherently unit testable without the need for injecting models. However, they do have the following 3 benefits:
-
-1. They support the ["least knowledge"](https://en.wikipedia.org/wiki/Law_of_Demeter) architectural principle by limiting which properties and functions on the Model are visible to the View
-1. They help the engineer stay on target when implementing the Model by providing compiler-enforcement of the Feature Shape contract
-1. If desired, they allow the engineer to do the "layered pass" development approach, where the View and the Feature Shape are built together without having to implement any functionality. This approach may help catch feature requirement problems before they are implemented incorrectly
+Model structs can be defined anywhere that makes sense for your feature — in the same file as the view state, in separate files if they are large or complex, or as nested types inside the view state type via an extension. Nesting is not required, but it is a good organizational practice because it namespaces each model to the view state it belongs to (e.g., `LoadUserProfileViewState.LoaderModel` instead of just `LoaderModel`), which prevents naming conflicts between features.
 
 ### Pros
 
-- The benefits listed above
-- Fewest lines of code in comparison to the other styles
-- Working with protocols is familiar to many devs
-- The implementation for each model is very easy to read
-- The implementation for each model can be located in separate files for better organization and separation
-- It's easy to share dependencies and other data between actions within a model
+- Simple and idiomatic Swift — plain structs with `async` methods
+- No protocol abstractions required; models are unit testable directly
+- Dependencies and other data are easy to share between actions within a model via stored properties
+- Models can live inline with the view state, in extensions on the view state, or in their own files — whatever suits the complexity of the feature
 
 ### Cons
 
-- Using protocols without the intent to inject can be a little misleading
-- Protocol definitions cannot be nested within other types, so model protocol names will have to be unique between features
-- The protocols may require separate mock objects in order to support SwiftUI Previews, Automated UI tests, or demo applications
+- Model types are not injectable, so SwiftUI Previews, automated UI tests, or demo apps that need to control state must set the state directly rather than through mock models
 
 ### Examples
 
 The figures below show examples of different Feature Shapes that use this style.
 
-Figure a.
+Figure a. — Models defined inline in the same file, nested inside the view state via extensions:
 
 ```swift
-enum LoadUserProfileViewState {
-    case initialized(LoaderModeling)
-    case loading
-    case loadingError(LoadingErrorModeling)
-    case loaded(UserData)
-}
+// LoadUserProfileViewState.swift
 
-protocol LoaderModeling {
-    func load() -> AnyPublisher<LoadUserProfileViewState, Never>
-}
-
-protocol LoadingErrorModeling {
-    var message: String { get }
-    func retry() -> AnyPublisher<LoadUserProfileViewState, Never>
-}
-```
-
-Figure b.
-
-```swift
-struct EditUserProfileViewState {
-    var data: UserData
-    var editingState: EditingState
-    
-    enum EditingState {
-        case editing(EditingModeling)
-        case saving
-        case savingError(ErrorModeling)
-    }
-}
-
-protocol EditingModeling {
-    func saveUsername(_ username: String) -> AnyPublisher<EditUserProfileViewState, Never>
-}
-
-protocol ErrorModeling {
-    var message: String { get }
-    func retry() -> AnyPublisher<EditUserProfileViewState, Never>
-    func cancel() -> AnyPublisher<EditUserProfileViewState, Never>
-}
-```
-
-To implement the `LoadUserProfileViewState` models in this style, we create structs that implement the protocols. To protect the access of properties and functions from one model to another, standard `public|internal|private` accessors can be used on each member of the model.
-
-See the following example for details.
-
-```swift
-struct LoaderModel: LoaderModeling {
-    typealias Dependencies = UserDataProvidingDependency
-    let dependencies: Dependencies
-    let userId: Int
-    
-    func load() -> AnyPublisher<LoadUserProfileViewState, Never> {
-        Just(.loading)
-            .merge(with:
-                    dependencies.userDataRepository.load()
-                        .map { userData in
-                            LoadUserProfileViewState.loaded(userData)
-                        }
-                        .catch { error in
-                            handleLoadingError(error)
-                        }
-            )
-            .eraseToAnyPublisher()
-    }
-    
-    private func handleLoadingError(_ error: Error) -> Just<LoadUserProfileViewState> {
-        NSLog("Error loading user data: \(error)")
-        let errorModel = LoadingErrorModel(dependencies: dependencies, error: error, userId: userId)
-        return Just(LoadUserProfileViewState.loadingError(errorModel))
-    }
-}
-
-struct LoadingErrorModel: LoadingErrorModeling {
-    typealias Dependencies = LoaderModel.Dependencies
-    let dependencies: Dependencies
-    let error: Error
-    let userId: Int
-    
-    var message: String {
-        error.localizedDescription
-    }
-    
-    func retry() -> AnyPublisher<LoadUserProfileViewState, Never> {
-        LoaderModel(dependencies: dependencies, userId: userId).load()
-    }
-}
-```
-
-> Note: It is possible to use the "Protocols with Structs" style along with a builder protocol and struct which offloads the responsibility of constructing each of the models. The builder is injected into each model which can be used to build any other model needed.
->
-> While that would make everything fully injectable, **it increases the lines of code per feature by about 10% with virtually no additional value**. As mentioned above, no model injection is necessary for unit testing VSM models.
->
-> Regardless, here is an example of a builder that would be used in models above:
->
-> ```swift
-> struct LoadModelBuilder: LoadModelBuilding {
->     typealias Dependencies = LoaderModel.Dependencies & LoadingErrorModel.Dependencies
->     let dependencies: Dependencies
->     
->     func buildLoaderModel() -> LoaderModeling {
->         LoaderModel(dependencies: dependencies, builder: self)
->     }
->     
->     func buildLoadingErrorModel(error: Error) -> LoadingErrorModeling {
->         LoadingErrorModel(dependencies: dependencies, builder: self, error: error)
->     }
-> }
-> ```
-
-## Struct Extensions
-
-This approach declares each model as a struct with closures for the actions. Each model struct is then extended to provide an initializer that sets the concrete implementation of the action closures.
-
-### Pros
-
-- Doesn't require any special mock types for unit testing, SwiftUI previews, UI tests, demo apps, etc. because the structs act as both the protocol and implementation
-- The implementation for each model is somewhat easy to read
-- The implementation for each model can be located in separate files for better organization and separation
-- The model types can be defined within the view state type, allowing for conflict-proof naming like `LoadUserProfileViewState.LoaderModel`
-
-### Cons
-
-- Uses closures for the actions, which is not a common programming style
-- Closures cannot have parameter names. This makes it difficult to follow Swift function naming conventions and can make the code a bit harder to read
-- Odd syntax is required for defining the model's behavior within the initializer because `self` cannot be accessed until all required members are assigned. This is a "catch-22" problem because the closures that need to reference `self` are required members that must be set within the initializer. To get around this, you either have to assign the closure to a "no-op" implementation, like `load = { Empty().eraseToAnyPublisher() }` and then assign it again to the actual closure implementation within the same initializer. Alternatively, you can use static members within the action closures instead of requiring `self`.
-- Dependencies and other data are shared between actions within a model by passing them along with each function call
-  - Engineers may be tempted to over-share model members with the view to reduce the friction of passing dependencies and data between the actions
-
-### Examples
-
-The figures below show examples of different Feature Shapes that use this style.
-
-Figure a.
-
-```swift
 enum LoadUserProfileViewState {
     case initialized(LoaderModel)
     case loading
-    case loadingError(ErrorModel)
+    case loadingError(LoadingErrorModel)
     case loaded(UserData)
-    
-    struct LoaderModel {
-        let load: () -> AnyPublisher<LoadUserProfileViewState, Never>
-    }
-    
-    struct ErrorModel {
-        let message: String
-        let retry: () -> AnyPublisher<LoadUserProfileViewState, Never>
-    }
 }
-```
 
-Figure b.
-
-```swift
-struct EditUserProfileViewState {
-    var data: UserData
-    var editingState: EditingState
-    
-    enum EditingState {
-        case editing(EditingModel)
-        case saving
-        case savingError(ErrorModel)
-    }
-    
-    struct EditingModel {
-        let saveUsername: (String) -> AnyPublisher<EditUserProfileViewState, Never>
-    }
-    
-    struct ErrorModel {
-        let message: String
-        let retry: () -> AnyPublisher<EditUserProfileViewState, Never>
-        let cancel: () -> AnyPublisher<EditUserProfileViewState, Never>
-    }
-}
-```
-
-To implement the `LoadUserProfileViewState` models in this style, we extend the model structs. To protect the access of properties and functions from one model to another, standard `public|internal|private` accessors can be used on each member of the model.
-
-```swift
-extension LoadUserProfileViewState.LoaderModel {
-    typealias Dependencies = UserDataProvidingDependency
-    
-    init(dependencies: Dependencies, userId: Int) {
-        load = {
-            Just(.loading)
-                .merge(with: Self.load(dependencies: dependencies))
-                .eraseToAnyPublisher()
+extension LoadUserProfileViewState {
+    struct LoaderModel: Sendable {
+        let dependencies: UserDataProvidingDependency
+        let userId: Int
+        
+        func load() -> StateSequence<LoadUserProfileViewState> {
+            StateSequence(
+                { .loading },
+                { await fetchUser() }
+            )
+        }
+        
+        @concurrent
+        private func fetchUser() async -> LoadUserProfileViewState {
+            do {
+                let userData = try await dependencies.userDataRepository.load(userId: userId)
+                return .loaded(userData)
+            } catch {
+                return .loadingError(LoadingErrorModel(dependencies: dependencies, error: error, userId: userId))
+            }
         }
     }
     
-    private static func load(dependencies: Dependencies, userId: Int) -> AnyPublisher<LoadUserProfileViewState, Never> {
-        dependencies.userDataRepository.load(userId: userId)
-            .map { userData in
-                LoadUserProfileViewState.loaded(userData)
-            }
-            .catch { error in
-                handleLoadingError(dependencies: dependencies, error, for: userId)
-            }
-            .eraseToAnyPublisher()
-    }
-    
-    private static func handleLoadingError(dependencies: Dependencies, _ error: Error, for userId: Int) -> Just<LoadUserProfileViewState> {
-        NSLog("Error loading user data: \(error)")
-        let errorModel = LoadUserProfileViewState.ErrorModel(dependencies: dependencies, error: error, userId: userId)
-        return Just(LoadUserProfileViewState.loadingError(errorModel))
-    }
-}
-
-extension LoadUserProfileViewState.ErrorModel {
-    typealias Dependencies = LoadUserProfileViewState.LoaderModel.Dependencies
-    
-    init(dependencies: Dependencies, error: Error, userId: Int) {
-        self.message = error.localizedDescription
-        retry = {
-            LoadUserProfileViewState.LoaderModel(dependencies: dependencies, userId: userId).load()
+    struct LoadingErrorModel: Sendable {
+        let dependencies: UserDataProvidingDependency
+        let error: Error
+        let userId: Int
+        
+        var message: String {
+            error.localizedDescription
+        }
+        
+        func retry() -> StateSequence<LoadUserProfileViewState> {
+            LoaderModel(dependencies: dependencies, userId: userId).load()
         }
     }
 }
 ```
 
-As mentioned in the "Pros" section, SwiftUI Previews can easily be populated using this approach without the need for creating custom mock objects for the models:
+Figure b. — Models defined in separate files for a more complex feature. Each model gets its own extension:
 
 ```swift
+// LoadUserProfileViewState.swift
 
-struct LoadUserView_Previews: PreviewProvider {
-    let previewErrorState = .loadingError(
-        LoadUserProfileViewState.ErrorModel(
-            dependencies: MockDependencies(),
-            error: NSError(code: 1, domain: "")
-        )
-    )
+enum LoadUserProfileViewState {
+    case initialized(LoaderModel)
+    case loading
+    case loadingError(LoadingErrorModel)
+    case loaded(UserData)
+}
+```
 
-    static var previews: some View {
-        LoadUserView(state: previewErrorState)
-            .previewDisplayName("Loading Error State")
+```swift
+// LoadUserProfileViewState.LoaderModel.swift
+
+extension LoadUserProfileViewState {
+    struct LoaderModel: Sendable {
+        let dependencies: UserDataProvidingDependency
+        let userId: Int
+        
+        func load() -> StateSequence<LoadUserProfileViewState> {
+            StateSequence(
+                { .loading },
+                { await fetchUser() }
+            )
+        }
+        
+        @concurrent
+        private func fetchUser() async -> LoadUserProfileViewState {
+            do {
+                let userData = try await dependencies.userDataRepository.load(userId: userId)
+                return .loaded(userData)
+            } catch {
+                return .loadingError(LoadingErrorModel(dependencies: dependencies, error: error, userId: userId))
+            }
+        }
+    }
+}
+```
+
+```swift
+// LoadUserProfileViewState.LoadingErrorModel.swift
+
+extension LoadUserProfileViewState {
+    struct LoadingErrorModel: Sendable {
+        let dependencies: UserDataProvidingDependency
+        let error: Error
+        let userId: Int
+        
+        var message: String {
+            error.localizedDescription
+        }
+        
+        func retry() -> StateSequence<LoadUserProfileViewState> {
+            LoaderModel(dependencies: dependencies, userId: userId).load()
+        }
+    }
+}
+```
+
+> Note: Nesting models inside the view state type via extensions is entirely optional. If namespacing is not a concern for your project, models can simply be defined as top-level types alongside the view state.
+
+## Passing Dependencies Through Actions
+
+When using the Plain Structs style, the most straightforward approach is to store dependencies on the model as properties, as shown in the examples above. The view creates the initial model — and all subsequent models — by passing in the dependencies at initialization time.
+
+An alternative is to let the _view_ own the dependencies and pass them into each action function at call time, rather than storing them on the model. This can simplify the view's dependencies on the model (since the model no longer needs to be initialized with dependencies), but it shifts some complexity into the model's action implementations.
+
+**Tradeoffs:**
+
+- **Simpler view init:** The view holds one reference to the dependencies and passes them into actions as needed, rather than constructing each model with dependencies threaded through it.
+- **More complex model code:** Because dependencies are not stored on the model, any private helper functions called by an action must also accept the dependencies as a parameter, rather than accessing them via `self`.
+
+The view can pass dependencies into action functions either using an existential type (`any DependencyProtocol`) or generically (`<D: DependencyProtocol>`). The generic approach avoids boxing but requires the view to be generic as well.
+
+### Example
+
+**Dependencies stored on the model (standard approach):**
+
+```swift
+// The view initializes the model with dependencies
+struct LoadUserProfileView: View {
+    @ViewState var state: LoadUserProfileViewState
+
+    init(dependencies: UserDataProvidingDependency, userId: Int) {
+        _state = .init(wrappedValue: .initialized(
+            LoadUserProfileViewState.LoaderModel(dependencies: dependencies, userId: userId)
+        ))
     }
 }
 
+// The model stores dependencies and can pass them to private helpers freely
+extension LoadUserProfileViewState {
+    struct LoaderModel: Sendable {
+        let dependencies: UserDataProvidingDependency
+        let userId: Int
+
+        func load() -> StateSequence<LoadUserProfileViewState> {
+            StateSequence(
+                { .loading },
+                { await fetchUser() }
+            )
+        }
+
+        @concurrent
+        private func fetchUser() async -> LoadUserProfileViewState {
+            do {
+                let userData = try await dependencies.userDataRepository.load(userId: userId)
+                return .loaded(userData)
+            } catch {
+                return .loadingError(LoadingErrorModel(dependencies: dependencies, error: error, userId: userId))
+            }
+        }
+    }
+}
 ```
 
-## Struct Builder
+**Dependencies passed through action functions (view-owned approach):**
 
-This approach uses the exact same Feature Shape style as the "Struct Extensions", but its implementation approach is drastically different. Instead of implementing the model by extending the model struct, the Struct Builder style uses a builder struct to provide the implementation to each model. This builder struct has a function for building each model. Within each model function, there are nested functions that contain the actual functionality of the feature.
+```swift
+// The view holds the dependencies and passes them into each action
+struct LoadUserProfileView: View {
+    let dependencies: any UserDataProvidingDependency
+    @ViewState var state: LoadUserProfileViewState
+
+    init(dependencies: any UserDataProvidingDependency, userId: Int) {
+        self.dependencies = dependencies
+        _state = .init(wrappedValue: .initialized(LoadUserProfileViewState.LoaderModel(userId: userId)))
+    }
+
+    var body: some View {
+        switch state {
+        case .initialized(let model):
+            Color.clear.onAppear {
+                $state.observe(model.load(dependencies: dependencies))
+            }
+        // ...
+        }
+    }
+}
+
+// The model has no stored dependencies; they are passed in at call time
+extension LoadUserProfileViewState {
+    struct LoaderModel: Sendable {
+        let userId: Int
+
+        func load(dependencies: any UserDataProvidingDependency) -> StateSequence<LoadUserProfileViewState> {
+            StateSequence(
+                { .loading },
+                { await fetchUser(dependencies: dependencies) }  // dependencies must be threaded through
+            )
+        }
+
+        @concurrent
+        private func fetchUser(dependencies: any UserDataProvidingDependency) async -> LoadUserProfileViewState {
+            do {
+                let userData = try await dependencies.userDataRepository.load(userId: userId)
+                return .loaded(userData)
+            } catch {
+                return .loadingError(LoadingErrorModel(error: error, userId: userId))
+            }
+        }
+    }
+}
+```
+
+Choose whichever approach best suits your team's coding style and the complexity of the feature. Neither is strictly required by VSM.
+
+## Protocols for Shared Behavior
+
+Protocols are not needed as a general abstraction for VSM models — plain structs are unit testable without any protocol-based injection. However, protocols are a useful tool when _multiple model types need to share the same action implementation_.
+
+For example, if both a `.loaded` state and a `.loadedEmpty` state need a `refresh()` action, a shared protocol with a default implementation prevents code duplication while keeping each model type independent.
 
 ### Pros
 
-- Doesn't require any special mock types for unit testing, SwiftUI previews, UI tests, demo apps, etc. because the structs act as both the protocol and implementation
-- The model types can be defined within the view state type, allowing for conflict-proof naming like `LoadUserProfileViewState.LoaderModel`
-- May feel more familiar to MVVM engineers because all the implementation code is contained in one type
+- Eliminates code duplication when multiple states need the same action
+- Implementation is provided once via a protocol extension, not repeated in each model
+- Each model type remains independent and can still have its own state-specific actions
 
 ### Cons
 
-- Somewhat difficult to read
-- Uses closures for the actions, which is not a common programming style
-- Closures cannot have parameter names. This makes it difficult to follow Swift function naming conventions and can make the code a bit harder to read
-- Odd syntax is required for defining the model's behavior within the builder because nested functions are required
-- Dependencies and other data are shared between actions within a model by passing them along with each function call
-  - Engineers may be tempted to over-share model members with the view to reduce the friction of passing dependencies and data between the actions
-- Engineers may be tempted to share functions between models by way of the builder. This would violate the VSM architecture principles
-- The builder may become bloated because it contains the entire feature's implementation
+- Adds a layer of indirection that may be confusing if overused
+- Protocol names must be globally unique since protocols cannot be nested within other types
 
-### Examples
-
-To implement the `LoadUserProfileViewState` models in this style, we create a builder struct which provides all the functionality. To protect the access of properties and functions from one model to another, nested functions are used.
+### Example
 
 ```swift
-struct LoadModelBuilder {
-    typealias Dependencies = UserDataProvidingDependency
-    let dependencies: Dependencies
-    let userId: Int
-    
-    func buildLoaderModel() -> LoadUserProfileViewState.LoaderModel {
-        func load() -> AnyPublisher<LoadUserProfileViewState, Never> {
-            Just(.loading)
-                .merge(with:
-                        dependencies.userDataRepository.load(userId: userId)
-                            .map { userData in
-                                LoadUserProfileViewState.loaded(userData)
-                            }
-                            .catch { error in
-                                handleLoadingError(error)
-                            }
-                )
-                .eraseToAnyPublisher()
-        }
-        
-        func handleLoadingError(_ error: Error) -> Just<LoadUserProfileViewState> {
-            NSLog("Error loading user data: \(error)")
-            let errorModel = buildErrorModel(error: error)
-            return Just(LoadUserProfileViewState.loadingError(errorModel))
-        }
-        
-        return LoadUserProfileViewState.LoaderModel(load: load)
+protocol UserProfileRefreshable: Sendable {
+    var dependencies: UserDataProvidingDependency { get }
+    var userId: Int { get }
+}
+
+extension UserProfileRefreshable {
+    func refresh() -> StateSequence<LoadUserProfileViewState> {
+        StateSequence(
+            { .loading },
+            { await fetchUser() }
+        )
     }
     
-    func buildErrorModel(error: Error) -> LoadUserProfileViewState.ErrorModel {
-        LoadUserProfileViewState.ErrorModel(
-            message: error.localizedDescription,
-            retry: buildLoaderModel().load
-        )
+    @concurrent
+    private func fetchUser() async -> LoadUserProfileViewState {
+        do {
+            let userData = try await dependencies.userDataRepository.load(userId: userId)
+            return .loaded(userData)
+        } catch {
+            return .loadingError(LoadUserProfileViewState.LoadingErrorModel(
+                dependencies: dependencies,
+                error: error,
+                userId: userId
+            ))
+        }
+    }
+}
+
+extension LoadUserProfileViewState {
+    struct LoadedModel: UserProfileRefreshable {
+        let dependencies: UserDataProvidingDependency
+        let userId: Int
+        let userData: UserData
+    }
+    
+    struct LoadingErrorModel: UserProfileRefreshable {
+        let dependencies: UserDataProvidingDependency
+        let userId: Int
+        let error: Error
+        
+        var message: String { error.localizedDescription }
     }
 }
 ```
+
+Both `LoadedModel` and `LoadingErrorModel` get the `refresh()` action automatically, while each can still define its own state-specific properties and actions.
+
