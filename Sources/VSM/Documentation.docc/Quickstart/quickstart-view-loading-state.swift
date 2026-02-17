@@ -5,8 +5,8 @@ struct BlogEntryView: View {
         switch state {
         case .initialized(loaderModel: let loaderModel):
             ProgressView()
-                .onAppear() {
-                    $state.observe(loaderModel.load())
+                .onAppear {
+                    $state.observe(loaderModel.loadEntry())
                 }
         case .loading(errorModel: let errorModel):
             ZStack {

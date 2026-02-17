@@ -3,8 +3,7 @@ struct ErrorModel: ErrorModeling {
     let entryId: Int
     let message: String
     
-    func retry() -> AnyPublisher<BlogEntryViewState, Never> {
-        LoaderModel(repository: repository, entryId: entryId)
-            .loadEntry()
+    func retry() -> StateSequence<BlogEntryViewState> {
+        LoaderModel(repository: repository, entryId: entryId).loadEntry()
     }
 }
