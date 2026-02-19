@@ -214,7 +214,7 @@ When `observe(_:)` is called, it cancels any existing Swift Concurrency tasks an
 
 Actions that do not need to update the current state do not need to be called with the `observe(_:)` function. However, if you attempt to call an action that should update the current state without using `observe(_:)`, the compiler will give you the following warning:
 
-**_Result of call to function returning 'StateSequence<LoadUserProfileViewState>' is unused_**
+**_Result of call to function returning `StateSequence<LoadUserProfileViewState>` is unused_**
 
 This is a helpful reminder in case you forget to wrap an action call with `observe(_:)`.
 

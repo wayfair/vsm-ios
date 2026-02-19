@@ -313,4 +313,3 @@ extension LoadUserProfileViewState {
 ```
 
 Both `LoadedModel` and `LoadingErrorModel` get the `refresh()` action automatically, while each can still define its own state-specific properties and actions.
-

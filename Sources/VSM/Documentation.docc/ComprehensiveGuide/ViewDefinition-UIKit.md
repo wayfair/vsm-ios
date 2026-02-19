@@ -88,6 +88,7 @@ class ViewController: UIViewController {
 ```
 
 The key differences are:
+
 1. **Property wrapper**: `@ViewState` vs `@RenderedViewState(render:)`
 2. **Update method**: `updateProperties()` vs `render()`
 3. **Method signature**: `updateProperties()` requires `super.updateProperties()` call
@@ -354,7 +355,7 @@ When `observe(_:)` is called, it cancels any existing Swift Concurrency tasks an
 
 Actions that do not need to update the current state do not need to be called with the `observe(_:)` function. However, if you attempt to call an action that should update the current state without using `observe(_:)`, the compiler will give you the following warning:
 
-**_Result of call to function returning 'StateSequence<LoadUserProfileViewState>' is unused_**
+**_Result of call to function returning `StateSequence<LoadUserProfileViewState>` is unused_**
 
 This is a helpful reminder in case you forget to wrap an action call with `observe(_:)`.
 
@@ -648,6 +649,7 @@ This key is only relevant for apps with a minimum deployment target of iOS 18. I
 When observation tracking is enabled, UIKit automatically monitors which properties you access in your `updateProperties()` method. When any of those properties change, UIKit schedules a call to `updateProperties()` on the next run loop iteration. This provides efficient, automatic view updates without manual observation setup.
 
 For more information about Apple's observation tracking implementation, see:
+
 - [Updating Views Automatically with Observation Tracking](https://developer.apple.com/documentation/uikit/updating-views-automatically-with-observation-tracking)
 - [WWDC 2025: What's new in UIKit](https://developer.apple.com/videos/play/wwdc2025/243/) (session 243, starting at 10:21)
 

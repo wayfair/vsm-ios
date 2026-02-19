@@ -11,6 +11,7 @@ VSM is a reactive architecture. Views observe and render a stream of view states
 VSM 2.0 is built on Swift's native async/await concurrency model, providing type-safe, thread-safe state management with `@MainActor` isolation and `Sendable` requirements. This ensures all state updates happen on the main thread while allowing data fetching to occur on background threads.
 
 This guide covers:
+
 - Defining view states and creating state models
 - Building and structuring data stores
 - Using dependency injection (CPDI) to connect everything together
@@ -41,6 +42,7 @@ enum UserBioViewState: Sendable {
 ```
 
 Key characteristics:
+
 - **Sendable Conformance**: Required for thread-safe concurrency
 - **State-Specific Models**: Each case has relevant data and actions
 - **Async Closures**: Error retry actions use `@Sendable () async -> State` closures
@@ -94,6 +96,7 @@ struct LoadedModel: Sendable {
 ```
 
 Models can return states in three ways:
+
 1. **Direct State**: `func action() async -> State` - Single state result from an async operation
 2. **StateSequence**: `func action() -> StateSequence<State>` - Multi-step state transitions (see below for usage)
 3. **AsyncStream**: `func action() -> AsyncStream<State>` - Advanced multi-step flows (see below for usage)
@@ -155,6 +158,7 @@ struct UserBioView: View {
 ```
 
 The `@ViewState` property wrapper provides:
+
 - Automatic view updates when state changes
 - The `$state.observe()` method to trigger state transitions
 - Thread-safe state management via `@MainActor` isolation
@@ -166,6 +170,7 @@ The `@ViewState` property wrapper provides:
 ### When to Use StateSequence
 
 Use StateSequence for common patterns with known state flows:
+
 - **Loading data**: `.loading` → `.loaded` or `.error`
 - **Deleting items**: `.deleting` → `.deleted` or `.error`  
 - **Saving changes**: `.saving` → `.saved` or `.error`
@@ -185,6 +190,7 @@ func loadUserData() -> StateSequence<UserBioViewState> {
 ```
 
 The sequence executes closures in order:
+
 1. First closure runs immediately, returning `.loading`
 2. Second closure executes asynchronously, fetching data and returning final state
 
@@ -197,6 +203,7 @@ This pattern is perfect for "optimistic UI updates" where you immediately show l
 ### When to Use AsyncStream
 
 Use AsyncStream (sparingly) for advanced scenarios:
+
 - **Multi-step checkout**: `.validating` → `.processing` → `.confirmingPayment` → `.complete` → display receipt
 - **Complex workflows** with branching logic and multiple possible paths
 - **Operations with variable states** where you can't predict the exact sequence upfront
@@ -237,6 +244,7 @@ struct CheckoutModel: Sendable {
 ```
 
 This pattern allows emitting multiple states during a single operation:
+
 1. `.checkingOut` - Show checkout progress
 2. `.orderComplete` - Show success message  
 3. `.loadedEmpty` - Clear cart after delay
@@ -258,6 +266,7 @@ Button("Checkout") {
 ### When to Share Actions
 
 Consider sharing actions when:
+
 - **Pull-to-refresh** is available in multiple states (loaded, empty)
 - **Retry logic** is identical across error scenarios
 - **Background sync** behaves the same way regardless of current state
@@ -382,6 +391,7 @@ The data store protocol defines the contract for data operations. The dependency
 When your data store doesn't maintain mutable state—it simply provides methods to interact with external services—use a struct or class.
 
 **RESTful API Client Example:**
+
 ```swift
 struct ProductAPIClient: ProductStore {
     let baseURL: URL
@@ -403,6 +413,7 @@ struct ProductAPIClient: ProductStore {
 ```
 
 **Database Query Interface Example:**
+
 ```swift
 struct CoreDataProductStore: ProductStore {
     let context: NSManagedObjectContext
@@ -426,6 +437,7 @@ struct CoreDataProductStore: ProductStore {
 When your data store needs to maintain its own mutable state, use an actor to ensure thread-safe access.
 
 **Cart Data Store Example:**
+
 ```swift
 actor CartDatabase: CartStore {
     private var items: [CartItem] = []
@@ -450,6 +462,7 @@ actor CartDatabase: CartStore {
 ```
 
 **Favorites Data Store Example:**
+
 ```swift
 actor FavoritesDatabase: FavoritesStore {
     private var favoriteIDs: Set<UUID> = []
@@ -473,6 +486,7 @@ actor FavoritesDatabase: FavoritesStore {
 ```
 
 **In-Memory Cache Example:**
+
 ```swift
 actor ProductCache: ProductStore {
     private var cachedProducts: [Product] = []
@@ -843,6 +857,7 @@ VSM supports SwiftUI's `refreshable` modifier with the `refresh(state:)` method,
 The `refresh(state:)` method is designed to work seamlessly with SwiftUI's Pull to Refresh control. The Pull to Refresh control itself provides the loading state UX—it displays a spinner and keeps the refresh gesture visible while the async work is in progress.
 
 When you use `await $state.refresh(state:)`:
+
 1. The Pull to Refresh control appears and shows its loading spinner
 2. The `refresh(state:)` method suspends, waiting for `model.reload()` to complete
 3. Your state production happens asynchronously (fetching data, etc.)
@@ -877,6 +892,7 @@ func observeLegacyPublisher() {
 ```
 
 However, we recommend using async/await for new code:
+
 - Simpler error handling with `try`/`catch`
 - Better cancellation support via `Task`
 - Native Swift concurrency integration
