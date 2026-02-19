@@ -69,41 +69,6 @@ public protocol StateObserving<State> {
     /// Consumes a Combine `Publisher` that emits state values over time. Each state value is applied
     /// as it becomes available from the publisher. Exists for ease of migration from VSM to AsyncVSM.
     func observe(_ publisher: some Publisher<State, Never>)
-    
-    // MARK: - Observe Sequence of State Changes Functions (Debounced)
-    
-    /// Observes and updates the state through a debounced sequence of state values.
-    ///
-    /// Consumes a `StateSequence` that produces multiple state values over time. The sequence is
-    /// debounced, meaning rapid state changes will be throttled - only the most recent state value
-    /// will be applied after a quiescence period has elapsed.
-    func observe(_ stateSequence: StateSequence<State>, debounced duration: Duration)
-    
-    /// Observes and updates the state from a debounced `AsyncStream`.
-    ///
-    /// Consumes an `AsyncStream` that emits state values over time. The stream is debounced, meaning
-    /// rapid state changes will be throttled - only the most recent state value will be applied
-    /// after a quiescence period has elapsed.
-    func observe(_ stream: AsyncStream<State>, debounced duration: Duration)
-    
-    /// Observes and updates the state from a debounced generic `AsyncSequence` that never throws.
-    ///
-    /// Consumes any `AsyncSequence` whose element type is `State` and failure type is `Never`.
-    /// The sequence is debounced, meaning rapid state changes will be throttled - only the most
-    /// recent state value will be applied after a quiescence period has elapsed.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, macCatalyst 18.0, *)
-    func observe<SomeAsyncSequence>(_ sequence: SomeAsyncSequence, debounced duration: Duration)
-    where SomeAsyncSequence: AsyncSequence & Sendable,
-          SomeAsyncSequence.Element == State,
-          SomeAsyncSequence.Failure == Never
-    
-    /// Observes and updates the state from a debounced Combine `Publisher`.
-    ///
-    /// Consumes a Combine `Publisher` that emits state values over time. The publisher's values are
-    /// debounced, meaning rapid state changes will be throttled - only the most recent state value
-    /// will be applied after a quiescence period has elapsed. Exists for ease of migration from VSM to AsyncVSM.
-    func observe(_ publisher: some Publisher<State, Never>, debounced duration: Duration)
-    
 }
 
 // MARK: Legacy Methods

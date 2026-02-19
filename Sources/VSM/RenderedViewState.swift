@@ -508,58 +508,5 @@ extension RenderedViewState.RenderedContainer {
     public func observe(_ publisher: some Publisher<State, Never>) {
         container.observe(publisher)
     }
-    
-    /// Observes and updates the state through a debounced sequence of state values.
-    ///
-    /// Consumes a `StateSequence` where rapid state changes are throttled - only the most recent
-    /// state value will be applied after the debounce duration has elapsed.
-    ///
-    /// - Parameters:
-    ///   - stateSequence: A `StateSequence` that produces a series of state values.
-    ///   - duration: The debounce duration to wait before applying the most recent state.
-    public func observe(_ stateSequence: StateSequence<State>, debounced duration: Duration) {
-        container.observe(stateSequence, debounced: duration)
-    }
-    
-    /// Observes and updates the state from a debounced `AsyncStream`.
-    ///
-    /// Consumes an `AsyncStream` where rapid state changes are throttled - only the most recent
-    /// state value will be applied after the debounce duration has elapsed.
-    ///
-    /// - Parameters:
-    ///   - stream: An `AsyncStream<State>` that emits state values.
-    ///   - duration: The debounce duration to wait before applying the most recent state.
-    public func observe(_ stream: AsyncStream<State>, debounced duration: Duration) {
-        container.observe(stream, debounced: duration)
-    }
-    
-    /// Observes and updates the state from a debounced generic `AsyncSequence` that never throws.
-    ///
-    /// Consumes any `AsyncSequence` where rapid state changes are throttled - only the most recent
-    /// state value will be applied after the debounce duration has elapsed.
-    ///
-    /// - Parameters:
-    ///   - sequence: Any `AsyncSequence` that emits `State` values with `Failure` type of `Never`.
-    ///   - duration: The debounce duration to wait before applying the most recent state.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, macCatalyst 18.0, *)
-    public func observe<SomeAsyncSequence>(_ sequence: SomeAsyncSequence, debounced duration: Duration)
-    where SomeAsyncSequence : Sendable,
-          SomeAsyncSequence : AsyncSequence,
-          State == SomeAsyncSequence.Element,
-          SomeAsyncSequence.Failure == Never {
-        container.observe(sequence, debounced: duration)
-    }
-    
-    /// Observes and updates the state from a debounced Combine `Publisher`.
-    ///
-    /// Consumes a Combine `Publisher` where rapid state changes are throttled - only the most recent
-    /// state value will be applied after the debounce duration has elapsed.
-    ///
-    /// - Parameters:
-    ///   - publisher: A Combine `Publisher` that emits `State` values and never fails.
-    ///   - duration: The debounce duration to wait before applying the most recent state.
-    public func observe(_ publisher: some Publisher<State, Never>, debounced duration: Duration) {
-        container.observe(publisher, debounced: duration)
-    }
 }
 #endif

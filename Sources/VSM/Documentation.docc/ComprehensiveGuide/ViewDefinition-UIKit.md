@@ -477,8 +477,6 @@ func setUpViews() {
 
 You can see that based on the type-system constraints, _these actions can never be called from the wrong state_, and the feature code indicates this very clearly.
 
-> Note: There is a special observe overload ``StateObserving/observe(_:debounced:file:line:)-8vbf2`` which includes a `debounced` property. This allows us to avoid calling an action too many times when tied to user input that may be triggered rapidly, like typing in a text field. It will only call the action a maximum of once per second (or whatever time delay is given).
-
 ## View Construction
 
 What's the best way to construct a VSM component? Through the UIKit view or view controller's initializer. As passively enforced by the UIKit API, every feature's true API access point is the initializer of the feature's view. Required dependencies and data are passed to the initializer to initiate the feature's behavior.

@@ -234,14 +234,3 @@ func loadUser() -> AnyPublisher<UserViewState, Never> {
         .eraseToAnyPublisher()
 }
 ```
-
-## Debounced Observations
-
-All sequence-based `observe()` overloads (``StateSequence``, `AsyncStream`, generic `AsyncSequence`, and Combine `Publisher`) have a corresponding debounced variant that accepts a `Duration`:
-
-```swift
-$state.observe(viewModel.search(query: text), debounced: .milliseconds(300))
-```
-
-Debouncing throttles rapid state changes so that only the most recent state is applied after the quiescence period has elapsed. This is useful for search fields or other inputs where the user types quickly and you want to avoid redundant work.
-
