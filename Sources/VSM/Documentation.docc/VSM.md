@@ -24,6 +24,7 @@ This package provides helpful types for implementing VSM, such as the ``ViewStat
 - <doc:ModelStyles>
 - <doc:Navigation>
 - <doc:ViewStateExtensions>
+- <doc:Debugging>
 
 ### VSM Guide Articles
 
