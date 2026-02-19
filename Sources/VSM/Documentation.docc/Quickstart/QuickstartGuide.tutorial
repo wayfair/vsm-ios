@@ -179,7 +179,7 @@
             @Step {
                 Now, define a protocol called `BlogEntryProviding` that describes the repository's behavior. The repository will have a `loadEntry(entryId:)` function that returns a `BlogEntry` directly or throws an `Error`.
                 
-                > Note: To learn more about dependency injection best practices, see <doc:DataDefinition#Composed-Protocol-Dependency-Injection>.
+                > Note: To learn more about dependency injection best practices, see <doc:DataDefinition#Dependency-Injection-with-CPDI>.
                 
                 @Code(name: "LoaderModel.swift", file: quickstart-repository-contract)
             }

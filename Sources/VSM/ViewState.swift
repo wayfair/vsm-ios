@@ -91,7 +91,7 @@ public struct ViewState<State>: DynamicProperty where State: Sendable {
     /// ```
     ///
     /// - Parameters:
-    ///   - wrappedValue: The view state to be managed by the state container.
+    ///   - initialState: The view state to be managed by the state container.
     ///   - subsystem: The subsystem identifier for logging (defaults to "com.wayfair.vsm").
     ///   - observedViewType: The type of the view being observed, used for logging categorization.
     ///   - loggingEnabled: When `true`, enables debug logging of state changes to the Console. Defaults to `false`.

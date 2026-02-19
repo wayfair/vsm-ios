@@ -42,10 +42,6 @@ This package provides helpful types for implementing VSM, such as the ``ViewStat
 
 ### Supporting Types
 
-- ``StateContainer``
+- ``AsyncStateContainer``
 - ``StateSequence``
 - ``MutatingCopyable``
-
-### Deprecated Types
-
-- ``ViewStateRendering``

@@ -8,7 +8,7 @@ One of the unique things about the VSM architecture is its philosophy on how mod
 
 > Tip: Building VSM models requires an understanding of [finite state machines](https://en.wikipedia.org/wiki/Finite-state_machine) and simple [recursion](https://www.vadimbulavin.com/recursion-in-swift/).
 
-There are multiple styles for building models in VSM. You can read more about each pattern in <doc:ModelStyles>. In this article, we will be focusing on the <doc:ModelStyles#Protocols-with-Structs> pattern where each model implements its functionality by creating structs that implement the protocol requirements. We recommend that you use the Protocol with Structs model style by default.
+There are multiple styles for building models in VSM. You can read more about each pattern in <doc:ModelStyles>. In this article, we will be focusing on the <doc:ModelStyles#Plain-Structs> pattern where each model implements its functionality by creating structs that implement the protocol requirements. We recommend that you use the Protocol with Structs model style by default.
 
 We will continue from <doc:StateDefinition> by implementing the business logic for the models associated with `LoadUserProfileViewState` and the `EditUserProfileViewState`.
 
@@ -152,7 +152,7 @@ Since these are structs, the create/copy/destroy operations are generally very i
 
 The Load User Profile models are now complete and ready for testing. To learn more about testing, visit <doc:UnitTesting>.
 
-You may have noticed that we don't subscribe or receive on the main queue anywhere in this code. (ie, `.receive(on: DispatchQueue.main)` or `.subscribe(on: DispatchQueue.main`). This is because the state container's ``StateContainer/observe(_:)-1uta3`` function does this for us.
+You may have noticed that we don't subscribe or receive on the main queue anywhere in this code. (ie, `.receive(on: DispatchQueue.main)` or `.subscribe(on: DispatchQueue.main`). This is because the state container's ``AsyncStateContainer/observe(_:)-2jgpf`` function does this for us.
 
 > Tip: In VSM, you never have to worry about syncing your view states with the main thread.
 
