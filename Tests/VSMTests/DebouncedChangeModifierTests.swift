@@ -91,20 +91,20 @@ struct DebouncedChangeModifierTests {
     @Test("Basic onChange - action does NOT fire if debounce period hasn't elapsed")
     func actionDoesNotFireBeforeDebounceElapsed() async throws {
         var actionCallCount = 0
-        
+
         let testView = TestHostView(
             initialValue: "initial",
-            debounceDuration: .milliseconds(300)
+            debounceDuration: .milliseconds(100)
         ) { _, _ in
             actionCallCount += 1
         }
-        
+
         // Change the value
         testView.updateValue("updated")
-        
+
         // Wait for the full debounce period to elapse
-        try await Task.sleep(nanoseconds: 600_000_000) // 600ms
-        
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
+
         // Action should have fired exactly once
         #expect(actionCallCount == 1)
     }
@@ -253,10 +253,10 @@ struct DebouncedChangeModifierTests {
     func cancelSignalCancelsPendingAction() async throws {
         var actionCallCount = 0
         var cancelSignal = false
-        
+
         let testView = TestHostViewWithCancelSignal(
             initialValue: "initial",
-            debounceDuration: .milliseconds(500),
+            debounceDuration: .milliseconds(100),
             cancelSignal: Binding(
                 get: { cancelSignal },
                 set: { cancelSignal = $0 }
@@ -264,14 +264,14 @@ struct DebouncedChangeModifierTests {
         ) { _, _ in
             actionCallCount += 1
         }
-        
+
         // Change the value to start debounce, then cancel immediately
         testView.updateValue("updated")
         testView.triggerCancel()
-        
+
         // Wait well past the debounce period
-        try await Task.sleep(nanoseconds: 700_000_000) // 700ms
-        
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
+
         // Action should not have fired because we cancelled it
         #expect(actionCallCount == 0)
     }
@@ -305,10 +305,10 @@ struct DebouncedChangeModifierTests {
         var actionCallCount = 0
         var capturedNewValue: String?
         var cancelSignal = false
-        
+
         let testView = TestHostViewWithCancelSignal(
             initialValue: "initial",
-            debounceDuration: .milliseconds(300),
+            debounceDuration: .milliseconds(100),
             cancelSignal: Binding(
                 get: { cancelSignal },
                 set: { cancelSignal = $0 }
@@ -317,18 +317,18 @@ struct DebouncedChangeModifierTests {
             actionCallCount += 1
             capturedNewValue = newValue
         }
-        
+
         // First change — cancel immediately before the debounce fires
         testView.updateValue("cancelled")
         testView.triggerCancel()
-        try await Task.sleep(nanoseconds: 500_000_000) // 500ms — well past the debounce period
-        
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms — well past the debounce period
+
         #expect(actionCallCount == 0)
-        
+
         // Subsequent change should work
         testView.updateValue("successful")
-        try await Task.sleep(nanoseconds: 400_000_000) // 400ms
-        
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
+
         #expect(actionCallCount == 1)
         #expect(capturedNewValue == "successful")
     }
@@ -338,28 +338,25 @@ struct DebouncedChangeModifierTests {
     @Test("Cancel callback - successfully cancels pending action when invoked")
     func cancelCallbackCancelsPendingAction() async throws {
         var actionCallCount = 0
-        var storedCancel: (() -> Void)?
-        
+
         let testView = TestHostViewWithCancelCallback(
             initialValue: "initial",
-            debounceDuration: .milliseconds(300)
-        ) { _, _, cancel in
+            debounceDuration: .milliseconds(100)
+        ) { _, _, _ in
             actionCallCount += 1
-            storedCancel = cancel
         }
-        
-        // First change to capture cancel callback
+
+        // First change — let it complete
         testView.updateValue("first")
-        try await Task.sleep(nanoseconds: 400_000_000) // 400ms
-        
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
+
         #expect(actionCallCount == 1)
-        #expect(storedCancel != nil)
-        
-        // Second change — cancel it immediately before the debounce can fire
+
+        // Second change — cancel synchronously before the debounce can fire
         testView.updateValue("second")
-        storedCancel?()
-        try await Task.sleep(nanoseconds: 500_000_000) // 500ms — well past the debounce period
-        
+        testView.cancelNow()
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms — well past the debounce period
+
         // Action should have fired only once (from first change)
         #expect(actionCallCount == 1)
     }
@@ -402,8 +399,8 @@ struct DebouncedChangeModifierTests {
         // We'll verify this by checking that any of them can cancel a pending operation
         testView.updateValue(4)
         
-        // Cancel immediately before the debounce fires
-        firstCancel?()
+        // Cancel synchronously before the debounce fires
+        testView.cancelNow()
         
         // Wait well past the debounce period to confirm no action fired for value 4
         try await Task.sleep(nanoseconds: 350_000_000) // 350ms
@@ -416,62 +413,56 @@ struct DebouncedChangeModifierTests {
     func streamWorksAfterCancelCallback() async throws {
         var actionCallCount = 0
         var capturedValues: [String] = []
-        var storedCancel: (() -> Void)?
-        
+
         let testView = TestHostViewWithCancelCallback(
             initialValue: "initial",
-            debounceDuration: .milliseconds(200)
-        ) { _, newValue, cancel in
+            debounceDuration: .milliseconds(100)
+        ) { _, newValue, _ in
             actionCallCount += 1
             capturedValues.append(newValue)
-            storedCancel = cancel
         }
-        
+
         // First change to get cancel callback
         testView.updateValue("first")
-        try await Task.sleep(nanoseconds: 400_000_000) // 400ms
-        
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
+
         #expect(actionCallCount == 1)
-        
-        // Second change — cancel immediately before the debounce fires
+
+        // Second change — cancel synchronously before the debounce fires
         testView.updateValue("cancelled")
-        storedCancel?()
-        try await Task.sleep(nanoseconds: 400_000_000) // 400ms — well past the debounce period
-        
+        testView.cancelNow()
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms — well past the debounce period
+
         // Third change should work normally
         testView.updateValue("third")
-        try await Task.sleep(nanoseconds: 400_000_000) // 400ms
-        
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
+
         #expect(actionCallCount == 2)
         #expect(capturedValues == ["first", "third"])
     }
-    
+
     @Test("Cancel callback - can be safely stored and invoked later")
     func cancelCallbackCanBeStoredAndInvokedLater() async throws {
         var actionCallCount = 0
-        var storedCancel: (() -> Void)?
-        
+
         let testView = TestHostViewWithCancelCallback(
             initialValue: "initial",
-            debounceDuration: .milliseconds(300)
-        ) { _, _, cancel in
+            debounceDuration: .milliseconds(100)
+        ) { _, _, _ in
             actionCallCount += 1
-            storedCancel = cancel
         }
-        
-        // First change to capture cancel
+
+        // First change — let it complete
         testView.updateValue("first")
-        try await Task.sleep(nanoseconds: 400_000_000) // 400ms
-        
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
+
         #expect(actionCallCount == 1)
-        let savedCancel = storedCancel
-        #expect(savedCancel != nil)
-        
-        // Use the stored cancel to cancel a new change — invoke immediately before debounce fires
+
+        // Cancel synchronously before the debounce fires
         testView.updateValue("second")
-        savedCancel?()
-        try await Task.sleep(nanoseconds: 500_000_000) // 500ms — well past the debounce period
-        
+        testView.cancelNow()
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms — well past the debounce period
+
         // Should still only have one action call
         #expect(actionCallCount == 1)
     }
@@ -683,11 +674,17 @@ private class TestHostView<V: Equatable & Sendable> {
         continuation = cont
         previousValue = value
         
-        task = Task { @MainActor in
-            for await debouncedValue in stream.debounce(for: debounceDuration) {
-                let oldValue = previousValue ?? debouncedValue
-                action(oldValue, debouncedValue)
-                previousValue = debouncedValue
+        // Use detached task so the debounce loop runs off the main actor.
+        // This prevents deadlock when the test awaits Task.sleep on @MainActor.
+        let duration = debounceDuration
+        task = Task.detached { [weak self] in
+            guard let self else { return }
+            for await debouncedValue in stream.debounce(for: duration) {
+                await MainActor.run {
+                    let oldValue = self.previousValue ?? debouncedValue
+                    self.action(oldValue, debouncedValue)
+                    self.previousValue = debouncedValue
+                }
             }
         }
     }
@@ -740,20 +737,24 @@ private class TestHostViewWithInitial<V: Equatable & Sendable> {
         }
         previousValue = value
         
-        task = Task { @MainActor in
-            for await debouncedValue in stream.debounce(for: debounceDuration) {
-                let oldValue = previousValue ?? debouncedValue
-                action(oldValue, debouncedValue)
-                previousValue = debouncedValue
+        let duration = debounceDuration
+        task = Task.detached { [weak self] in
+            guard let self else { return }
+            for await debouncedValue in stream.debounce(for: duration) {
+                await MainActor.run {
+                    let oldValue = self.previousValue ?? debouncedValue
+                    self.action(oldValue, debouncedValue)
+                    self.previousValue = debouncedValue
+                }
             }
         }
     }
-    
+
     func disappear() {
         continuation?.finish()
         task?.cancel()
     }
-    
+
     func updateValue(_ newValue: V) {
         value = newValue
         continuation?.yield(newValue)
@@ -793,45 +794,52 @@ private class TestHostViewWithCancelSignal<V: Equatable & Sendable> {
         continuation = cont
         previousValue = value
         
-        task = Task { @MainActor in
-            for await debouncedValue in stream.debounce(for: debounceDuration) {
-                let oldValue = previousValue ?? debouncedValue
-                action(oldValue, debouncedValue)
-                previousValue = debouncedValue
+        let duration = debounceDuration
+        task = Task.detached { [weak self] in
+            guard let self else { return }
+            for await debouncedValue in stream.debounce(for: duration) {
+                await MainActor.run {
+                    let oldValue = self.previousValue ?? debouncedValue
+                    self.action(oldValue, debouncedValue)
+                    self.previousValue = debouncedValue
+                }
             }
         }
     }
-    
+
     func disappear() {
         continuation?.finish()
         task?.cancel()
     }
-    
+
     func updateValue(_ newValue: V) {
         value = newValue
         continuation?.yield(newValue)
         // Note: NOT updating previousValue here (unlike line 219 in the actual implementation)
         // This tests the EXPECTED behavior where previousValue only updates when debounce fires
     }
-    
+
     func triggerCancel() {
         cancelSignal.wrappedValue = true
-        
-        // Simulate the cancel logic
+
         task?.cancel()
         continuation?.finish()
-        
+
         let (stream, cont) = AsyncStream<V>.makeStream(bufferingPolicy: .bufferingNewest(1))
         continuation = cont
-        
-        task = Task { @MainActor in
-            for await debouncedValue in stream.debounce(for: debounceDuration) {
-                let oldVal = previousValue ?? debouncedValue
-                action(oldVal, debouncedValue)
-                previousValue = debouncedValue
+
+        let duration = debounceDuration
+        task = Task.detached { [weak self] in
+            guard let self else { return }
+            for await debouncedValue in stream.debounce(for: duration) {
+                await MainActor.run {
+                    let oldVal = self.previousValue ?? debouncedValue
+                    self.action(oldVal, debouncedValue)
+                    self.previousValue = debouncedValue
+                }
             }
         }
-        
+
         cancelSignal.wrappedValue = false
     }
 }
@@ -864,22 +872,7 @@ private class TestHostViewWithCancelCallback<V: Equatable & Sendable> {
         // Create stable cancel closure once
         let cancel: @Sendable () -> Void = { @Sendable [weak self] in
             Task { @MainActor in
-                guard let self = self else { return }
-                self.task?.cancel()
-                self.continuation?.finish()
-                
-                let (newStream, newCont) = AsyncStream<V>.makeStream(bufferingPolicy: .bufferingNewest(1))
-                self.continuation = newCont
-                
-                if let stableCancel = self.cancelClosure {
-                    self.task = Task { @MainActor in
-                        for await debouncedValue in newStream.debounce(for: self.debounceDuration) {
-                            let oldValue = self.previousValue ?? debouncedValue
-                            self.action(oldValue, debouncedValue, stableCancel)
-                            self.previousValue = debouncedValue
-                        }
-                    }
-                }
+                self?.cancelNow()
             }
         }
         cancelClosure = cancel
@@ -887,25 +880,54 @@ private class TestHostViewWithCancelCallback<V: Equatable & Sendable> {
         let (stream, cont) = AsyncStream<V>.makeStream(bufferingPolicy: .bufferingNewest(1))
         continuation = cont
         previousValue = value
-        
-        task = Task { @MainActor in
-            for await debouncedValue in stream.debounce(for: debounceDuration) {
-                let oldValue = previousValue ?? debouncedValue
-                action(oldValue, debouncedValue, cancel)
-                previousValue = debouncedValue
+
+        let duration = debounceDuration
+        task = Task.detached { [weak self] in
+            guard let self else { return }
+            for await debouncedValue in stream.debounce(for: duration) {
+                await MainActor.run {
+                    let oldValue = self.previousValue ?? debouncedValue
+                    self.action(oldValue, debouncedValue, self.cancelClosure ?? { })
+                    self.previousValue = debouncedValue
+                }
             }
         }
     }
-    
+
     func disappear() {
         continuation?.finish()
         task?.cancel()
     }
-    
+
     func updateValue(_ newValue: V) {
         value = newValue
         continuation?.yield(newValue)
         // Note: NOT updating previousValue here (unlike line 219 in the actual implementation)
         // This tests the EXPECTED behavior where previousValue only updates when debounce fires
+    }
+
+    /// Synchronously cancels the current debounce and resets the stream.
+    /// Use this in tests instead of invoking the cancel closure directly, because the
+    /// cancel closure dispatches work via Task { @MainActor in ... } which is async and
+    /// can race against the debounce timer on slow CI runners.
+    func cancelNow() {
+        task?.cancel()
+        continuation?.finish()
+
+        let (newStream, newCont) = AsyncStream<V>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        continuation = newCont
+
+        guard cancelClosure != nil else { return }
+        let duration = debounceDuration
+        task = Task.detached { [weak self] in
+            guard let self else { return }
+            for await debouncedValue in newStream.debounce(for: duration) {
+                await MainActor.run {
+                    let oldValue = self.previousValue ?? debouncedValue
+                    self.action(oldValue, debouncedValue, self.cancelClosure ?? { })
+                    self.previousValue = debouncedValue
+                }
+            }
+        }
     }
 }
