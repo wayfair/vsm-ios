@@ -5,30 +5,33 @@
 //  Created by Albert Bori on 1/26/23.
 //
 
+import Combine
 import VSM
 
 // MARK: - State & Model Definitions
 
 enum ProfileViewState: Sendable {
-    case initialized(ProfileLoaderModeling)
+    case initialized(ProfileLoaderModel)
     case loading
-    case editing(ProfileEditingModeling)
-}
-
-protocol ProfileLoaderModeling: Sendable {
-    var error: String? { get }
-    func load() -> StateSequence<ProfileViewState>
-}
-
-protocol ProfileEditingModeling: Sendable {
-    var username: String { get }
-    var editingState: ProfileEditingState { get }
-    func save(username: String) -> StateSequence<ProfileViewState>
+    case loaded(ProfileLoadedModel)
+    case editing(ProfileEditingModel)
+    
+    var isSaving: Bool {
+        guard case .editing(let editingModel) = self else { return false }
+        guard case .saving = editingModel.editingState else { return false }
+        
+        return true
+    }
+    
+    var errorMessage: String? {
+        guard case .editing(let editingModel) = self else { return nil }
+        return editingModel.editingState.errorMessage
+    }
 }
 
 // MARK: - Model Implementations
 
-struct ProfileLoaderModel: ProfileLoaderModeling, Sendable {
+struct ProfileLoaderModel: Sendable {
     typealias Dependencies = ProfileRepositoryDependency
     let dependencies: Dependencies
     let error: String?
@@ -39,10 +42,9 @@ struct ProfileLoaderModel: ProfileLoaderModeling, Sendable {
             {
                 do {
                     let username = try await dependencies.profileRepository.loadUsername()
-                    return .editing(ProfileEditingModel(
+                    return .loaded(ProfileLoadedModel(
                         dependencies: dependencies,
-                        username: username,
-                        editingState: .editing
+                        fetchedUsername: username
                     ))
                 } catch {
                     return .initialized(ProfileLoaderModel(
@@ -55,7 +57,21 @@ struct ProfileLoaderModel: ProfileLoaderModeling, Sendable {
     }
 }
 
-struct ProfileEditingModel: ProfileEditingModeling, MutatingCopyable, Sendable {
+struct ProfileLoadedModel: Sendable {
+    typealias Dependencies = ProfileRepositoryDependency
+    let dependencies: Dependencies
+    let fetchedUsername: String
+
+    func startEditing() -> ProfileViewState {
+        return .editing(ProfileEditingModel(
+            dependencies: dependencies,
+            username: fetchedUsername,
+            editingState: .editing
+        ))
+    }
+}
+
+struct ProfileEditingModel: Sendable, MutatingCopyable {
     typealias Dependencies = ProfileRepositoryDependency
     let dependencies: Dependencies
     var username: String
@@ -93,7 +109,7 @@ struct ProfileEditingModel: ProfileEditingModeling, MutatingCopyable, Sendable {
     }
 }
 
-enum ProfileEditingState: Sendable {
+enum ProfileEditingState {
     case editing
     case saving
     case error(Error)

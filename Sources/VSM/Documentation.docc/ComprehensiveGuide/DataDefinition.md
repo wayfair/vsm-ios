@@ -738,18 +738,80 @@ This allows the method to be called from any context while maintaining type safe
 
 ## Advanced Patterns
 
-### Debounced State Observations
+### Handling Rapidly-Changing Input
 
-For search-as-you-type scenarios, use debounced observations:
+For fields where the user types quickly — like a search bar or an auto-saving form — calling `$state.observe()` on every keystroke would spam `AsyncStateContainer` with new async work, causing excessive state churn and redundant network or processing calls.
+
+The recommended approach combines three techniques:
+
+1. **Focused local state**: Store the text field's value in a `@State` property on the view, completely decoupled from VSM. This lets SwiftUI's text field bind directly to local state, so keystrokes never touch `AsyncStateContainer`.
+2. **`@FocusState`**: Transition the view state into an "editing" mode only when the user actually focuses the field — not on every character change.
+3. **`onChange(of:debounce:)`**: VSM's debounced `onChange` modifier fires only after the user pauses for a specified interval. This is the single point where local state "crosses the boundary" into VSM.
 
 ```swift
-TextField("Search", text: $searchQuery)
-    .onChange(of: searchQuery, debounce: .milliseconds(300)) { oldValue, newValue in
-        $state.observe(model.search(query: newValue))
+struct ProfileView: View {
+    @ViewState var state: ProfileViewState
+
+    // Local state drives the text field — VSM is never called on every keystroke
+    @State private var username: String = ""
+    @FocusState private var isTextFieldFocused: Bool
+
+    var body: some View {
+        switch state {
+        case .loaded, .editing:
+            loadedView()
+                .onAppear {
+                    // Seed local state from the model on first appearance
+                    guard case .loaded(let loadedModel) = state else { return }
+                    username = loadedModel.fetchedUsername
+                }
+                .onChange(of: isTextFieldFocused) { _, focused in
+                    // Enter editing state only when focus begins
+                    if focused {
+                        guard case .loaded(let loadedModel) = state else { return }
+                        $state.observe(loadedModel.startEditing())
+                    }
+                }
+        // ...
+        }
     }
+
+    func loadedView() -> some View {
+        TextField("User Name", text: $username)
+            .focused($isTextFieldFocused)
+            // Only cross into VSM after the user pauses typing
+            .onChange(of: username, debounce: .seconds(0.5)) { _, newValue in
+                if case .editing(let editingModel) = state {
+                    $state.observe(editingModel.save(username: newValue))
+                }
+            }
+    }
+}
 ```
 
-This prevents excessive state updates during rapid user input.
+The model can add a second layer of protection with an early-exit equality check, so that even if the debounce fires, no real work is done if the value hasn't meaningfully changed:
+
+```swift
+func save(username: String) -> StateSequence<ProfileViewState> {
+    // Skip the save if the user typed and deleted back to the original value
+    guard username != self.username else {
+        return StateSequence({ .editing(self) })
+    }
+    guard !username.isEmpty else {
+        return StateSequence({
+            .editing(self.copy(mutating: { $0.editingState = .error(Errors.emptyUsername) }))
+        })
+    }
+    return StateSequence(
+        { .editing(self.copy(mutating: { $0.editingState = .saving })) },
+        { /* perform network save... */ }
+    )
+}
+```
+
+Together, `@FocusState` prevents premature state transitions, `onChange(of:debounce:)` gates all VSM calls behind a quiet period, and the model's equality guard prevents redundant async work — so `AsyncStateContainer` only receives observations when there is genuinely something new to do.
+
+> Note: **Migrating from VSM 1.0?** Earlier versions of VSM included `observe(_:debounced:)` overloads directly on `AsyncStateContainer`. These have been removed in VSM 2.0 because the debounce belonged at the _view_ layer, not the state container layer. Keeping the debounce in the view (via `onChange(of:debounce:)`) gives you full control over the quiet period for each individual input, avoids coupling async scheduling to the container, and makes the intent of the code easier to follow.
 
 ### State Bindings
 

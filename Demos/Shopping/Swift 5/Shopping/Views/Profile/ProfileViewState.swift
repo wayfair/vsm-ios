@@ -11,25 +11,27 @@ import VSM
 // MARK: - State & Model Definitions
 
 enum ProfileViewState {
-    case initialized(ProfileLoaderModeling)
+    case initialized(ProfileLoaderModel)
     case loading
-    case editing(ProfileEditingModeling)
-}
-
-protocol ProfileLoaderModeling {
-    var error: String? { get }
-    func load() -> StateSequence<ProfileViewState>
-}
-
-protocol ProfileEditingModeling {
-    var username: String { get }
-    var editingState: ProfileEditingState { get }
-    func save(username: String) -> StateSequence<ProfileViewState>
+    case loaded(ProfileLoadedModel)
+    case editing(ProfileEditingModel)
+    
+    var isSaving: Bool {
+        guard case .editing(let editingModel) = self else { return false }
+        guard case .saving = editingModel.editingState else { return false }
+        
+        return true
+    }
+    
+    var errorMessage: String? {
+        guard case .editing(let editingModel) = self else { return nil }
+        return editingModel.editingState.errorMessage
+    }
 }
 
 // MARK: - Model Implementations
 
-struct ProfileLoaderModel: ProfileLoaderModeling {
+struct ProfileLoaderModel {
     typealias Dependencies = ProfileRepositoryDependency
     let dependencies: Dependencies
     let error: String?
@@ -40,10 +42,9 @@ struct ProfileLoaderModel: ProfileLoaderModeling {
             {
                 do {
                     let username = try await dependencies.profileRepository.loadUsername()
-                    return .editing(ProfileEditingModel(
+                    return .loaded(ProfileLoadedModel(
                         dependencies: dependencies,
-                        username: username,
-                        editingState: .editing
+                        fetchedUsername: username
                     ))
                 } catch {
                     return .initialized(ProfileLoaderModel(
@@ -56,7 +57,21 @@ struct ProfileLoaderModel: ProfileLoaderModeling {
     }
 }
 
-struct ProfileEditingModel: ProfileEditingModeling, MutatingCopyable {
+struct ProfileLoadedModel {
+    typealias Dependencies = ProfileRepositoryDependency
+    let dependencies: Dependencies
+    let fetchedUsername: String
+
+    func startEditing() -> ProfileViewState {
+        return .editing(ProfileEditingModel(
+            dependencies: dependencies,
+            username: fetchedUsername,
+            editingState: .editing
+        ))
+    }
+}
+
+struct ProfileEditingModel: MutatingCopyable {
     typealias Dependencies = ProfileRepositoryDependency
     let dependencies: Dependencies
     var username: String

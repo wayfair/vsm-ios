@@ -11,7 +11,9 @@ import VSM
 struct ProfileView: View {
     typealias Dependencies = ProfileLoaderModel.Dependencies
     @ViewState var state: ProfileViewState
-    @State private var username: String?
+    
+    @State private var username: String = ""
+    @FocusState private var isTextFieldFocused: Bool
     
     init(dependencies: Dependencies) {
         let loaderModel = ProfileLoaderModel(dependencies: dependencies, error: nil)
@@ -27,8 +29,18 @@ struct ProfileView: View {
             case .loading:
                 ProgressView()
                     .accessibilityIdentifier("Loading...")
-            case .editing(let editingModel):
-                loadedView(editingModel: editingModel)
+            case .loaded, .editing:
+                loadedView()
+                    .onAppear {
+                        guard case .loaded(let loadedModel) = state else { return }
+                        username = loadedModel.fetchedUsername
+                    }
+                    .onChange(of: isTextFieldFocused) { _, focused in
+                        if focused {
+                            guard case .loaded(let loadedModel) = state else { return }
+                            $state.observe(loadedModel.startEditing())
+                        }
+                    }
             }
         }
         .padding()
@@ -36,7 +48,7 @@ struct ProfileView: View {
     }
     
     @ViewBuilder
-    func initializedView(loaderModel: ProfileLoaderModeling) -> some View {
+    func initializedView(loaderModel: ProfileLoaderModel) -> some View {
         ProgressView()
             .onAppear {
                 $state.observe(loaderModel.load())
@@ -55,28 +67,29 @@ struct ProfileView: View {
     }
     
     @ViewBuilder
-    func loadedView(editingModel: ProfileEditingModeling) -> some View {
+    func loadedView() -> some View {
         VStack(alignment: .leading) {
             HStack {
-                TextField("User Name", text: .init(get: {
-                    username ?? editingModel.username
-                }, set: { newValue in
-                    username = newValue
-                    $state.observe(editingModel.save(username: newValue), debounced: .seconds(0.5))
-                }))
+                TextField("User Name", text: $username)
                     .textFieldStyle(.roundedBorder)
-                if case .saving = editingModel.editingState {
+                    .focused($isTextFieldFocused)
+                if state.isSaving {
                     ProgressView()
                         .padding(.leading, 4)
                         .accessibilityIdentifier("Saving...")
                 }
             }
-            if let error = editingModel.editingState.errorMessage {
+            if let error = state.errorMessage {
                 Text(error)
                     .font(.footnote)
                     .foregroundColor(Color.red)
             }
             Spacer()
+        }
+        .onChange(of: username, debounce: .seconds(0.5)) { _, newValue in
+            if case .editing(let editingModel) = state {
+                $state.observe(editingModel.save(username: newValue))
+            }
         }
     }
 }

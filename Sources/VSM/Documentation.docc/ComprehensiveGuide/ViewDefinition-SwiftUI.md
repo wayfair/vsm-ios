@@ -411,29 +411,82 @@ var body: some View {
 
 The `.onChange(of:)` modifier observes changes to specific properties of your view state and executes the provided closure when those properties change.
 
-#### Custom Two-Way Bindings
+#### Auto-Saving with Debounced Input
 
-If we wanted to ditch the `Save` button in favor of having the view input call `save(username:)` as the user is typing, SwiftUI's `Binding<T>` type behaves much like a property on an object by providing a two-way getter and a setter for a wrapped value. We can utilize this to trick the `TextField` view into thinking it has read/write access to the view state's `username` property.
+If we want to ditch the `Save` button in favor of auto-saving as the user types, we need to be careful not to call `save(username:)` on every keystroke. Spamming `$state.observe()` with a new async action on every character change would cause excessive state updates and redundant network work.
 
-A custom `Binding<T>` can be created as a view state extension property, as a `@Binding` property on the view, or right within the view's code, like so:
+The recommended approach uses three complementary techniques:
+
+1. **Focused local state**: Store the text field value in a `@State` property rather than driving it directly from the view state. This lets the text field update freely without touching VSM on every keystroke.
+2. **`@FocusState`**: Start the editing session only when the user actually focuses the field, keeping the view state simple.
+3. **`onChange(of:debounce:)`**: VSM provides a debounced `onChange` modifier that fires only after the user pauses typing, preventing the model from being called for every character.
 
 ```swift
-var body: some View {
-    let usernameBinding = Binding(
-        get: { state.data.username },
-        set: { newValue in
-            if case .editing(let editingModel) = state.editingState {
-                $state.observe(editingModel.save(username: newValue),
-                    debounced: .seconds(1))
-            }
+struct ProfileView: View {
+    @ViewState var state: ProfileViewState
+
+    @State private var username: String = ""
+    @FocusState private var isTextFieldFocused: Bool
+
+    var body: some View {
+        switch state {
+        case .loaded, .editing:
+            loadedView()
+                .onAppear {
+                    // Populate local state from the loaded model on first appearance
+                    guard case .loaded(let loadedModel) = state else { return }
+                    username = loadedModel.fetchedUsername
+                }
+                .onChange(of: isTextFieldFocused) { _, focused in
+                    // Transition to the editing state only when the user focuses the field
+                    if focused {
+                        guard case .loaded(let loadedModel) = state else { return }
+                        $state.observe(loadedModel.startEditing())
+                    }
+                }
+        // ...
         }
-    )
-    TextField("Username", text: usernameBinding)
-        .textFieldStyle(.roundedBorder)
+    }
+
+    func loadedView() -> some View {
+        TextField("User Name", text: $username)
+            .focused($isTextFieldFocused)
+            // Fire save only after the user pauses typing for 0.5 seconds
+            .onChange(of: username, debounce: .seconds(0.5)) { _, newValue in
+                if case .editing(let editingModel) = state {
+                    $state.observe(editingModel.save(username: newValue))
+                }
+            }
+    }
 }
 ```
 
-Notice how our call to ``StateObserving/observe(_:debounced:file:line:)-8vbf2`` includes a `debounced` parameter. This prevents excessive calls to the `save(username:)` function if the user is typing quickly. It will only call the action a maximum of once per second (or whatever time delay is given).
+The model's `save(username:)` action can also do its part to prevent redundant work by short-circuiting early when the value hasn't actually changed:
+
+```swift
+struct ProfileEditingModel: MutatingCopyable {
+    var username: String
+    var editingState: ProfileEditingState
+
+    func save(username: String) -> StateSequence<ProfileViewState> {
+        // No-op if the user typed something but ended up back at the original value
+        guard username != self.username else {
+            return StateSequence({ .editing(self) })
+        }
+        guard !username.isEmpty else {
+            return StateSequence({
+                .editing(self.copy(mutating: { $0.editingState = .error(Errors.emptyUsername) }))
+            })
+        }
+        return StateSequence(
+            { .editing(self.copy(mutating: { $0.editingState = .saving })) },
+            { /* perform network save... */ }
+        )
+    }
+}
+```
+
+This combination means `$state.observe()` is only ever called when the user has paused typing _and_ the value has actually changed — the view modifier handles the debounce, and the model handles the equality check.
 
 ## View Construction
 
