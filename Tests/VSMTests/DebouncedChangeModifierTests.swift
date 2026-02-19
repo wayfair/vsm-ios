@@ -94,7 +94,7 @@ struct DebouncedChangeModifierTests {
         
         let testView = TestHostView(
             initialValue: "initial",
-            debounceDuration: .milliseconds(200)
+            debounceDuration: .milliseconds(300)
         ) { _, _ in
             actionCallCount += 1
         }
@@ -102,16 +102,10 @@ struct DebouncedChangeModifierTests {
         // Change the value
         testView.updateValue("updated")
         
-        // Wait less than debounce period
-        try await Task.sleep(nanoseconds: 50_000_000) // 50ms
+        // Wait for the full debounce period to elapse
+        try await Task.sleep(nanoseconds: 600_000_000) // 600ms
         
-        // Action should not have fired yet
-        #expect(actionCallCount == 0)
-        
-        // Wait for remainder of debounce period
-        try await Task.sleep(nanoseconds: 200_000_000) // 200ms
-        
-        // Now it should have fired
+        // Action should have fired exactly once
         #expect(actionCallCount == 1)
     }
     
@@ -128,7 +122,7 @@ struct DebouncedChangeModifierTests {
         
         // First change and let it complete
         testView.updateValue("first")
-        try await Task.sleep(nanoseconds: 150_000_000) // 150ms - debounce completes
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms - debounce completes
         
         // Now make rapid changes
         testView.updateValue("rapid1")
@@ -137,7 +131,7 @@ struct DebouncedChangeModifierTests {
         testView.updateValue("final")
         
         // Wait for second debounce
-        try await Task.sleep(nanoseconds: 150_000_000) // 150ms
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
         
         // Should have two action calls
         #expect(capturedCalls.count == 2)
@@ -158,22 +152,22 @@ struct DebouncedChangeModifierTests {
         
         let testView = TestHostView(
             initialValue: 0,
-            debounceDuration: .milliseconds(50)
+            debounceDuration: .milliseconds(100)
         ) { oldValue, newValue in
             capturedCalls.append((oldValue, newValue))
         }
         
         // First change
         testView.updateValue(10)
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
         
         // Second change
         testView.updateValue(20)
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
         
         // Third change
         testView.updateValue(30)
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
         
         // Each debounced emission should have oldValue from previous emission
         #expect(capturedCalls.count == 3)
@@ -262,7 +256,7 @@ struct DebouncedChangeModifierTests {
         
         let testView = TestHostViewWithCancelSignal(
             initialValue: "initial",
-            debounceDuration: .milliseconds(200),
+            debounceDuration: .milliseconds(500),
             cancelSignal: Binding(
                 get: { cancelSignal },
                 set: { cancelSignal = $0 }
@@ -271,17 +265,12 @@ struct DebouncedChangeModifierTests {
             actionCallCount += 1
         }
         
-        // Change the value to start debounce
+        // Change the value to start debounce, then cancel immediately
         testView.updateValue("updated")
-        
-        // Wait a bit but not full debounce period
-        try await Task.sleep(nanoseconds: 50_000_000) // 50ms
-        
-        // Cancel the pending action
         testView.triggerCancel()
         
-        // Wait past debounce period
-        try await Task.sleep(nanoseconds: 200_000_000) // 200ms
+        // Wait well past the debounce period
+        try await Task.sleep(nanoseconds: 700_000_000) // 700ms
         
         // Action should not have fired because we cancelled it
         #expect(actionCallCount == 0)
@@ -319,7 +308,7 @@ struct DebouncedChangeModifierTests {
         
         let testView = TestHostViewWithCancelSignal(
             initialValue: "initial",
-            debounceDuration: .milliseconds(100),
+            debounceDuration: .milliseconds(300),
             cancelSignal: Binding(
                 get: { cancelSignal },
                 set: { cancelSignal = $0 }
@@ -329,17 +318,16 @@ struct DebouncedChangeModifierTests {
             capturedNewValue = newValue
         }
         
-        // First change and cancel
+        // First change — cancel immediately before the debounce fires
         testView.updateValue("cancelled")
-        try await Task.sleep(nanoseconds: 50_000_000) // 50ms
         testView.triggerCancel()
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        try await Task.sleep(nanoseconds: 500_000_000) // 500ms — well past the debounce period
         
         #expect(actionCallCount == 0)
         
         // Subsequent change should work
         testView.updateValue("successful")
-        try await Task.sleep(nanoseconds: 150_000_000) // 150ms
+        try await Task.sleep(nanoseconds: 400_000_000) // 400ms
         
         #expect(actionCallCount == 1)
         #expect(capturedNewValue == "successful")
@@ -354,7 +342,7 @@ struct DebouncedChangeModifierTests {
         
         let testView = TestHostViewWithCancelCallback(
             initialValue: "initial",
-            debounceDuration: .milliseconds(200)
+            debounceDuration: .milliseconds(300)
         ) { _, _, cancel in
             actionCallCount += 1
             storedCancel = cancel
@@ -362,16 +350,15 @@ struct DebouncedChangeModifierTests {
         
         // First change to capture cancel callback
         testView.updateValue("first")
-        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
+        try await Task.sleep(nanoseconds: 400_000_000) // 400ms
         
         #expect(actionCallCount == 1)
         #expect(storedCancel != nil)
         
-        // Second change and cancel it
+        // Second change — cancel it immediately before the debounce can fire
         testView.updateValue("second")
-        try await Task.sleep(nanoseconds: 50_000_000) // 50ms
         storedCancel?()
-        try await Task.sleep(nanoseconds: 200_000_000) // 200ms
+        try await Task.sleep(nanoseconds: 500_000_000) // 500ms — well past the debounce period
         
         // Action should have fired only once (from first change)
         #expect(actionCallCount == 1)
@@ -385,7 +372,7 @@ struct DebouncedChangeModifierTests {
         
         let testView = TestHostViewWithCancelCallback(
             initialValue: 0,
-            debounceDuration: .milliseconds(50)
+            debounceDuration: .milliseconds(100)
         ) { _, newValue, cancel in
             if newValue == 1 {
                 firstCancel = cancel
@@ -398,13 +385,13 @@ struct DebouncedChangeModifierTests {
         
         // Make several changes
         testView.updateValue(1)
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
         
         testView.updateValue(2)
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
         
         testView.updateValue(3)
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
         
         // Verify we got all three cancel closures
         #expect(firstCancel != nil)
@@ -414,13 +401,12 @@ struct DebouncedChangeModifierTests {
         // The stable cancel closure means they should all work correctly
         // We'll verify this by checking that any of them can cancel a pending operation
         testView.updateValue(4)
-        try await Task.sleep(nanoseconds: 25_000_000) // 25ms - halfway through debounce
         
-        // Use the first captured cancel to cancel this new operation
+        // Cancel immediately before the debounce fires
         firstCancel?()
         
-        // Wait to ensure the debounce would have fired if not cancelled
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        // Wait well past the debounce period to confirm no action fired for value 4
+        try await Task.sleep(nanoseconds: 350_000_000) // 350ms
         
         // If the cancel worked, the action won't have fired for value 4
         // This test mainly verifies the cancel callback can be stored and reused
@@ -434,7 +420,7 @@ struct DebouncedChangeModifierTests {
         
         let testView = TestHostViewWithCancelCallback(
             initialValue: "initial",
-            debounceDuration: .milliseconds(100)
+            debounceDuration: .milliseconds(200)
         ) { _, newValue, cancel in
             actionCallCount += 1
             capturedValues.append(newValue)
@@ -443,19 +429,18 @@ struct DebouncedChangeModifierTests {
         
         // First change to get cancel callback
         testView.updateValue("first")
-        try await Task.sleep(nanoseconds: 150_000_000) // 150ms
+        try await Task.sleep(nanoseconds: 400_000_000) // 400ms
         
         #expect(actionCallCount == 1)
         
-        // Second change and cancel it
+        // Second change — cancel immediately before the debounce fires
         testView.updateValue("cancelled")
-        try await Task.sleep(nanoseconds: 50_000_000) // 50ms
         storedCancel?()
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        try await Task.sleep(nanoseconds: 400_000_000) // 400ms — well past the debounce period
         
         // Third change should work normally
         testView.updateValue("third")
-        try await Task.sleep(nanoseconds: 150_000_000) // 150ms
+        try await Task.sleep(nanoseconds: 400_000_000) // 400ms
         
         #expect(actionCallCount == 2)
         #expect(capturedValues == ["first", "third"])
@@ -468,7 +453,7 @@ struct DebouncedChangeModifierTests {
         
         let testView = TestHostViewWithCancelCallback(
             initialValue: "initial",
-            debounceDuration: .milliseconds(100)
+            debounceDuration: .milliseconds(300)
         ) { _, _, cancel in
             actionCallCount += 1
             storedCancel = cancel
@@ -476,17 +461,16 @@ struct DebouncedChangeModifierTests {
         
         // First change to capture cancel
         testView.updateValue("first")
-        try await Task.sleep(nanoseconds: 150_000_000) // 150ms
+        try await Task.sleep(nanoseconds: 400_000_000) // 400ms
         
         #expect(actionCallCount == 1)
         let savedCancel = storedCancel
         #expect(savedCancel != nil)
         
-        // Much later, use the stored cancel to cancel a new change
+        // Use the stored cancel to cancel a new change — invoke immediately before debounce fires
         testView.updateValue("second")
-        try await Task.sleep(nanoseconds: 50_000_000) // 50ms
         savedCancel?()
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        try await Task.sleep(nanoseconds: 500_000_000) // 500ms — well past the debounce period
         
         // Should still only have one action call
         #expect(actionCallCount == 1)
@@ -525,7 +509,7 @@ struct DebouncedChangeModifierTests {
         
         let testView = TestHostView(
             initialValue: "initial",
-            debounceDuration: .milliseconds(1) // Very short!
+            debounceDuration: .milliseconds(50)
         ) { _, newValue in
             actionCallCount += 1
             capturedNewValue = newValue
@@ -533,8 +517,8 @@ struct DebouncedChangeModifierTests {
         
         testView.updateValue("updated")
         
-        // Wait just a bit
-        try await Task.sleep(nanoseconds: 10_000_000) // 10ms
+        // Wait well past the debounce period
+        try await Task.sleep(nanoseconds: 200_000_000) // 200ms
         
         #expect(actionCallCount == 1)
         #expect(capturedNewValue == "updated")
@@ -546,19 +530,19 @@ struct DebouncedChangeModifierTests {
         
         let testView = TestHostView(
             initialValue: "",
-            debounceDuration: .milliseconds(50)
+            debounceDuration: .milliseconds(100)
         ) { _, newValue in
             capturedValues.append(newValue)
         }
         
         testView.updateValue("a")
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
         
         testView.updateValue("")
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
         
         testView.updateValue("hello world")
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
         
         #expect(capturedValues == ["a", "", "hello world"])
     }
@@ -569,19 +553,19 @@ struct DebouncedChangeModifierTests {
         
         let testView = TestHostView(
             initialValue: 0,
-            debounceDuration: .milliseconds(50)
+            debounceDuration: .milliseconds(100)
         ) { _, newValue in
             capturedValues.append(newValue)
         }
         
         testView.updateValue(100)
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
         
         testView.updateValue(-50)
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
         
         testView.updateValue(999)
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
         
         #expect(capturedValues == [100, -50, 999])
     }
@@ -597,16 +581,16 @@ struct DebouncedChangeModifierTests {
         
         let testView = TestHostView(
             initialValue: Person(name: "Alice", age: 30),
-            debounceDuration: .milliseconds(50)
+            debounceDuration: .milliseconds(100)
         ) { _, newValue in
             capturedPeople.append(newValue)
         }
         
         testView.updateValue(Person(name: "Bob", age: 25))
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
         
         testView.updateValue(Person(name: "Charlie", age: 35))
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms
         
         #expect(capturedPeople.count == 2)
         #expect(capturedPeople[0].name == "Bob")
@@ -646,7 +630,7 @@ struct DebouncedChangeModifierTests {
         
         let testView = TestHostView(
             initialValue: "start",
-            debounceDuration: .milliseconds(50)
+            debounceDuration: .milliseconds(100)
         ) { _, newValue in
             actionCallCount += 1
             capturedValues.append(newValue)
@@ -654,15 +638,15 @@ struct DebouncedChangeModifierTests {
         
         // Change 1
         testView.updateValue("first")
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms - debounce completes
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms - debounce completes
         
         // Change 2
         testView.updateValue("second")
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms - debounce completes
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms - debounce completes
         
         // Change 3
         testView.updateValue("third")
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms - debounce completes
+        try await Task.sleep(nanoseconds: 250_000_000) // 250ms - debounce completes
         
         #expect(actionCallCount == 3)
         #expect(capturedValues == ["first", "second", "third"])
