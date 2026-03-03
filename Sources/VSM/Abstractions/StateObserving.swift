@@ -26,7 +26,7 @@ import Foundation
 /// - This protocol is internal and not part of the public API - it exists solely for
 ///   internal architecture and maintainability purposes
 @MainActor
-public protocol StateObserving<State> {
+package protocol StateObserving<State> {
     associatedtype State: Sendable
     
     // MARK: - Observe Single State Change Functions
