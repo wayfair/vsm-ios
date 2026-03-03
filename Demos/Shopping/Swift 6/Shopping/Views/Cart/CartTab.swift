@@ -30,4 +30,3 @@ struct CartTab: View {
         .badge(cartCountStore.productCount)
     }
 }
-
