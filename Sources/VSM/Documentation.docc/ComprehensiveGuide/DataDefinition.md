@@ -1,19 +1,19 @@
 # Working with Data in VSM
 
-A guide for building async data stores for VSM 2.0
+A guide for building async data sources for VSM 2.0
 
 ## Overview
 
 VSM is a reactive architecture. Views observe and render a stream of view states. The source of these view states are async operations and data streams which are transformed into the desired view states within the VSM models.
 
-**Data stores** are types that manage data and business logic (API clients, database managers, or business logic state machines). When data stores are shared between VSM views, they help reduce the volume of code required to keep data in sync between views and communicate changes in data state.
+**Data sources** are types that manage data and business logic (API clients, database managers, or business logic state machines). When data sources are shared between VSM views, they help reduce the volume of code required to keep data in sync between views and communicate changes in data state.
 
 VSM 2.0 is built on Swift's native async/await concurrency model, providing type-safe, thread-safe state management with `@MainActor` isolation and `Sendable` requirements. This ensures all state updates happen on the main thread while allowing data fetching to occur on background threads.
 
 This guide covers:
 
 - Defining view states and creating state models
-- Building and structuring data stores
+- Building and structuring data sources
 - Using dependency injection (CPDI) to connect everything together
 
 ## What Changed in VSM 2.0
@@ -344,23 +344,23 @@ Now both states can call `reloadCart()` with identical behavior:
 
 **Important**: Don't overuse this pattern. If you find yourself sharing many actions across states, reconsider your state design. Each state should have a clear, distinct purpose with mostly unique actions.
 
-## Data Stores
+## Data Sources
 
 Now that you understand how to define view states and create state models, let's explore how to build the data layer that powers your VSM features.
 
-### What is a Data Store?
+### What is a Data Source?
 
-A **data store** is a type that manages data and business logic in your application. Data stores provide a clean separation between your view state logic and data access concerns, making your code more testable and maintainable.
+A **data source** is a type that manages data and business logic in your application. Data sources provide a clean separation between your view state logic and data access concerns, making your code more testable and maintainable.
 
-Data stores can take several forms:
+Data sources can take several forms:
 
 - **API Client**: Encapsulates interactions with a RESTful API, handling HTTP requests and responses
 - **Database Manager**: Handles read/write operations to local databases (Core Data, SQLite, Realm, etc.)
 - **Business Logic State Machine**: Contains only business logic and rules, managing state transitions without external I/O
 
-### Defining Data Store Protocols
+### Defining Data Source Protocols
 
-Always define data stores as **protocol abstractions** rather than concrete types. This enables easy mocking for unit tests and allows you to swap implementations without changing your view state logic.
+Always define data sources as **protocol abstractions** rather than concrete types. This enables easy mocking for unit tests and allows you to swap implementations without changing your view state logic.
 
 ```swift
 protocol ProductStore: Sendable {
@@ -375,7 +375,7 @@ protocol ProductStoreDependency: Sendable {
 }
 ```
 
-The data store protocol defines the contract for data operations. The dependency protocol allows for protocol composition in dependency injection (CPDI).
+The data source protocol defines the contract for data operations. The dependency protocol allows for protocol composition in dependency injection (CPDI).
 
 **Why use protocol abstractions?**
 
@@ -384,11 +384,11 @@ The data store protocol defines the contract for data operations. The dependency
 3. **Decoupling**: View state models depend on protocols, not concrete types
 4. **Clear Contracts**: Protocols document exactly what operations are available
 
-### Implementing Data Stores
+### Implementing Data Sources
 
-#### Stateless Data Stores (Structs/Classes)
+#### Stateless Data Sources (Structs/Classes)
 
-When your data store doesn't maintain mutable state—it simply provides methods to interact with external services—use a struct or class.
+When your data source doesn't maintain mutable state—it simply provides methods to interact with external services—use a struct or class.
 
 **RESTful API Client Example:**
 
@@ -432,11 +432,11 @@ struct CoreDataProductStore: ProductStore {
 }
 ```
 
-#### Stateful Data Stores (Actors)
+#### Stateful Data Sources (Actors)
 
-When your data store needs to maintain its own mutable state, use an actor to ensure thread-safe access.
+When your data source needs to maintain its own mutable state, use an actor to ensure thread-safe access.
 
-**Cart Data Store Example:**
+**Cart Data Source Example:**
 
 ```swift
 actor CartDatabase: CartStore {
@@ -461,7 +461,7 @@ actor CartDatabase: CartStore {
 }
 ```
 
-**Favorites Data Store Example:**
+**Favorites Data Source Example:**
 
 ```swift
 actor FavoritesDatabase: FavoritesStore {
@@ -510,7 +510,7 @@ actor ProductCache: ProductStore {
 
 #### Choosing Between Actors and Structs/Classes
 
-Ask yourself: **"Does this data store need to maintain its own mutable state?"**
+Ask yourself: **"Does this data source need to maintain its own mutable state?"**
 
 - **Yes** → Use an `actor` to ensure thread-safe access to that mutable state
   - Examples: Shopping cart, favorites list, in-memory cache, user session
@@ -519,7 +519,7 @@ Ask yourself: **"Does this data store need to maintain its own mutable state?"**
 
 Actors add overhead for synchronization. Only use them when you genuinely need to protect mutable state from concurrent access.
 
-### Creating Mock Data Stores for Testing
+### Creating Mock Data Sources for Testing
 
 Protocol abstractions make it trivial to create mock implementations for unit testing:
 
@@ -564,15 +564,15 @@ Use mocks in your tests to verify view state behavior without real network calls
 }
 ```
 
-For comprehensive examples of testing VSM features with mock data stores, see <doc:UnitTesting>.
+For comprehensive examples of testing VSM features with mock data sources, see <doc:UnitTesting>.
 
 ### Dependency Injection with CPDI
 
-When considering how to share data stores across your app, we recommend _Composed Protocol Dependency Injection_ (CPDI). CPDI is type-safe, follows the least-knowledge architectural principle, and has zero runtime crashes.
+When considering how to share data sources across your app, we recommend _Composed Protocol Dependency Injection_ (CPDI). CPDI is type-safe, follows the least-knowledge architectural principle, and has zero runtime crashes.
 
 #### Step 1: Define Dependency Protocols
 
-Create a dependency protocol for each data store:
+Create a dependency protocol for each data source:
 
 ```swift
 protocol ProductStoreDependency: Sendable {
@@ -671,7 +671,7 @@ struct ShoppingApp: App {
 
 #### Async Dependency Initialization
 
-For data stores that require async initialization, use a provider pattern:
+For data sources that require async initialization, use a provider pattern:
 
 ```swift
 protocol DependenciesProviding: Sendable {
@@ -903,8 +903,8 @@ However, we recommend using async/await for new code:
 1. **Keep Models Simple**: Models should be value types (structs) containing data and actions
 2. **Use Sendable**: Ensure all state types conform to `Sendable` for thread safety
 3. **Prefer StateSequence**: Use `StateSequence` for most actions-it's easier to implement and reason about. Only reach for AsyncStream when you need the flexibility for complex, multi-step workflows with unknown state counts
-4. **Start with Protocol Abstractions**: Always define data stores as protocols for easy testing and flexibility
-5. **Choose the Right Data Store Type**: Use actors only when maintaining shared mutable state; use structs/classes for stateless operations
+4. **Start with Protocol Abstractions**: Always define data sources as protocols for easy testing and flexibility
+5. **Choose the Right Data Source Type**: Use actors only when maintaining shared mutable state; use structs/classes for stateless operations
 6. **Dependency Composition**: Use protocol composition (CPDI) for type-safe, flexible, testable dependencies
 7. **Async All The Way**: Avoid mixing async/await with Combine in new code
 
@@ -969,7 +969,7 @@ func checkout() -> AsyncStream<CartViewState> {
 
 ### Unit Testing VSM features
 
-Now that you know how to use async data stores to power VSM features, you can learn how to write unit tests to validate the requirements of VSM features in <doc:UnitTesting>.
+Now that you know how to use async data sources to power VSM features, you can learn how to write unit tests to validate the requirements of VSM features in <doc:UnitTesting>.
 
 #### Support this Project
 

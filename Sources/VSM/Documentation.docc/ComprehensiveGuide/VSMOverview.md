@@ -36,9 +36,9 @@ VSM enforces a strict separation between **view concerns** and **business logic 
 
 By thinking of each view as a state machine, VSM naturally guides you to define discrete states that represent meaningful points in your business logic flow. Each state exposes only the actions that are valid for that particular state, preventing invalid operations and ensuring type-safe transitions.
 
-Thanks to the reactive nature of VSM, data stores are an excellent companion to VSM models in performing data operations (such as loading, saving, etc.) and managing the state of data. A data store is a type that encapsulates interactions with a RESTful API, handles read/write operations to a database, or is itself a state machine concerned only with business logic. This data can then be forwarded to the view via async/await patterns and AsyncSequence types.
+Thanks to the reactive nature of VSM, data sources are an excellent companion to VSM models in performing data operations (such as loading, saving, etc.) and managing the state of data. A data source is a type that encapsulates interactions with a RESTful API, handles read/write operations to a database, or is itself a state machine concerned only with business logic. This data can then be forwarded to the view via async/await patterns and AsyncSequence types.
 
-Data stores can also be shared between views to synchronize the state of various views and data in the app. While simple features may not need data stores, they are an excellent tool for complex features. You'll learn more about these later in the guide.
+Data sources can also be shared between views to synchronize the state of various views and data in the app. While simple features may not need data sources, they are an excellent tool for complex features. You'll learn more about these later in the guide.
 
 ![VSM Feature Structure Diagram](vsm-structure.jpg)
 
