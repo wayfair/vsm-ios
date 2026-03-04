@@ -26,7 +26,7 @@ VSM 2.0 represents a major architectural shift from Combine to Swift's async/awa
 - **Thread Safety**: All state types must conform to `Sendable` for Swift 6 concurrency safety
 - **@MainActor Isolation**: State updates automatically happen on the main thread
 - **@ViewState Property Wrapper**: New SwiftUI property wrapper for observing state changes
-- **Legacy Combine Support**: Optional backward compatibility via ``AsyncStateContainer/observe(_:)-2jgpf`` method
+- **Legacy Combine Support**: Optional backward compatibility via the `observe(_ publisher:)` API on ``AsyncStateContainer``
 
 ## Defining View State
 
@@ -880,7 +880,7 @@ With `observe`, your state transitions to `.loading` as your action emits it, up
 
 ## Legacy Combine Support
 
-VSM 2.0 maintains backward compatibility with Combine for gradual migration using the ``AsyncStateContainer/observe(_:)-2jgpf`` method:
+VSM 2.0 maintains backward compatibility with Combine for gradual migration using `observe(_ publisher:)` on ``AsyncStateContainer``:
 
 ```swift
 import Combine

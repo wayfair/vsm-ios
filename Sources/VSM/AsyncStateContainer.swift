@@ -648,7 +648,7 @@ public extension AsyncStateContainer {
     /// after a `Task` has been scheduled. SwiftUI may render one frame of the previous state
     /// before the first value is consumed. For most user-initiated actions on an already-visible
     /// view this is imperceptible, but if you need the first state change to happen synchronously
-    /// (e.g. on your view's initial `onAppear`), use ``observe(_:)-StateSequence`` with
+    /// (e.g. on your view's initial `onAppear`), use `observe(_:)` with
     /// ``StateSequence/init(first:rest:)`` instead.
     ///
     /// - Parameter stream: An `AsyncStream<State>` that emits state values. `AsyncStream` is
@@ -801,7 +801,7 @@ public extension AsyncStateContainer {
     /// after a `Task` has been scheduled, so SwiftUI may render one frame of the previous state
     /// before the first value is consumed. For most user-initiated actions on an already-visible
     /// view this is imperceptible, but if you need the first state change to happen synchronously
-    /// (e.g. on your view's initial `onAppear`), use ``observe(_:)-StateSequence`` with
+    /// (e.g. on your view's initial `onAppear`), use `observe(_:)` with
     /// ``StateSequence/init(first:rest:)`` instead.
     ///
     /// ## Example
@@ -866,8 +866,7 @@ public extension AsyncStateContainer {
     /// }
     /// ```
     ///
-    /// - Parameter sequence: Any `AsyncSequence` that emits `State` values and never throws.
-    ///                       The `Never` failure type is enforced at compile time.
+    /// 
     @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, macCatalyst 18.0, *)
     func observe<SomeAsyncSequence>(_ sequence: SomeAsyncSequence)
     where SomeAsyncSequence: AsyncSequence,

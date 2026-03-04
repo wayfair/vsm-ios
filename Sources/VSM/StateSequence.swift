@@ -40,7 +40,7 @@ public struct StateSequence<State: Sendable>: AsyncSequence, AsyncIteratorProtoc
     /// remaining closures run asynchronously.
     ///
     /// Use this initializer when you want the first state change to be applied immediately—in
-    /// the same run loop iteration as the call to ``AsyncStateContainer/observe(_:)-StateSequence``—
+    /// the same run loop iteration as the call to `observe(_:)` on ``AsyncStateContainer``—
     /// rather than after a `Task` has been scheduled.
     ///
     /// This avoids a one-frame rendering gap that can occur with the all-async initializer

@@ -341,7 +341,7 @@ As in our first example, you can see that the various views are connected to the
 
 Now that we have our view states rendering correctly, we need to wire up the various actions in our views so that they are appropriately and safely invoked by the environment or the user.
 
-VSM's ``ViewState`` property wrapper provides a critically important function called ``StateObserving/observe(_:)-ytp`` through its projected value (`$`). This function updates the current state with all view states emitted by an action, as they are emitted in real-time.
+VSM's ``ViewState`` property wrapper provides a critically important function called `observe(_:)` through its projected value (`$`). This function updates the current state with all view states emitted by an action, as they are emitted in real-time.
 
 It is called like so:
 

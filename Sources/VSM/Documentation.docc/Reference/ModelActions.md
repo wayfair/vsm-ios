@@ -16,14 +16,14 @@ func load() -> StateSequence<UserViewState>
 
 This is the most common action shape in VSM. ``StateSequence`` supports two initializer styles:
 
-- ``StateSequence/init(first:rest:)``: apply the first state synchronously, then run one or more async closures in order
-- ``StateSequence/init(_:)``: run all closures asynchronously
+- `StateSequence(first:rest:)`: apply the first state synchronously, then run one or more async closures in order
+- `StateSequence(_:)`: run all closures asynchronously
 
-Use ``StateSequence/init(first:rest:)`` for initial load flows (typically called from `onAppear`/`viewDidAppear`) so the first frame already reflects the transition state (for example, `.loading`).
+Use `StateSequence(first:rest:)` for initial load flows (typically called from `onAppear`/`viewDidAppear`) so the first frame already reflects the transition state (for example, `.loading`).
 
-Use ``StateSequence/init(_:)`` for user-initiated actions on already-visible views (for example, button taps), where a one-tick async delay before the first state is usually imperceptible.
+Use `StateSequence(_:)` for user-initiated actions on already-visible views (for example, button taps), where a one-tick async delay before the first state is usually imperceptible.
 
-The `rest` parameter in ``StateSequence/init(first:rest:)`` is variadic, so you can emit multiple async states after the synchronous first state when needed.
+The `rest` parameter in `StateSequence(first:rest:)` is variadic, so you can emit multiple async states after the synchronous first state when needed.
 
 ```swift
 func load() -> StateSequence<UserViewState> {
@@ -120,7 +120,7 @@ func checkout() -> AsyncStream<CheckoutViewState>
 
 Use `AsyncStream` when you need full control over how and when states are emitted throughout a complex, multi-step async operation. Unlike ``StateSequence``, `AsyncStream` lets you yield states at any point within a single async closure.
 
-Because `AsyncStream` is fully asynchronous, the first emitted state is not applied synchronously. If you need a guaranteed synchronous first state transition, use ``StateSequence/init(first:rest:)``.
+Because `AsyncStream` is fully asynchronous, the first emitted state is not applied synchronously. If you need a guaranteed synchronous first state transition, use `StateSequence(first:rest:)`.
 
 ```swift
 func checkout() -> AsyncStream<CheckoutViewState> {
@@ -154,7 +154,7 @@ func streamUpdates() -> some AsyncSequence<UserViewState, Never>
 
 Available on iOS 18+, this overload accepts any `AsyncSequence` whose element type is `State` and failure type is `Never`. This is useful when your data layer vends a custom `AsyncSequence` type that you want to observe directly.
 
-As with `AsyncStream`, generic `AsyncSequence` observation is fully asynchronous. If you need a guaranteed synchronous first state transition, use ``StateSequence/init(first:rest:)``.
+As with `AsyncStream`, generic `AsyncSequence` observation is fully asynchronous. If you need a guaranteed synchronous first state transition, use `StateSequence(first:rest:)`.
 
 ```swift
 func streamUpdates() -> AsyncStream<UserViewState> {
