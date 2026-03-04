@@ -8,13 +8,22 @@
 import Combine
 import Foundation
 import Observation
+import OSLog
 import Testing
 
 @testable import VSM
 
+@Suite
 struct StateContainerTests {
     enum StateContainerTestError: Error {
         case missingStartState
+    }
+
+    /// Creates a fresh AsyncStateContainer for testing, avoiding @ViewState/@SwiftUI.State
+    /// which requires a SwiftUI view graph to work correctly.
+    @MainActor
+    private func makeContainer(initialState: MockState = .initialize()) -> AsyncStateContainer<MockState> {
+        AsyncStateContainer(state: initialState, logger: .disabled)
     }
     
     // MARK: - Single State Change Tests
@@ -25,14 +34,14 @@ struct StateContainerTests {
         let expectedResult: [MockState] = [
             .loaded(.init(count: 1)),
         ]
-        @ViewState var state: MockState = .initialize()
+        let container = makeContainer()
         
-        guard case let .initialize(initStateModel) = state else {
+        guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = $state.stateChangeStream(last: 1, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(1))
         
-        $state.observe(initStateModel.load())
+        container.observe(initStateModel.load())
         
         var stateChanges: [MockState] = []
         for await stateChange in stateChangsStream {
@@ -48,14 +57,14 @@ struct StateContainerTests {
         let expectedResult: [MockState] = [
             .loaded(.init(count: 10)),
         ]
-        @ViewState var state: MockState = .initialize()
+        let container = makeContainer()
         
-        guard case let .initialize(initStateModel) = state else {
+        guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = $state.stateChangeStream(last: 1, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(1))
         
-        $state.observe { await initStateModel.loadAsync() }
+        container.observe { await initStateModel.loadAsync() }
         
         var stateChanges: [MockState] = []
         for await stateChange in stateChangsStream {
@@ -71,14 +80,14 @@ struct StateContainerTests {
         let expectedResult: [MockState] = [
             .loaded(.init(count: 10)),
         ]
-        @ViewState var state: MockState = .initialize()
+        let container = makeContainer()
         
-        guard case let .initialize(initStateModel) = state else {
+        guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = $state.stateChangeStream(last: 1, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(1))
         
-        $state.observe { await initStateModel.loadAsyncOnBackgroundThread(count: 10) }
+        container.observe { await initStateModel.loadAsyncOnBackgroundThread(count: 10) }
         
         var stateChanges: [MockState] = []
         for await stateChange in stateChangsStream {
@@ -98,13 +107,13 @@ struct StateContainerTests {
             .loaded(.init(count: 2))
         ]
         
-        @ViewState var state: MockState = .initialize()
-        guard case let .initialize(initStateModel) = state else {
+        let container = makeContainer()
+        guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = $state.stateChangeStream(last: 2, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(1))
         
-        $state.observe(initStateModel.loadSequence())
+        container.observe(initStateModel.loadSequence())
         
         var stateChanges: [MockState] = []
         for await stateChange in stateChangsStream {
@@ -122,13 +131,13 @@ struct StateContainerTests {
             .loaded(.init(count: 2))
         ]
         
-        @ViewState var state: MockState = .initialize()
-        guard case let .initialize(initStateModel) = state else {
+        let container = makeContainer()
+        guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = $state.stateChangeStream(last: 2, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(1))
         
-        $state.observe(initStateModel.loadSequenceAsync(onMainThread: true))
+        container.observe(initStateModel.loadSequenceAsync(onMainThread: true))
         
         var stateChanges: [MockState] = []
         for await stateChange in stateChangsStream {
@@ -146,13 +155,13 @@ struct StateContainerTests {
             .loaded(.init(count: 2))
         ]
         
-        @ViewState var state: MockState = .initialize()
-        guard case let .initialize(initStateModel) = state else {
+        let container = makeContainer()
+        guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = $state.stateChangeStream(last: 2, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(1))
         
-        $state.observe(initStateModel.loadSequenceAsync(onMainThread: false))
+        container.observe(initStateModel.loadSequenceAsync(onMainThread: false))
         
         var stateChanges: [MockState] = []
         for await stateChange in stateChangsStream {
@@ -173,13 +182,13 @@ struct StateContainerTests {
             .loaded(.init(count: 2))
         ]
         
-        @ViewState var state: MockState = .initialize()
-        guard case let .initialize(initStateModel) = state else {
+        let container = makeContainer()
+        guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = $state.stateChangeStream(last: 3, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 3, timeout: .seconds(1))
         
-        $state.observe(initStateModel.loadStreamCurrentExecutionContext())
+        container.observe(initStateModel.loadStreamCurrentExecutionContext())
         
         var stateChanges: [MockState] = []
         for await stateChange in stateChangsStream {
@@ -198,13 +207,13 @@ struct StateContainerTests {
             .loaded(.init(count: 2))
         ]
         
-        @ViewState var state: MockState = .initialize()
-        guard case let .initialize(initStateModel) = state else {
+        let container = makeContainer()
+        guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = $state.stateChangeStream(last: 3, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 3, timeout: .seconds(1))
         
-        $state.observe(initStateModel.loadStreamBackgroundExecutionContext())
+        container.observe(initStateModel.loadStreamBackgroundExecutionContext())
         
         var stateChanges: [MockState] = []
         for await stateChange in stateChangsStream {
@@ -219,12 +228,12 @@ struct StateContainerTests {
     func awaitingMainThreadStateChange() async throws {
         let expectedResult: MockState = .loaded(.init(count: 1))
         
-        @ViewState var state: MockState = .initialize()
-        guard case let .initialize(initStateModel) = state else {
+        let container = makeContainer()
+        guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = $state.stateChangeStream(last: 1, timeout: .seconds(1))
-        await $state.refresh(state: { await initStateModel.loadAsyncOnCurrentExecutionContext(count: 1) })
+        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(1))
+        await container.refresh(state: { await initStateModel.loadAsyncOnCurrentExecutionContext(count: 1) })
         
         var stateChanges: [MockState] = []
         for await stateChange in stateChangsStream {
@@ -239,12 +248,12 @@ struct StateContainerTests {
     func awaitingBackgroundThreadStateChange() async throws {
         let expectedResult: MockState = .loaded(.init(count: 1))
         
-        @ViewState var state: MockState = .initialize()
-        guard case let .initialize(initStateModel) = state else {
+        let container = makeContainer()
+        guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = $state.stateChangeStream(last: 1, timeout: .seconds(1))
-        await $state.refresh(state: { await initStateModel.loadAsyncOnBackgroundThread(count: 1) })
+        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(1))
+        await container.refresh(state: { await initStateModel.loadAsyncOnBackgroundThread(count: 1) })
         
         var stateChanges: [MockState] = []
         for await stateChange in stateChangsStream {
@@ -261,14 +270,14 @@ struct StateContainerTests {
             .loading,
             .loaded(.init(count: 11))
         ]
-        @ViewState var state: MockState = .initialize()
+        let container = makeContainer()
         
-        guard case let .initialize(initStateModel) = state else {
+        guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = $state.stateChangeStream(last: 2, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(1))
         
-        $state.observe(initStateModel.loadFromPublisher())
+        container.observe(initStateModel.loadFromPublisher())
         
         var stateChanges: [MockState] = []
         for await stateChange in stateChangsStream {
@@ -286,14 +295,14 @@ struct StateContainerTests {
             .loading,
             .loaded(.init(count: 11))
         ]
-        @ViewState var state: MockState = .initialize()
+        let container = makeContainer()
         
-        guard case let .initialize(initStateModel) = state else {
+        guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = $state.stateChangeStream(last: 2, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(1))
         
-        $state.observe(initStateModel.loadFromPublisherBackgroundThread())
+        container.observe(initStateModel.loadFromPublisherBackgroundThread())
         
         var stateChanges: [MockState] = []
         for await stateChange in stateChangsStream {
@@ -301,6 +310,27 @@ struct StateContainerTests {
         }
         
         #expect(stateChanges == expectedResult)
+    }
+
+    @Test("Observing Publisher applies synchronous first emission immediately")
+    @MainActor
+    func testObservingPublisherAppliesSynchronousFirstEmissionImmediately() async throws {
+        let container = makeContainer()
+        let subject = CurrentValueSubject<MockState, Never>(.loading)
+
+        container.observe(subject.eraseToAnyPublisher())
+
+        #expect(container.state == .loading)
+
+        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(1))
+        subject.send(.loaded(.init(count: 42)))
+
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
+        }
+
+        #expect(stateChanges == [.loaded(.init(count: 42))])
     }
     
     // MARK: Sanity Check Tests to ensure Mock types work as expected
@@ -318,6 +348,31 @@ struct StateContainerTests {
         let stateSequence = subject.loadSequence()
         for try await newState in stateSequence {
             stateChanges.append(newState)
+        }
+        
+        #expect(stateChanges == expectedResult)
+    }
+    
+    @Test("Sanity Check MockState sequence fires all state when using first synchronous, then rest (Main Thread)")
+    @MainActor
+    func testMockStateSequenceEmissionsFirstSyncRestAsync() async throws {
+        let expectedResult: [MockState] = [
+            .loading,
+            .loaded(.init(count: 2)),
+            .loaded(.init(count: 11))
+        ]
+        let container = makeContainer()
+        
+        guard case let .initialize(initStateModel) = container.state else {
+            throw StateContainerTestError.missingStartState
+        }
+        let stateChangsStream = container.stateChangeStream(last: 3, timeout: .seconds(1))
+        
+        container.observe(initStateModel.loadSynchronousFirstStateThenRest())
+        
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
         }
         
         #expect(stateChanges == expectedResult)
@@ -384,6 +439,15 @@ extension MockState {
             return .init(
                 { .loading },
                 { .loaded(.init(count: 2)) }
+            )
+        }
+        
+        func loadSynchronousFirstStateThenRest() -> StateSequence<MockState> {
+            return .init(
+                first: .loading,
+                rest:
+                    { .loaded(.init(count: 2)) },
+                    { .loaded(.init(count: 11)) }
             )
         }
         
