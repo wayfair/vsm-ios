@@ -361,6 +361,11 @@ extension RenderedViewState.RenderedContainer {
     ///
     /// This method consumes a `StateSequence` that produces multiple state values over time.
     /// Each state value is applied to the container as it becomes available from the sequence.
+    /// Any ongoing observation is cancelled before the new one begins.
+    ///
+    /// The timing of the first state depends on which `StateSequence` initializer was used:
+    /// - `StateSequence(first:rest:)`: first state is applied synchronously
+    /// - `StateSequence(_:)`: first state is applied asynchronously after a `Task` is scheduled
     ///
     /// - Parameter stateSequence: A `StateSequence` that produces a series of state values.
     ///
@@ -374,8 +379,8 @@ extension RenderedViewState.RenderedContainer {
     ///     
     ///     func load() -> StateSequence<ExampleViewState> {
     ///         StateSequence(
-    ///             { .loading },
-    ///             { await self.fetchItems() }
+    ///             first: .loading,
+    ///             rest: { await self.fetchItems() }
     ///         )
     ///     }
     ///     
@@ -424,7 +429,12 @@ extension RenderedViewState.RenderedContainer {
     /// Observes and updates the state from an `AsyncStream`.
     ///
     /// This method consumes an `AsyncStream` that emits state values over time. Use `AsyncStream`
-    /// when you need fine-grained control over when states are emitted.
+    /// when you need fine-grained control over when states are emitted. Any ongoing observation is
+    /// cancelled before the new one begins.
+    ///
+    /// Because `AsyncStream` is fully asynchronous, the first state is not applied synchronously.
+    /// For initial load flows that must show loading in the first frame, prefer
+    /// `observe(_ stateSequence:)` with `StateSequence(first:rest:)`.
     ///
     /// - Parameter stream: An `AsyncStream<State>` that emits state values.
     ///
@@ -488,7 +498,12 @@ extension RenderedViewState.RenderedContainer {
     /// Observes and updates the state from a generic `AsyncSequence` that never throws.
     ///
     /// This method consumes any `AsyncSequence` whose element type is `State` and failure type
-    /// is `Never`. The most common type that satisfies this constraint is `AsyncStream`.
+    /// is `Never`. The most common type that satisfies this constraint is `AsyncStream`. Any
+    /// ongoing observation is cancelled before the new one begins.
+    ///
+    /// Generic `AsyncSequence` observation is fully asynchronous, including the first element.
+    /// For initial load flows that must show loading in the first frame, prefer
+    /// `observe(_ stateSequence:)` with `StateSequence(first:rest:)`.
     ///
     /// - Parameter sequence: Any `AsyncSequence` that emits `State` values with `Failure` type of `Never`.
     @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, macCatalyst 18.0, *)
@@ -503,6 +518,10 @@ extension RenderedViewState.RenderedContainer {
     ///
     /// Consumes a Combine `Publisher` that emits state values over time. Exists for ease of
     /// migration from VSM to AsyncVSM.
+    ///
+    /// The implementation subscribes immediately and bridges emissions to structured concurrency.
+    /// If the publisher emits its first value synchronously on subscription (for example,
+    /// `CurrentValueSubject` on the main thread), that first state is applied immediately.
     ///
     /// - Parameter publisher: A Combine `Publisher` that emits `State` values and never fails.
     public func observe(_ publisher: some Publisher<State, Never>) {

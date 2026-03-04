@@ -58,8 +58,8 @@ struct LoaderModel: Sendable {
 
     func loadUserData() -> StateSequence<UserBioViewState> {
         StateSequence(
-            { .loading },
-            { await fetchUserData() }
+            first: .loading,
+            rest: { await fetchUserData() }
         )
     }
     
@@ -183,18 +183,18 @@ StateSequence is easier to implement and reason about than AsyncStream. If you c
 ```swift
 func loadUserData() -> StateSequence<UserBioViewState> {
     StateSequence(
-        { .loading },                      // Immediate state
-        { await fetchUserData() }          // Async state after data loads
+        first: .loading,                   // Synchronous first state
+        rest: { await fetchUserData() }    // One or more async states after first
     )
 }
 ```
 
-The sequence executes closures in order:
+The sequence executes in order:
 
-1. First closure runs immediately, returning `.loading`
-2. Second closure executes asynchronously, fetching data and returning final state
+1. The `first` value is applied synchronously, returning `.loading`
+2. One or more `rest` closures execute asynchronously in order, each returning the next state
 
-This pattern is perfect for "optimistic UI updates" where you immediately show loading state, then update with results once the async work completes.
+This pattern is perfect for "optimistic UI updates" where the loading state appears in the first frame, then updates with results once the async work completes.
 
 ## Using AsyncStream for Complex Operations
 
@@ -292,8 +292,8 @@ protocol CartReloadable: Sendable {
 extension CartReloadable {
     func reloadCart() -> StateSequence<CartViewState> {
         StateSequence(
-            { .loading },
-            { await getCartProducts() }
+            first: .loading,
+            rest: { await getCartProducts() }
         )
     }
     
@@ -599,8 +599,8 @@ struct ProductsLoaderModel: Sendable {
     
     func loadProducts() -> StateSequence<ProductsViewState> {
         StateSequence(
-            { .loading },
-            { await fetchProducts() }
+            first: .loading,
+            rest: { await fetchProducts() }
         )
     }
 }
@@ -876,7 +876,7 @@ Button("Load Data") {
 }
 ```
 
-With `observe`, your state immediately transitions to `.loading`, updating your UI to show a progress view or skeleton screen. With `refresh`, the Pull to Refresh control handles that UX automatically.
+With `observe`, your state transitions to `.loading` as your action emits it, updating your UI to show a progress view or skeleton screen. For initial-load flows that must show loading in the first frame, prefer `StateSequence(first:rest:)`. With `refresh`, the Pull to Refresh control handles that UX automatically.
 
 ## Legacy Combine Support
 
@@ -915,8 +915,8 @@ However, we recommend using async/await for new code:
 ```swift
 func loadData() -> StateSequence<ViewState> {
     StateSequence(
-        { .loading },
-        { await fetchData() }
+        first: .loading,
+        rest: { await fetchData() }
     )
 }
 

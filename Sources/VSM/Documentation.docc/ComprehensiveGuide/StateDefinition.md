@@ -113,7 +113,7 @@ With the above diagram, it becomes much easier to infer which states, data, and 
 
 States usually match up 1:1 with variations in the view. So, we can safely assume that we will need the following states: loading, loading-error, editing, saving, and saving-error.
 
-> Note: We will need to add an extra state called "initialized" to kick off the `load()` action when the view appears. `load()` will immediately return the `loading` state. This protects the `load()` action from accidentally being called from the wrong state.
+> Note: We will need to add an extra state called "initialized" to kick off the `load()` action when the view appears. For initial load flows, implement `load()` with `StateSequence(first:rest:)` so the first `loading` state is applied synchronously. This protects the `load()` action from accidentally being called from the wrong state.
 >
 > For example, in SwiftUI, a view’s `onAppear` handler (`viewDidAppear` in UIKit) can be called multiple times during a view’s lifetime. The "initialized" state will prevent the `load()` function from being called multiple times even if `onAppear` is called numerous times even before the data finishes loading.
 >

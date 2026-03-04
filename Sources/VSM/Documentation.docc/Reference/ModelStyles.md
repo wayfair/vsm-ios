@@ -46,8 +46,8 @@ extension LoadUserProfileViewState {
         
         func load() -> StateSequence<LoadUserProfileViewState> {
             StateSequence(
-                { .loading },
-                { await fetchUser() }
+                first: .loading,
+                rest: { await fetchUser() }
             )
         }
         
@@ -101,8 +101,8 @@ extension LoadUserProfileViewState {
         
         func load() -> StateSequence<LoadUserProfileViewState> {
             StateSequence(
-                { .loading },
-                { await fetchUser() }
+                first: .loading,
+                rest: { await fetchUser() }
             )
         }
         
@@ -178,8 +178,8 @@ extension LoadUserProfileViewState {
 
         func load() -> StateSequence<LoadUserProfileViewState> {
             StateSequence(
-                { .loading },
-                { await fetchUser() }
+                first: .loading,
+                rest: { await fetchUser() }
             )
         }
 
@@ -227,8 +227,8 @@ extension LoadUserProfileViewState {
 
         func load(dependencies: any UserDataProvidingDependency) -> StateSequence<LoadUserProfileViewState> {
             StateSequence(
-                { .loading },
-                { await fetchUser(dependencies: dependencies) }  // dependencies must be threaded through
+                first: .loading,
+                rest: { await fetchUser(dependencies: dependencies) }  // dependencies must be threaded through
             )
         }
 
@@ -275,8 +275,8 @@ protocol UserProfileRefreshable: Sendable {
 extension UserProfileRefreshable {
     func refresh() -> StateSequence<LoadUserProfileViewState> {
         StateSequence(
-            { .loading },
-            { await fetchUser() }
+            first: .loading,
+            rest: { await fetchUser() }
         )
     }
     

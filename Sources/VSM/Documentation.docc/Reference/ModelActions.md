@@ -14,15 +14,22 @@ All action types follow the same **never-throw** design: errors must be caught w
 func load() -> StateSequence<UserViewState>
 ```
 
-This is the most common action shape in VSM. ``StateSequence`` is a concrete `AsyncSequence` type that accepts a variadic list of async closures, each of which returns one state. The framework evaluates each closure in order, applying each resulting state to the view as it becomes available.
+This is the most common action shape in VSM. ``StateSequence`` supports two initializer styles:
 
-This is the preferred pattern for actions that need to emit an interim state (e.g., `.loading`) before performing async work, because the order of states is always guaranteed.
+- ``StateSequence/init(first:rest:)``: apply the first state synchronously, then run one or more async closures in order
+- ``StateSequence/init(_:)``: run all closures asynchronously
+
+Use ``StateSequence/init(first:rest:)`` for initial load flows (typically called from `onAppear`/`viewDidAppear`) so the first frame already reflects the transition state (for example, `.loading`).
+
+Use ``StateSequence/init(_:)`` for user-initiated actions on already-visible views (for example, button taps), where a one-tick async delay before the first state is usually imperceptible.
+
+The `rest` parameter in ``StateSequence/init(first:rest:)`` is variadic, so you can emit multiple async states after the synchronous first state when needed.
 
 ```swift
 func load() -> StateSequence<UserViewState> {
     StateSequence(
-        { .loading },
-        { await self.fetchUser() }
+        first: .loading,
+        rest: { await self.fetchUser() }
     )
 }
 
@@ -38,6 +45,17 @@ private func fetchUser() async -> UserViewState {
 ```
 
 Errors from async work must be caught and returned as an appropriate error state.
+
+If you prefer the all-async style for user-initiated actions, this is also valid:
+
+```swift
+func refresh() -> StateSequence<UserViewState> {
+    StateSequence(
+        { .loading },
+        { await self.fetchUser() }
+    )
+}
+```
 
 > Note: The `@concurrent` attribute on the private helper moves its execution off the main thread. This is not something you should apply automatically — there is a small cost to hopping threads. Use `@concurrent` with judgement: apply it to work that has a real chance of blocking the main thread, such as large database reads or writes that require sorting through results, network requests that return large amounts of data to parse, or image processing operations. If an action or any function it relies on has the potential to block the main thread for a noticeable amount of time, that is a good signal to mark it `@concurrent`.
 
@@ -102,6 +120,8 @@ func checkout() -> AsyncStream<CheckoutViewState>
 
 Use `AsyncStream` when you need full control over how and when states are emitted throughout a complex, multi-step async operation. Unlike ``StateSequence``, `AsyncStream` lets you yield states at any point within a single async closure.
 
+Because `AsyncStream` is fully asynchronous, the first emitted state is not applied synchronously. If you need a guaranteed synchronous first state transition, use ``StateSequence/init(first:rest:)``.
+
 ```swift
 func checkout() -> AsyncStream<CheckoutViewState> {
     AsyncStream { continuation in
@@ -133,6 +153,8 @@ func streamUpdates() -> some AsyncSequence<UserViewState, Never>
 ```
 
 Available on iOS 18+, this overload accepts any `AsyncSequence` whose element type is `State` and failure type is `Never`. This is useful when your data layer vends a custom `AsyncSequence` type that you want to observe directly.
+
+As with `AsyncStream`, generic `AsyncSequence` observation is fully asynchronous. If you need a guaranteed synchronous first state transition, use ``StateSequence/init(first:rest:)``.
 
 ```swift
 func streamUpdates() -> AsyncStream<UserViewState> {

@@ -4,7 +4,7 @@ struct LoaderModel: LoaderModeling {
     
     func loadEntry() -> StateSequence<BlogEntryViewState> {
         StateSequence(
-            { .loading(errorModel: nil) }
+            first: .loading(errorModel: nil)
         )
     }
 }

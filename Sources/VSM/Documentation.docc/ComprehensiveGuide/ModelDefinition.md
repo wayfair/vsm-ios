@@ -49,7 +49,7 @@ struct LoaderModel {
 }
 ```
 
-To implement the model in a readable way, we'll define the `load()` function to orchestrate the load work by returning the appropriate view states as the data loads. The `load()` function returns a `StateSequence` that first emits a `.loading` state, then calls `fetchUser()` which performs the data request asynchronously.
+To implement the model in a readable way, we'll define the `load()` function to orchestrate the load work by returning the appropriate view states as the data loads. The `load()` function returns a `StateSequence` that applies `.loading` synchronously first, then calls `fetchUser()` which performs the data request asynchronously.
 
 ```swift
 struct LoaderModel {
@@ -57,8 +57,8 @@ struct LoaderModel {
 
     func load() -> StateSequence<LoadUserProfileViewState> {
         StateSequence(
-            { .loading },
-            { await fetchUser() }
+            first: .loading,
+            rest: { await fetchUser() }
         )
     }
 }
@@ -74,8 +74,8 @@ struct LoaderModel {
 
     func load() -> StateSequence<LoadUserProfileViewState> {
         StateSequence(
-            { .loading },
-            { await fetchUser() }
+            first: .loading,
+            rest: { await fetchUser() }
         )
     }
 
@@ -119,8 +119,8 @@ struct LoaderModel {
 
     func load() -> StateSequence<LoadUserProfileViewState> {
         StateSequence(
-            { .loading },
-            { await fetchUser() }
+            first: .loading,
+            rest: { await fetchUser() }
         )
     }
 
@@ -208,19 +208,17 @@ struct EditingModel {
 
     func save(username: String) -> StateSequence<EditUserProfileViewState> {
         StateSequence(
-            {
-                EditUserProfileViewState(
-                    data: userData,
-                    editingState: .saving
-                )
-            },
-            { await performSave(username: username) }
+            first: EditUserProfileViewState(
+                data: userData,
+                editingState: .saving
+            ),
+            rest: { await performSave(username: username) }
         )
     }
 }
 ```
 
-Similar to the load action from the Load Profile model, we immediately return a new `.saving` state to the view while the save operation is processing. Notice how we recreate the view state struct in the first closure to do so.
+Similar to the load action from the Load Profile model, we apply a new `.saving` state synchronously while the save operation is processing. Notice how we recreate the view state struct as the `first` value to do so.
 
 Next, we'll implement the `performSave()` function by using the `UserDataRepository` to save the username to the data source. (We will cover proper dependency injection in <doc:DataDefinition>.)
 
@@ -276,13 +274,11 @@ struct EditingModel {
 
     func save(username: String) -> StateSequence<EditUserProfileViewState> {
         StateSequence(
-            {
-                EditUserProfileViewState(
-                    data: userData,
-                    editingState: .saving
-                )
-            },
-            { await performSave(username: username) }
+            first: EditUserProfileViewState(
+                data: userData,
+                editingState: .saving
+            ),
+            rest: { await performSave(username: username) }
         )
     }
 

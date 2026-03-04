@@ -62,7 +62,7 @@
             }
             
             @Step {
-                Now, define a "loading" state which should be immediately returned when the blog entry starts loading. Create an optional error model for use if the blog entry fails to load.
+                Now, define a "loading" state which should be applied in the first frame when the blog entry starts loading. Create an optional error model for use if the blog entry fails to load.
                 
                 > Note: Not all view states need an associated model. For more information on how building the state in VSM, see <doc:StateDefinition>.
                 
@@ -224,7 +224,7 @@
             }
             
             @Step {
-                Begin implementing the `loadEntry()` function by returning a `StateSequence` whose first closure immediately emits the "loading" state.
+                Begin implementing the `loadEntry()` function by returning a `StateSequence` using `first:rest:` so the first state synchronously emits the "loading" state.
                 
                 This is the view state that the user will see while the blog entry is loading from the data store.
                 
@@ -232,7 +232,7 @@
             }
             
             @Step {
-                Add a second closure to the `StateSequence` that calls a private `fetchEntry()` function, and mark it `@concurrent` so it runs off the main thread. The second closure will produce the final state after the first "loading" state has been emitted.
+                Add a `rest` closure to the `StateSequence` that calls a private `fetchEntry()` function, and mark it `@concurrent` so it runs off the main thread. This async closure produces the next state after the initial synchronous "loading" state.
                 
                 @Code(name: "LoaderModel.swift", file: quickstart-models-loader-get)
             }

@@ -4,8 +4,8 @@ struct LoaderModel: LoaderModeling {
     
     func loadEntry() -> StateSequence<BlogEntryViewState> {
         StateSequence(
-            { .loading(errorModel: nil) },
-            { await self.fetchEntry() }
+            first: .loading(errorModel: nil),
+            rest: { await self.fetchEntry() }
         )
     }
     
