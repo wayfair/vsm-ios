@@ -888,23 +888,9 @@ public extension AsyncStateContainer {
             let sequenceState = signposter.beginInterval(postName, id: sequenceID, "\(String(describing: sequence.self)) Sequence")
             defer { signposter.endInterval(postName, sequenceState) }
             
-            var iterator = sequence.makeAsyncIterator()
             var iterationCount = 1
             
-            while !Task.isCancelled {
-                let nextState = try? await iterator.next()
-                
-                guard let state = nextState else {
-                    // Sequence completed naturally
-                    if self.loggingEnabled {
-                        os_log(.debug, log: self.logger, "AsyncSequence completed after %d state changes", iterationCount - 1)
-                    }
-                    let eventName: StaticString = "Some AsyncSequence Sequence Ended"
-                    signposter.emitEvent(eventName, id: sequenceID,
-                                         "Ended after \(iterationCount - 1) iterations")
-                    break
-                }
-                
+            for await state in sequence {
                 guard !Task.isCancelled else {
                     if self.loggingEnabled {
                         os_log(.debug, log: self.logger, "AsyncSequence cancelled during iteration %d", iterationCount)
@@ -921,6 +907,16 @@ public extension AsyncStateContainer {
                 let eventName: StaticString = "Some AsyncSequence Changed State"
                 signposter.emitEvent(eventName, id: sequenceID, "State changed to \(String(describing: state))")
                 iterationCount += 1
+            }
+            
+            if !Task.isCancelled {
+                // Sequence completed naturally
+                if self.loggingEnabled {
+                    os_log(.debug, log: self.logger, "AsyncSequence completed after %d state changes", iterationCount - 1)
+                }
+                let eventName: StaticString = "Some AsyncSequence Sequence Ended"
+                signposter.emitEvent(eventName, id: sequenceID,
+                                     "Ended after \(iterationCount - 1) iterations")
             }
         }
     }
