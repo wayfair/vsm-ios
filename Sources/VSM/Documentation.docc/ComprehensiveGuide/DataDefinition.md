@@ -748,7 +748,7 @@ private func fetchProducts() async -> ProductsViewState {
 }
 ```
 
-This allows the method to be called from any context while maintaining type safety.
+This allows the method to be called from any context while maintaining thread safety.
 
 ## Advanced Patterns
 
