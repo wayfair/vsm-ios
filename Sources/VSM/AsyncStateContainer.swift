@@ -990,7 +990,7 @@ public extension AsyncStateContainer {
         // Backward-compatible Combine behavior:
         // if the publisher emits synchronously during subscription on the main thread,
         // apply the first state inline to avoid the extra run-loop turn.
-        let stream = AsyncStream<State>.makeStream(of: State.self)
+        let stream = AsyncStream<State>.makeStream(of: State.self, bufferingPolicy: .unbounded)
         let firstEmissionBuffer = SynchronousFirstEmissionBuffer<State>()
         publisherCancellable = publisher.sink(
             receiveCompletion: firstEmissionBuffer.makeReceiveCompletion(continuation: stream.continuation),

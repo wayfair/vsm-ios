@@ -333,6 +333,76 @@ struct StateContainerTests {
         #expect(stateChanges == [.loaded(.init(count: 42))])
     }
     
+    @Test("Observing Publisher with multiple synchronous emissions preserves all values")
+    @MainActor
+    func testObservingPublisherMultipleSynchronousEmissionsPreservesAllValues() async throws {
+        let emissionCount = 10
+        let expectedResult: [MockState] = (1...emissionCount).map { .loaded(.init(count: $0)) }
+        let container = makeContainer()
+        
+        guard case let .initialize(initStateModel) = container.state else {
+            throw StateContainerTestError.missingStartState
+        }
+        // The stateChangeStream tracks calls to performStateChange, which includes
+        // both the synchronous inline application and the Task-driven iterations.
+        // So we expect all emissionCount values to appear in the stream.
+        let stateChangsStream = container.stateChangeStream(last: emissionCount, timeout: .seconds(1))
+        
+        container.observe(initStateModel.loadMultipleSynchronousPublisher(count: emissionCount))
+        
+        // The first emission should have been applied synchronously (inline).
+        #expect(container.state == .loaded(.init(count: 1)))
+        
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
+        }
+        
+        // All values should be preserved — none dropped by the AsyncStream buffer.
+        #expect(stateChanges == expectedResult)
+    }
+    
+    @Test("Observing Publisher applies synchronous first emission inline before Task starts")
+    @MainActor
+    func testObservingPublisherSynchronousFirstEmissionAppliedInline() async throws {
+        let container = makeContainer()
+        let subject = MockState.InitializeStateModel().loadSingleSynchronousPublisher()
+        
+        container.observe(subject.eraseToAnyPublisher())
+        
+        // The state should already be updated synchronously — no await needed.
+        // If this were deferred to a Task, the state would still be .initialize() here.
+        #expect(container.state == .loading)
+    }
+    
+    @Test("Observing Publisher on background thread does not use synchronous first emission path")
+    @MainActor
+    func testObservingPublisherOnBackgroundThreadSkipsSynchronousPath() async throws {
+        let emissionCount = 3
+        let expectedResult: [MockState] = (1...emissionCount).map { .loaded(.init(count: $0)) }
+        let container = makeContainer()
+        
+        guard case let .initialize(initStateModel) = container.state else {
+            throw StateContainerTestError.missingStartState
+        }
+        // When the publisher subscribes on a background thread, no synchronous first emission
+        // is captured — all values flow through the AsyncStream.
+        let stateChangsStream = container.stateChangeStream(last: emissionCount, timeout: .seconds(1))
+        
+        container.observe(initStateModel.loadPublisherOnBackgroundThread(count: emissionCount))
+        
+        // Since the publisher subscribes on a background thread, the synchronous first emission
+        // path should not have fired — the state should still be the initial value.
+        #expect(container.state == .initialize())
+        
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
+        }
+        
+        #expect(stateChanges == expectedResult)
+    }
+    
     // MARK: Sanity Check Tests to ensure Mock types work as expected
     
     @Test("Sanity Check MockState sequence fires in the right order")
@@ -549,6 +619,29 @@ extension MockState {
                 .loaded(.init(count: 3))
             ])
             .eraseToAnyPublisher()
+        }
+        
+        /// Creates a Publisher that emits multiple values synchronously during subscription on the main thread.
+        /// Used to verify that no values are lost when more than one emission occurs before the Task starts iterating.
+        func loadMultipleSynchronousPublisher(count: Int) -> AnyPublisher<MockState, Never> {
+            let states = (1...count).map { MockState.loaded(.init(count: $0)) }
+            return Publishers.Sequence(sequence: states)
+                .eraseToAnyPublisher()
+        }
+        
+        /// Creates a Publisher that emits a single value synchronously via CurrentValueSubject.
+        /// Used to verify the synchronous first emission is applied inline without waiting for a run-loop turn.
+        func loadSingleSynchronousPublisher() -> CurrentValueSubject<MockState, Never> {
+            return CurrentValueSubject<MockState, Never>(.loading)
+        }
+        
+        /// Creates a Publisher that emits values on a background thread.
+        /// Used to verify the SynchronousFirstEmissionBuffer does not capture emissions from background threads.
+        func loadPublisherOnBackgroundThread(count: Int) -> AnyPublisher<MockState, Never> {
+            let states = (1...count).map { MockState.loaded(.init(count: $0)) }
+            return Publishers.Sequence(sequence: states)
+                .subscribe(on: DispatchQueue.global())
+                .eraseToAnyPublisher()
         }
         
         /// Creates a StateSequence that emits states with delays longer than debounce period
