@@ -21,7 +21,7 @@ struct MainViewStateTests {
         let stateSequence = subject.loadDependencies()
         
         // Collect states from the StateSequence
-        for await state in stateSequence {
+        for try await state in stateSequence {
             states.append(state)
         }
         

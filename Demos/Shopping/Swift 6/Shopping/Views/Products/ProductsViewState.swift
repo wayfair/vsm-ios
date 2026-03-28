@@ -23,11 +23,10 @@ struct ProductsLoaderModel {
     typealias Dependencies = ProductRepositoryDependency
     let dependencies: Dependencies
     
+    @StateSequenceBuilder
     func loadProducts() -> StateSequence<ProductsViewState> {
-        StateSequence(
-            { .loading },
-            { await fetchProductsFromServer() }
-        )
+        ProductsViewState.loading
+        Next { await fetchProductsFromServer() }
     }
     
     @concurrent

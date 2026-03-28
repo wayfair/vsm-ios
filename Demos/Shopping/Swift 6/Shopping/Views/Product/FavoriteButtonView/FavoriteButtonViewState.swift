@@ -37,11 +37,10 @@ enum FavoriteButtonViewState: Sendable, Equatable {
 struct FavoriteInfoLoaderModel: Sendable {
     typealias Dependencies = FavoritesRepositoryDependency & FavoriteButtonLoadedModel.Dependencies
     
+    @StateSequenceBuilder
     func getFavoriteStatus(dependencies: Dependencies, product: ProductDetail) -> StateSequence<FavoriteButtonViewState> {
-        StateSequence(
-            { .loading },
-            { await fetchingFavoriteStatus(dependencies: dependencies, product: product) }
-        )
+        FavoriteButtonViewState.loading
+        Next { await fetchingFavoriteStatus(dependencies: dependencies, product: product) }
     }
     
     @concurrent
@@ -79,11 +78,10 @@ final class FavoriteButtonLoadedModel: @unchecked Sendable {
         self[keyPath: keyPath]
     }
     
+    @StateSequenceBuilder
     func toggleFavorite() -> StateSequence<FavoriteButtonViewState> {
-        StateSequence(
-            { .loading },
-            { await self.setFavoriteState() }
-        )
+        FavoriteButtonViewState.loading
+        Next { await self.setFavoriteState() }
     }
     
     func startObservingFavoriteStatusChanges(onUpdate: @Sendable @escaping (Bool) -> Void) {

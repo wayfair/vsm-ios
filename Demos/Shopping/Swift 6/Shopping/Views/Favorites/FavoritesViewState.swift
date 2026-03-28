@@ -51,11 +51,10 @@ struct FavoritesLoaderModel: Equatable, Sendable {
     let dependencies: Dependencies
     let modelBuilder: FavoritesViewModelBuilding
     
+    @StateSequenceBuilder
     func loadFavorites() -> StateSequence<FavoritesViewState> {
-        StateSequence(
-            { .loading },
-            { await fetchFavorites() }
-        )
+        FavoritesViewState.loading
+        Next { await fetchFavorites() }
     }
     
     @concurrent
@@ -118,11 +117,10 @@ final class FavoritesViewLoadedModel: @unchecked Sendable, Equatable {
         self.favorites = favorites
     }
     
+    @StateSequenceBuilder
     func delete(productId: Int) -> StateSequence<FavoritesViewState> {
-        StateSequence(
-            { .deleting(self.favorites.filter({ $0.id != productId })) },
-            { await self.performDelete(productId: productId) }
-        )
+        FavoritesViewState.deleting(self.favorites.filter({ $0.id != productId }))
+        Next { await self.performDelete(productId: productId) }
     }
     
     @concurrent

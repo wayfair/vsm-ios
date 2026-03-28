@@ -21,11 +21,10 @@ enum MainViewState: Sendable {
 struct DependenciesLoaderModel: Sendable {
     let dependenciesProvider: DependenciesProviding
     
+    @StateSequenceBuilder
     func loadDependencies() -> StateSequence<MainViewState> {
-        StateSequence(
-            { .loading },
-            { await constructDependencies() }
-        )
+        MainViewState.loading
+        Next { await constructDependencies() }
     }
     
     @MainActor

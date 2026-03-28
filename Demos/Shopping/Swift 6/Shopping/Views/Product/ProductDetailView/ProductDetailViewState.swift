@@ -24,12 +24,11 @@ struct AddToCartModel {
     let dependencies: Dependencies
     let productId: Int
     
+    @StateSequenceBuilder
     func addToCart() -> StateSequence<ProductDetailViewState> {
-        StateSequence(
-            { .addingToCart },
-            { await performAddToCart() },
-            { await resumeViewingState() }
-        )
+        ProductDetailViewState.addingToCart
+        Next { await performAddToCart() }
+        Next { await resumeViewingState() }
     }
     
     @concurrent

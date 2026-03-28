@@ -33,7 +33,7 @@ struct ProductsViewStateTests {
         var iterator = subject.loadProducts().makeAsyncIterator()
         
         // Collect exactly 2 states from the sequence
-        while let state = await iterator.next(), states.count < 2 {
+        while let state = try await iterator.next(), states.count < 2 {
             states.append(state)
         }
         
@@ -73,7 +73,7 @@ struct ProductsViewStateTests {
         var iterator = subject.loadProducts().makeAsyncIterator()
         
         // Collect exactly 2 states from the sequence
-        while let state = await iterator.next(), states.count < 2 {
+        while let state = try await iterator.next(), states.count < 2 {
             states.append(state)
         }
         
