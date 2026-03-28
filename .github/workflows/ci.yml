@@ -9,46 +9,46 @@ on: # Rebuild any PRs and main branch changes
 
 jobs:
   test-vsm:
-    runs-on: macos-14
+    runs-on: macos-26 # Apple Silicon (arm64), Xcode 26 default
     steps:
       - name: Prepare Xcode
         uses: maxim-lobanov/setup-xcode@v1 # https://github.com/marketplace/actions/setup-xcode-version
         with:
-          xcode-version: 16.2.0
+          xcode-version: '26.2' # Pinned: default on macos-26 is 26.2; update as new stable releases land
 
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
-      - name: Build and Test VSM on macOS (Intel)
+      - name: Build and Test VSM on macOS (Apple Silicon)
         uses: sersoft-gmbh/xcodebuild-action@v3 # https://github.com/marketplace/actions/xcodebuild-action
         with:
           spm-package: ./
           scheme: VSM
-          destination: platform=macOS,arch=x86_64
+          destination: platform=macOS,arch=arm64
           action: test
 
-      - name: Build and Test VSM on Mac Catalyst (Intel)
+      - name: Build and Test VSM on Mac Catalyst (Apple Silicon)
         uses: sersoft-gmbh/xcodebuild-action@v3 # https://github.com/marketplace/actions/xcodebuild-action
         with:
           spm-package: ./
           scheme: VSM
-          destination: platform=macOS,arch=x86_64,variant=Mac Catalyst
+          destination: platform=macOS,arch=arm64,variant=Mac Catalyst
           action: test
-      
+
       - name: Build and Test VSM on iOS
         uses: sersoft-gmbh/xcodebuild-action@v3 # https://github.com/marketplace/actions/xcodebuild-action
         with:
           spm-package: ./
           scheme: VSM
-          destination: platform=iOS Simulator,OS=17.0.1,name=iPhone 15
+          destination: platform=iOS Simulator,OS=26.2,name=iPhone 16
           action: test
-      
+
       - name: Build and Test VSM on watchOS
         uses: sersoft-gmbh/xcodebuild-action@v3 # https://github.com/marketplace/actions/xcodebuild-action
         with:
           spm-package: ./
           scheme: VSM
-          destination: platform=watchOS Simulator,OS=10.0,name=Apple Watch Series 9 (45mm)
+          destination: platform=watchOS Simulator,OS=26.2,name=Apple Watch Series 10 (46mm)
           action: test
 
       - name: Build and Test VSM on tvOS
@@ -56,55 +56,55 @@ jobs:
         with:
           spm-package: ./
           scheme: VSM
-          destination: platform=tvOS Simulator,OS=17.0,name=Apple TV 4K (3rd generation) (at 1080p)
+          destination: platform=tvOS Simulator,OS=26.2,name=Apple TV 4K (3rd generation) (at 1080p)
           action: test
-      
+
       - name: Build and Test VSM on visionOS
         uses: sersoft-gmbh/xcodebuild-action@v3 # https://github.com/marketplace/actions/xcodebuild-action
         with:
           spm-package: ./
           scheme: VSM
-          destination: platform=visionOS Simulator,OS=1.0,name=Apple Vision Pro
+          destination: platform=visionOS Simulator,OS=26.2,name=Apple Vision Pro
           action: test
 
   # The following jobs are disabled until further notice to unblock work
   # Xcode currently has UI test runtime issues since Xcode 14.3
-  # These UI tests should be run manually by engineers until the Xcode runtime issues are resolved 
-  
+  # These UI tests should be run manually by engineers until the Xcode runtime issues are resolved
+
   # test-swiftui-demo-app:
-  #   runs-on: macos-13
+  #   runs-on: macos-26
   #   steps:
   #     - name: Prepare Xcode
   #       uses: maxim-lobanov/setup-xcode@v1 # https://github.com/marketplace/actions/setup-xcode-version
   #       with:
-  #         xcode-version: 14.3.1 # Xcode 15 has UI test runtime issues
+  #         xcode-version: '26.2'
 
   #     - name: Checkout
   #       uses: actions/checkout@v4
 
   #     - name: Build and Test Demo App
-  #       uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
+  #       uses: sersoft-gmbh/xcodebuild-action@v3 # https://github.com/marketplace/actions/xcodebuild-action
   #       with:
   #         project: ./Demos/Shopping/Shopping.xcodeproj
   #         scheme: Shopping
-  #         destination: platform=iOS Simulator,OS=17.0.1,name=iPhone 14
+  #         destination: platform=iOS Simulator,OS=26.2,name=iPhone 16
   #         action: test
 
   # test-uikit-demo-app:
-  #   runs-on: macos-13
+  #   runs-on: macos-26
   #   steps:
   #     - name: Prepare Xcode
   #       uses: maxim-lobanov/setup-xcode@v1 # https://github.com/marketplace/actions/setup-xcode-version
   #       with:
-  #         xcode-version: 14.3.1 # Xcode 15 has UI test runtime issues
+  #         xcode-version: '26.2'
 
   #     - name: Checkout
   #       uses: actions/checkout@v4
 
   #     - name: (UIKit) Build and Test Demo App
-  #       uses: sersoft-gmbh/xcodebuild-action@v2 # https://github.com/marketplace/actions/xcodebuild-action
+  #       uses: sersoft-gmbh/xcodebuild-action@v3 # https://github.com/marketplace/actions/xcodebuild-action
   #       with:
   #         project: ./Demos/Shopping/Shopping.xcodeproj
   #         scheme: Shopping - UIKit
-  #         destination: platform=iOS Simulator,OS=17.0.1,name=iPhone 14
+  #         destination: platform=iOS Simulator,OS=26.2,name=iPhone 16
   #         action: test
