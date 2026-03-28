@@ -37,11 +37,10 @@ enum ExampleViewState {
 
 extension ExampleViewState {
     struct InitializeModel {
+        @StateSequenceBuilder
         func load() -> StateSequence<ExampleViewState> {
-            .init(
-                first: .loading,
-                rest: { await loadData() }
-            )
+            ExampleViewState.loading
+            Next { await loadData() }
         }
         
         @concurrent func loadData() async -> ExampleViewState {
@@ -363,17 +362,16 @@ This is a helpful reminder in case you forget to wrap an action call with `obser
 
 ### Implementing Actions with StateSequence
 
-When implementing actions in your models, use `StateSequence` to emit multiple states over time. For initial view loading actions, prefer `StateSequence(first:rest:)` so the loading state is applied synchronously in the first frame, followed by async work that produces the final state:
+When implementing actions in your models, use `StateSequence` to emit multiple states over time. For initial view loading actions, prefer `@StateSequenceBuilder` so the loading state is applied synchronously in the first frame, followed by async work that produces the final state:
 
 ```swift
 struct LoaderModel {
     private let repository: UserRepository
 
+    @StateSequenceBuilder
     func load() -> StateSequence<LoadUserProfileViewState> {
-        StateSequence(
-            first: .loading,
-            rest: { await self.fetchUserData() }
-        )
+        LoadUserProfileViewState.loading
+        Next { await self.fetchUserData() }
     }
 
     @concurrent
@@ -395,7 +393,7 @@ Notice how errors are handled within the async function using `do-catch` blocks,
 
 ### Loading View Actions
 
-There are two actions that we want to call in the `LoadUserProfileView`: the `load()` action in the `initialized` view state and the `retry()` action for the `loadingError` view state. We want the `load()` call to only happen once for the view's lifetime, so we'll attach it to the `viewDidAppear` delegate method and implement `load()` with `StateSequence(first:rest:)`. Since the retry button is created by the Storyboard, the `retry()` action will be configured on the button in a special `setUpViews()` function.
+There are two actions that we want to call in the `LoadUserProfileView`: the `load()` action in the `initialized` view state and the `retry()` action for the `loadingError` view state. We want the `load()` call to only happen once for the view's lifetime, so we'll attach it to the `viewDidAppear` delegate method and implement `load()` with `@StateSequenceBuilder`. Since the retry button is created by the Storyboard, the `retry()` action will be configured on the button in a special `setUpViews()` function.
 
 ```swift
 override func viewDidLoad() {

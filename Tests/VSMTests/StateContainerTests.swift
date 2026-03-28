@@ -333,67 +333,52 @@ struct StateContainerTests {
         #expect(stateChanges == [.loaded(.init(count: 42))])
     }
     
-    @Test("Observing Publisher with multiple synchronous emissions preserves all values")
+    @Test("Synchronous states in StateSequenceBuilder are applied immediately before observe returns")
     @MainActor
-    func testObservingPublisherMultipleSynchronousEmissionsPreservesAllValues() async throws {
-        let emissionCount = 10
-        let expectedResult: [MockState] = (1...emissionCount).map { .loaded(.init(count: $0)) }
+    func synchronousStateAppliedImmediatelyBeforeObserveReturns() async throws {
         let container = makeContainer()
-        
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        // The stateChangeStream tracks calls to performStateChange, which includes
-        // both the synchronous inline application and the Task-driven iterations.
-        // So we expect all emissionCount values to appear in the stream.
-        let stateChangsStream = container.stateChangeStream(last: emissionCount, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(1))
         
-        container.observe(initStateModel.loadMultipleSynchronousPublisher(count: emissionCount))
+        // Call observe with a StateSequenceBuilder-based sequence that has a
+        // synchronous first state (.loading) followed by an async state.
+        container.observe(initStateModel.loadSequenceAsync(onMainThread: true))
         
-        // The first emission should have been applied synchronously (inline).
-        #expect(container.state == .loaded(.init(count: 1)))
-        
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-        
-        // All values should be preserved — none dropped by the AsyncStream buffer.
-        #expect(stateChanges == expectedResult)
-    }
-    
-    @Test("Observing Publisher applies synchronous first emission inline before Task starts")
-    @MainActor
-    func testObservingPublisherSynchronousFirstEmissionAppliedInline() async throws {
-        let container = makeContainer()
-        let subject = MockState.InitializeStateModel().loadSingleSynchronousPublisher()
-        
-        container.observe(subject.eraseToAnyPublisher())
-        
-        // The state should already be updated synchronously — no await needed.
-        // If this were deferred to a Task, the state would still be .initialize() here.
+        // The key assertion: immediately after observe() returns (no await),
+        // the container's state must already be .loading because the
+        // StateSequenceBuilder classified it as a synchronous action and
+        // observe() applies synchronous actions inline on the current call stack.
         #expect(container.state == .loading)
+        
+        // Wait for the full sequence to complete and verify both states arrived.
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
+        }
+        
+        #expect(stateChanges == [.loading, .loaded(.init(count: 2))])
     }
     
-    @Test("Observing Publisher on background thread does not use synchronous first emission path")
+    // MARK: - StateSequenceBuilder Ordering Tests
+    
+    @Test("StateSequenceBuilder: mixed sync and async states arrive in declared order (Main Thread)")
     @MainActor
-    func testObservingPublisherOnBackgroundThreadSkipsSynchronousPath() async throws {
-        let emissionCount = 3
-        let expectedResult: [MockState] = (1...emissionCount).map { .loaded(.init(count: $0)) }
+    func stateSequenceBuilderMixedOrderingMainThread() async throws {
+        let expectedResult: [MockState] = [
+            .loading,
+            .loaded(.init(count: 1)),
+            .loaded(.init(count: 2)),
+            .loaded(.init(count: 3)),
+        ]
         let container = makeContainer()
-        
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        // When the publisher subscribes on a background thread, no synchronous first emission
-        // is captured — all values flow through the AsyncStream.
-        let stateChangsStream = container.stateChangeStream(last: emissionCount, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 4, timeout: .seconds(2))
         
-        container.observe(initStateModel.loadPublisherOnBackgroundThread(count: emissionCount))
-        
-        // Since the publisher subscribes on a background thread, the synchronous first emission
-        // path should not have fired — the state should still be the initial value.
-        #expect(container.state == .initialize())
+        container.observe(initStateModel.loadMixedSyncAsyncSequence())
         
         var stateChanges: [MockState] = []
         for await stateChange in stateChangsStream {
@@ -403,7 +388,135 @@ struct StateContainerTests {
         #expect(stateChanges == expectedResult)
     }
     
-    // MARK: Sanity Check Tests to ensure Mock types work as expected
+    @Test("StateSequenceBuilder: mixed sync and async states arrive in declared order (Background Thread)")
+    @MainActor
+    func stateSequenceBuilderMixedOrderingBackgroundThread() async throws {
+        let expectedResult: [MockState] = [
+            .loading,
+            .loaded(.init(count: 10)),
+            .loaded(.init(count: 20)),
+            .loaded(.init(count: 30)),
+            .loaded(.init(count: 40)),
+        ]
+        let container = makeContainer()
+        guard case let .initialize(initStateModel) = container.state else {
+            throw StateContainerTestError.missingStartState
+        }
+        let stateChangsStream = container.stateChangeStream(last: 5, timeout: .seconds(2))
+        
+        container.observe(initStateModel.loadMixedSyncAsyncSequenceBackground())
+        
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
+        }
+        
+        #expect(stateChanges == expectedResult)
+    }
+    
+    @Test("StateSequenceBuilder: all synchronous states arrive in declared order")
+    @MainActor
+    func stateSequenceBuilderAllSyncOrdering() async throws {
+        let expectedResult: [MockState] = [
+            .loading,
+            .loaded(.init(count: 1)),
+            .loaded(.init(count: 2)),
+            .loaded(.init(count: 3)),
+        ]
+        let container = makeContainer()
+        guard case let .initialize(initStateModel) = container.state else {
+            throw StateContainerTestError.missingStartState
+        }
+        let stateChangsStream = container.stateChangeStream(last: 4, timeout: .seconds(2))
+        
+        container.observe(initStateModel.loadAllSyncSequence())
+        
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
+        }
+        
+        #expect(stateChanges == expectedResult)
+    }
+    
+    @Test("StateSequenceBuilder: all async states arrive in declared order")
+    @MainActor
+    func stateSequenceBuilderAllAsyncOrdering() async throws {
+        let expectedResult: [MockState] = [
+            .loaded(.init(count: 1)),
+            .loaded(.init(count: 2)),
+            .loaded(.init(count: 3)),
+        ]
+        let container = makeContainer()
+        guard case let .initialize(initStateModel) = container.state else {
+            throw StateContainerTestError.missingStartState
+        }
+        let stateChangsStream = container.stateChangeStream(last: 3, timeout: .seconds(2))
+        
+        container.observe(initStateModel.loadAllAsyncSequence())
+        
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
+        }
+        
+        #expect(stateChanges == expectedResult)
+    }
+    
+    // MARK: - Array Literal StateSequence Ordering Tests
+    
+    @Test("Array literal StateSequence: mixed sync and async closures arrive in declared order (Main Thread)")
+    @MainActor
+    func arrayLiteralSequenceMixedOrderingMainThread() async throws {
+        let expectedResult: [MockState] = [
+            .loading,
+            .loaded(.init(count: 1)),
+            .loaded(.init(count: 2)),
+            .loaded(.init(count: 3)),
+        ]
+        let container = makeContainer()
+        guard case let .initialize(initStateModel) = container.state else {
+            throw StateContainerTestError.missingStartState
+        }
+        let stateChangsStream = container.stateChangeStream(last: 4, timeout: .seconds(2))
+        
+        container.observe(initStateModel.loadArrayLiteralMixedSequence())
+        
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
+        }
+        
+        #expect(stateChanges == expectedResult)
+    }
+    
+    @Test("Array literal StateSequence: mixed sync and async closures arrive in declared order (Background Thread)")
+    @MainActor
+    func arrayLiteralSequenceMixedOrderingBackgroundThread() async throws {
+        let expectedResult: [MockState] = [
+            .loading,
+            .loaded(.init(count: 10)),
+            .loaded(.init(count: 20)),
+            .loaded(.init(count: 30)),
+            .loaded(.init(count: 40)),
+        ]
+        let container = makeContainer()
+        guard case let .initialize(initStateModel) = container.state else {
+            throw StateContainerTestError.missingStartState
+        }
+        let stateChangsStream = container.stateChangeStream(last: 5, timeout: .seconds(2))
+        
+        container.observe(initStateModel.loadArrayLiteralMixedSequenceBackground())
+        
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
+        }
+        
+        #expect(stateChanges == expectedResult)
+    }
+    
+    // MARK: - Sanity Check Tests to ensure Mock types work as expected
     
     @Test("Sanity Check MockState sequence fires in the right order")
     @MainActor
@@ -487,7 +600,7 @@ struct StateContainerTests {
     }
 }
 
-// MARK: Mock Types for Testing State transitions
+// MARK: - Mock Types for Testing State transitions
 
 enum MockState: Sendable, Equatable {
     case initialize(InitializeStateModel = .init())
@@ -506,32 +619,28 @@ extension MockState {
         }
         
         func loadSequence() -> StateSequence<MockState> {
-            return .init(
+            return [
                 { .loading },
                 { .loaded(.init(count: 2)) }
-            )
+            ]
         }
         
+        @StateSequenceBuilder
         func loadSynchronousFirstStateThenRest() -> StateSequence<MockState> {
-            return .init(
-                first: .loading,
-                rest:
-                    { .loaded(.init(count: 2)) },
-                    { .loaded(.init(count: 11)) }
-            )
+            MockState.loading
+            MockState.loaded(.init(count: 2))
+            MockState.loaded(.init(count: 11))
         }
         
+        @StateSequenceBuilder
         func loadSequenceAsync(onMainThread: Bool) -> StateSequence<MockState> {
-            return .init(
-                { .loading },
-                {
-                    if onMainThread {
-                        await loadAsyncOnCurrentExecutionContext(count: 2)
-                    } else {
-                        await loadAsyncOnBackgroundThread(count: 2)
-                    }
-                }
-            )
+            MockState.loading
+            
+            if onMainThread {
+                Next { await loadAsyncOnCurrentExecutionContext(count: 2) }
+            } else {
+                Next { await loadAsyncOnBackgroundThread(count: 2) }
+            }
         }
         
         func loadStreamCurrentExecutionContext() -> AsyncStream<MockState> {
@@ -585,6 +694,69 @@ extension MockState {
                 .eraseToAnyPublisher()
         }
         
+        // MARK: - StateSequenceBuilder Ordering Test Helpers
+        
+        /// A StateSequenceBuilder sequence with 4 states: sync, sync, async (main), sync-after-async.
+        /// Verifies that all states arrive in declared order even when mixing sync and async.
+        @StateSequenceBuilder
+        func loadMixedSyncAsyncSequence() -> StateSequence<MockState> {
+            MockState.loading                                           // sync 1
+            MockState.loaded(.init(count: 1))                          // sync 2
+            Next { await self.loadAsyncOnCurrentExecutionContext(count: 2) }  // async 3
+            MockState.loaded(.init(count: 3))                          // sync-after-async 4
+        }
+        
+        /// A StateSequenceBuilder sequence with 5 states mixing sync and async (background thread).
+        @StateSequenceBuilder
+        func loadMixedSyncAsyncSequenceBackground() -> StateSequence<MockState> {
+            MockState.loading                                                   // sync 1
+            MockState.loaded(.init(count: 10))                                  // sync 2
+            Next { await self.loadAsyncOnBackgroundThread(count: 20) }          // async (bg) 3
+            MockState.loaded(.init(count: 30))                                  // sync-after-async 4
+            Next { await self.loadAsyncOnBackgroundThread(count: 40) }          // async (bg) 5
+        }
+        
+        /// A StateSequenceBuilder sequence where all states are synchronous (no async at all).
+        @StateSequenceBuilder
+        func loadAllSyncSequence() -> StateSequence<MockState> {
+            MockState.loading
+            MockState.loaded(.init(count: 1))
+            MockState.loaded(.init(count: 2))
+            MockState.loaded(.init(count: 3))
+        }
+        
+        /// A StateSequenceBuilder sequence where all states are async.
+        @StateSequenceBuilder
+        func loadAllAsyncSequence() -> StateSequence<MockState> {
+            Next { await self.loadAsyncOnCurrentExecutionContext(count: 1) }
+            Next { await self.loadAsyncOnBackgroundThread(count: 2) }
+            Next { await self.loadAsyncOnCurrentExecutionContext(count: 3) }
+        }
+        
+        // MARK: - Array Literal StateSequence Ordering Test Helpers
+        
+        /// An array-literal StateSequence with 4 closures mixing sync and async returns.
+        /// All closures are treated as async by the array literal initializer.
+        func loadArrayLiteralMixedSequence() -> StateSequence<MockState> {
+            return [
+                { .loading },
+                { await self.loadAsyncOnCurrentExecutionContext(count: 1) },
+                { .loaded(.init(count: 2)) },
+                { await self.loadAsyncOnBackgroundThread(count: 3) },
+            ]
+        }
+        
+        /// An array-literal StateSequence with 5 closures mixing sync and async (background).
+        func loadArrayLiteralMixedSequenceBackground() -> StateSequence<MockState> {
+            return [
+                { .loading },
+                { .loaded(.init(count: 10)) },
+                { await self.loadAsyncOnBackgroundThread(count: 20) },
+                { .loaded(.init(count: 30)) },
+                { await self.loadAsyncOnBackgroundThread(count: 40) },
+            ]
+        }
+        
         // MARK: - Debounce Test Helpers
         
         /// Creates a StateSequence that emits states rapidly (for debounce testing)
@@ -619,29 +791,6 @@ extension MockState {
                 .loaded(.init(count: 3))
             ])
             .eraseToAnyPublisher()
-        }
-        
-        /// Creates a Publisher that emits multiple values synchronously during subscription on the main thread.
-        /// Used to verify that no values are lost when more than one emission occurs before the Task starts iterating.
-        func loadMultipleSynchronousPublisher(count: Int) -> AnyPublisher<MockState, Never> {
-            let states = (1...count).map { MockState.loaded(.init(count: $0)) }
-            return Publishers.Sequence(sequence: states)
-                .eraseToAnyPublisher()
-        }
-        
-        /// Creates a Publisher that emits a single value synchronously via CurrentValueSubject.
-        /// Used to verify the synchronous first emission is applied inline without waiting for a run-loop turn.
-        func loadSingleSynchronousPublisher() -> CurrentValueSubject<MockState, Never> {
-            return CurrentValueSubject<MockState, Never>(.loading)
-        }
-        
-        /// Creates a Publisher that emits values on a background thread.
-        /// Used to verify the SynchronousFirstEmissionBuffer does not capture emissions from background threads.
-        func loadPublisherOnBackgroundThread(count: Int) -> AnyPublisher<MockState, Never> {
-            let states = (1...count).map { MockState.loaded(.init(count: $0)) }
-            return Publishers.Sequence(sequence: states)
-                .subscribe(on: DispatchQueue.global())
-                .eraseToAnyPublisher()
         }
         
         /// Creates a StateSequence that emits states with delays longer than debounce period

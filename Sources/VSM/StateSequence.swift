@@ -7,110 +7,239 @@
 
 import Foundation
 
-/// Emits multiple `State`s as an `AsyncSequence`
+/// A sequence of state values emitted over time, conforming to `AsyncSequence`.
 ///
-/// Use `StateSequence` with ``AsyncStateContainer`` to emit a series of states from a single action.
-/// Create one with either a mix of a synchronous first state and async remainder closures
-/// (see ``init(first:rest:)``), or with all-async closures (see ``init(_:)``).
+/// `StateSequence` is the primary mechanism in VSM for producing multiple state changes from
+/// a single action. When observed by an ``AsyncStateContainer``, each state in the sequence
+/// is applied to the container in declared order as it becomes available.
 ///
-/// ## Example
+/// ## Creating a StateSequence
+///
+/// There are three ways to create a `StateSequence`:
+///
+/// ### 1. Using `@StateSequenceBuilder` (recommended)
+///
+/// The ``StateSequenceBuilder`` result-builder DSL provides the most expressive syntax and
+/// supports synchronous first-state timing. Plain `State` values placed before any `Next { ... }`
+/// expression are applied **synchronously** by the container, avoiding a one-frame flash:
 ///
 /// ```swift
-/// func load() -> StateSequence<ExampleViewState> {
-///     StateSequence({ .loading }, { await .loaded(getData()) })
+/// @StateSequenceBuilder
+/// func load() -> StateSequence<MyViewState> {
+///     MyViewState.loading                  // applied synchronously
+///     Next { await fetchData() }           // applied after async work completes
 /// }
 /// ```
+///
+/// The builder also supports `if`/`else` branching, multiple `Next` steps, and mixed
+/// sync/async states. See ``StateSequenceBuilder`` for full details.
+///
+/// ### 2. Using array-literal syntax
+///
+/// The `ExpressibleByArrayLiteral` conformance lets you return an array of closures directly.
+/// All closures are treated as asynchronous:
+///
+/// ```swift
+/// func load() -> StateSequence<MyViewState> {
+///     [
+///         { .loading },
+///         { await fetchData() }
+///     ]
+/// }
+/// ```
+///
+/// ### 3. Using the variadic initializer
+///
+/// Pass async closures directly to ``init(_:)``:
+///
+/// ```swift
+/// func load() -> StateSequence<MyViewState> {
+///     StateSequence(
+///         { .loading },
+///         { await fetchData() }
+///     )
+/// }
+/// ```
+///
+/// ## Synchronous vs. Asynchronous First State
+///
+/// The choice of creation method determines whether the first state is applied synchronously
+/// or asynchronously by ``AsyncStateContainer``:
+///
+/// | Creation method | First state timing |
+/// |---|---|
+/// | `@StateSequenceBuilder` with plain `State` values before `Next` | **Synchronous** — applied inline before a `Task` is created |
+/// | Array literal (`[{ ... }, { ... }]`) | Asynchronous — applied inside a `Task` |
+/// | Variadic initializer (`StateSequence({ ... }, { ... })`) | Asynchronous — applied inside a `Task` |
+///
+/// For your view's initial observation (typically in `onAppear`), prefer `@StateSequenceBuilder`
+/// to ensure the first state (e.g., `.loading`) appears on the very first frame:
+///
+/// ```swift
+/// // In your SwiftUI view:
+/// .onAppear {
+///     $state.observe(model.load())  // .loading is visible immediately
+/// }
+/// ```
+///
+/// For user-initiated actions on an already-visible view (button taps, pull-to-refresh),
+/// the async forms are fine since a brief scheduling delay is imperceptible.
+///
+/// ## Cancellation
+///
+/// `StateSequence` respects Swift's cooperative cancellation. If the parent `Task` is
+/// cancelled, iteration stops and no further states are emitted.
+///
+/// - SeeAlso: ``StateSequenceBuilder``, ``AsyncStateContainer``, ``First``, ``Next``
 public struct StateSequence<State: Sendable>: AsyncSequence, AsyncIteratorProtocol {
     public typealias Element = State
     
-    /// An optional synchronous closure that produces the first state immediately.
-    /// When non-nil, `AsyncStateContainer` will apply this state inline (before creating a Task)
-    /// to eliminate the run loop delay between calling `observe` and the first state change.
-    let synchronousFirst: State?
+    /// Closures that produce state values synchronously.
+    ///
+    /// When a `StateSequence` is created via ``StateSequenceBuilder``, plain `State` values
+    /// that appear before any ``Next`` expression are stored here. The ``AsyncStateContainer``
+    /// applies these inline on the current call stack before creating a `Task`.
+    let synchronousStateActions: [@Sendable () -> State]
     
-    /// The remaining async closures to be executed after the optional synchronous first closure.
-    let remainingClosures: [@Sendable () async -> State]
+    /// Closures that produce state values asynchronously.
+    ///
+    /// These closures are executed sequentially inside a `Task` by the ``AsyncStateContainer``.
+    /// Each closure runs after the previous one completes, and the resulting state is applied
+    /// to the container on the main thread.
+    let states: [@Sendable () async -> State]
     
-    /// All closures flattened into a single async sequence for the iterator path.
-    /// If `synchronousFirst` is set, it is wrapped as an async closure and prepended here,
-    /// so `next()` can simply drain this array without any consumed-flag bookkeeping.
+    /// Internal iterator over the synchronous closures.
+    ///
+    /// Drives the first portion of `AsyncIteratorProtocol` conformance. The `next()` method
+    /// drains this iterator before moving on to the async closures.
+    private var syncIterator: IndexingIterator<[@Sendable () -> State]>
+
+    /// Internal iterator over the async closures.
+    ///
+    /// Drives the `AsyncIteratorProtocol` conformance. The `next()` method drains this
+    /// iterator sequentially, executing each closure and returning its result.
     private var iterator: IndexingIterator<[@Sendable () async -> State]>
-    
-    /// Creates a `StateSequence` where the first state is applied synchronously and the
-    /// remaining closures run asynchronously.
+
+    /// Creates a `StateSequence` from a variadic list of async closures.
     ///
-    /// Use this initializer when you want the first state change to be applied immediately—in
-    /// the same run loop iteration as the call to `observe(_:)` on ``AsyncStateContainer``—
-    /// rather than after a `Task` has been scheduled.
+    /// All closures are treated as asynchronous. When observed by an ``AsyncStateContainer``,
+    /// they execute sequentially inside a `Task`.
     ///
-    /// This avoids a one-frame rendering gap that can occur with the all-async initializer
-    /// (``init(_:)``): without a synchronous first state, SwiftUI may render one frame of the
-    /// previous state before the first async closure executes, which can cause a brief visual
-    /// flash or flicker when your view first appears.
-    ///
-    /// ## When to use this initializer
-    ///
-    /// Prefer `init(first:rest:)` when:
-    /// - Your action immediately transitions to a transient state (e.g. `.loading`) before
-    ///   performing async work.
-    /// - A one-frame flash of the prior state would be visible or disruptive to the user.
+    /// - Parameter states: One or more async closures, each producing the next state value.
     ///
     /// ## Example
     ///
     /// ```swift
-    /// func load() -> StateSequence<ExampleViewState> {
-    ///     StateSequence(
-    ///         first: .loading,
-    ///         rest: { await self.fetchItems() }
-    ///     )
-    /// }
-    /// ```
-    ///
-    /// Here, `.loading` is set synchronously before any `Task` is created, so the very first
-    /// frame the view renders will already show the loading indicator. The `fetchItems()` call
-    /// then runs asynchronously and emits the final state when complete.
-    ///
-    /// - Parameters:
-    ///   - first: The first state value, applied synchronously before any async work begins.
-    ///   - rest: Zero or more async closures that produce subsequent states in order.
-    public init(first: State, rest: @Sendable () async -> State...) {
-        self.synchronousFirst = first
-        self.remainingClosures = rest
-        self.iterator = rest.makeIterator()
-    }
-    
-    /// Creates a `StateSequence` where all closures are async.
-    ///
-    /// Each closure is executed in order, and the resulting state is applied to the container
-    /// as each closure completes. Because all closures are async, the first state change
-    /// occurs after a `Task` has been scheduled, which means SwiftUI may render one frame of
-    /// the previous state before the first closure executes.
-    ///
-    /// If this causes a visible flash or flicker when your view first appears, use
-    /// ``init(first:rest:)`` instead to apply the first state synchronously.
-    ///
-    /// ## Example
-    ///
-    /// ```swift
-    /// func load() -> StateSequence<ExampleViewState> {
+    /// func load() -> StateSequence<MyViewState> {
     ///     StateSequence(
     ///         { .loading },
-    ///         { await self.fetchItems() }
+    ///         { await fetchData() }
     ///     )
     /// }
     /// ```
-    ///
-    /// - Parameter states: One or more async closures that produce states in order.
     public init(_ states: @Sendable () async -> State...) {
-        self.synchronousFirst = nil
-        self.remainingClosures = states
-        self.iterator = states.makeIterator()
-    }
-    
-    mutating public func next() async -> State? {
-        guard !Task.isCancelled else { return nil }
-        return await iterator.next()?()
+        self.synchronousStateActions = []
+        self.states = states
+        syncIterator = self.synchronousStateActions.makeIterator()
+        iterator = states.makeIterator()
     }
 
+    /// Creates a `StateSequence` with separate synchronous and asynchronous state actions.
+    ///
+    /// This initializer is used internally by ``StateSequenceBuilder/buildFinalResult(_:)``
+    /// to construct sequences that have synchronous first states. You typically won't call
+    /// this directly—use `@StateSequenceBuilder` or the variadic ``init(_:)`` instead.
+    ///
+    /// - Parameters:
+    ///   - synchronousStates: Closures that produce state values synchronously. Applied inline
+    ///     by the ``AsyncStateContainer`` before any `Task` is created.
+    ///   - states: Closures that produce state values asynchronously. Executed sequentially
+    ///     inside a `Task`.
+    public init(synchronousStates: [@Sendable () -> State], states: [@Sendable () async -> State]) {
+        self.synchronousStateActions = synchronousStates
+        self.states = states
+        syncIterator = synchronousStates.makeIterator()
+        iterator = states.makeIterator()
+    }
+
+    /// Returns the next state in the sequence, or `nil` if the sequence is exhausted or cancelled.
+    ///
+    /// This method first yields any synchronous states, then executes async closures
+    /// sequentially and returns their results. If the current `Task` has been cancelled,
+    /// returns `nil` immediately without executing the closure.
+    mutating public func next() async throws -> State? {
+        guard !Task.isCancelled else { return nil }
+        if let syncAction = syncIterator.next() {
+            return syncAction()
+        }
+        return await iterator.next()?()
+    }
+    
     public func makeAsyncIterator() -> Self { self }
+}
+
+/// Allows creating a ``StateSequence`` using array-literal syntax.
+///
+/// This conformance lets you return an array of async closures directly from a function
+/// that returns ``StateSequence``, without needing the ``StateSequenceBuilder`` DSL or
+/// calling an initializer explicitly.
+///
+/// > Important: All closures in an array literal are treated as **asynchronous**, even if the
+/// > closure body is synchronous. This means the first state is applied inside a `Task`, not
+/// > inline on the current call stack. If you need the first state applied synchronously
+/// > (e.g., to avoid a one-frame flash on initial `onAppear`), use the ``StateSequenceBuilder``
+/// > instead.
+///
+/// ## Basic usage
+///
+/// Return an array of closures that each produce the next state:
+///
+/// ```swift
+/// func load() -> StateSequence<MyViewState> {
+///     [
+///         { .loading },
+///         { await fetchData() }
+///     ]
+/// }
+/// ```
+///
+/// ## Mixing synchronous and async closures
+///
+/// You can freely mix closures that do synchronous work with closures that `await`.
+/// All closures execute in declared order:
+///
+/// ```swift
+/// func load() -> StateSequence<MyViewState> {
+///     [
+///         { .loading },
+///         { await fetchBasicData() },
+///         { .loaded(.init(count: 2)) },
+///         { await fetchDetailedData() },
+///     ]
+/// }
+/// ```
+///
+/// ## Shared reload actions via protocols
+///
+/// Array-literal syntax works well for protocol extensions that share actions across
+/// multiple state models:
+///
+/// ```swift
+/// protocol CartReloadable: Sendable {
+///     var dependencies: CartLoadedModel.Dependencies { get }
+/// }
+///
+/// extension CartReloadable {
+///     func reloadCart() -> StateSequence<CartViewState> {
+///         [
+///             { .loading },
+///             { await getCartProducts() }
+///         ]
+///     }
+/// }
+/// ```
+extension StateSequence: ExpressibleByArrayLiteral {
+    public init(arrayLiteral elements: @Sendable () async -> State...) {
+        self.init(synchronousStates: [], states: elements)
+    }
 }

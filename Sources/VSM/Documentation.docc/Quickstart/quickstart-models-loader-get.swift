@@ -2,11 +2,10 @@ struct LoaderModel: LoaderModeling {
     let repository: BlogEntryProviding
     let entryId: Int
     
+    @StateSequenceBuilder
     func loadEntry() -> StateSequence<BlogEntryViewState> {
-        StateSequence(
-            first: .loading(errorModel: nil),
-            rest: { await self.fetchEntry() }
-        )
+        BlogEntryViewState.loading(errorModel: nil)
+        Next { await self.fetchEntry() }
     }
     
     @concurrent

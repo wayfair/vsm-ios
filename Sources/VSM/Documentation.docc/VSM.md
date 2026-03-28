@@ -45,4 +45,9 @@ This package provides helpful types for implementing VSM, such as the ``ViewStat
 
 - ``AsyncStateContainer``
 - ``StateSequence``
+- ``StateSequenceBuilder``
+- ``First``
+- ``Next``
+- ``SyncStateProviding``
+- ``AsyncStateProviding``
 - ``MutatingCopyable``

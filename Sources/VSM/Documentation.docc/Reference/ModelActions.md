@@ -14,23 +14,21 @@ All action types follow the same **never-throw** design: errors must be caught w
 func load() -> StateSequence<UserViewState>
 ```
 
-This is the most common action shape in VSM. ``StateSequence`` supports two initializer styles:
+This is the most common action shape in VSM. ``StateSequence`` supports three creation styles:
 
-- `StateSequence(first:rest:)`: apply the first state synchronously, then run one or more async closures in order
-- `StateSequence(_:)`: run all closures asynchronously
+- **`@StateSequenceBuilder` (recommended)**: A result-builder DSL that lets you list synchronous states and ``Next`` closures declaratively. Plain state values placed before any `Next { ... }` are applied **synchronously** by the container, avoiding a one-frame flash.
+- **Array-literal syntax**: Return an array of async closures. All closures are treated as asynchronous.
+- **Variadic initializer** (`StateSequence({ ... }, { ... })`): Pass async closures directly. All closures are treated as asynchronous.
 
-Use `StateSequence(first:rest:)` for initial load flows (typically called from `onAppear`/`viewDidAppear`) so the first frame already reflects the transition state (for example, `.loading`).
+Use `@StateSequenceBuilder` for initial load flows (typically called from `onAppear`/`viewDidAppear`) so the first frame already reflects the transition state (for example, `.loading`).
 
-Use `StateSequence(_:)` for user-initiated actions on already-visible views (for example, button taps), where a one-tick async delay before the first state is usually imperceptible.
-
-The `rest` parameter in `StateSequence(first:rest:)` is variadic, so you can emit multiple async states after the synchronous first state when needed.
+Use the array-literal or variadic forms for user-initiated actions on already-visible views (for example, button taps), where a one-tick async delay before the first state is usually imperceptible.
 
 ```swift
+@StateSequenceBuilder
 func load() -> StateSequence<UserViewState> {
-    StateSequence(
-        first: .loading,
-        rest: { await self.fetchUser() }
-    )
+    UserViewState.loading                  // applied synchronously
+    Next { await self.fetchUser() }        // applied after async work completes
 }
 
 @concurrent
@@ -46,14 +44,14 @@ private func fetchUser() async -> UserViewState {
 
 Errors from async work must be caught and returned as an appropriate error state.
 
-If you prefer the all-async style for user-initiated actions, this is also valid:
+If you prefer the all-async style for user-initiated actions, the array-literal or variadic forms work well:
 
 ```swift
 func refresh() -> StateSequence<UserViewState> {
-    StateSequence(
+    [
         { .loading },
         { await self.fetchUser() }
-    )
+    ]
 }
 ```
 
@@ -120,7 +118,7 @@ func checkout() -> AsyncStream<CheckoutViewState>
 
 Use `AsyncStream` when you need full control over how and when states are emitted throughout a complex, multi-step async operation. Unlike ``StateSequence``, `AsyncStream` lets you yield states at any point within a single async closure.
 
-Because `AsyncStream` is fully asynchronous, the first emitted state is not applied synchronously. If you need a guaranteed synchronous first state transition, use `StateSequence(first:rest:)`.
+Because `AsyncStream` is fully asynchronous, the first emitted state is not applied synchronously. If you need a guaranteed synchronous first state transition, use `@StateSequenceBuilder` with plain state values before any `Next` expressions.
 
 ```swift
 func checkout() -> AsyncStream<CheckoutViewState> {
@@ -154,7 +152,7 @@ func streamUpdates() -> some AsyncSequence<UserViewState, Never>
 
 Available on iOS 18+, this overload accepts any `AsyncSequence` whose element type is `State` and failure type is `Never`. This is useful when your data layer vends a custom `AsyncSequence` type that you want to observe directly.
 
-As with `AsyncStream`, generic `AsyncSequence` observation is fully asynchronous. If you need a guaranteed synchronous first state transition, use `StateSequence(first:rest:)`.
+As with `AsyncStream`, generic `AsyncSequence` observation is fully asynchronous. If you need a guaranteed synchronous first state transition, use `@StateSequenceBuilder` with plain state values before any `Next` expressions.
 
 ```swift
 func streamUpdates() -> AsyncStream<UserViewState> {

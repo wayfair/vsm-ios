@@ -2,9 +2,8 @@ struct LoaderModel: LoaderModeling {
     let repository: BlogEntryProviding
     let entryId: Int
     
+    @StateSequenceBuilder
     func loadEntry() -> StateSequence<BlogEntryViewState> {
-        StateSequence(
-            first: .loading(errorModel: nil)
-        )
+        BlogEntryViewState.loading(errorModel: nil)
     }
 }

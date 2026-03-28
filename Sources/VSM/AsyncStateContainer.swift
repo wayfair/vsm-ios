@@ -465,33 +465,34 @@ public extension AsyncStateContainer {
     ///
     /// ## First-state timing: synchronous vs. asynchronous
     ///
-    /// The behavior of the first state change depends on which ``StateSequence`` initializer
-    /// was used:
+    /// The behavior of the first state change depends on how the ``StateSequence`` was created:
     ///
-    /// - **``StateSequence/init(first:rest:)``** — The first state is applied *synchronously*,
-    ///   in the same run loop iteration as the call to this method, before a `Task` is created.
-    ///   This guarantees that the very first frame SwiftUI renders will already reflect the new
-    ///   state, avoiding a one-frame flash of the prior state. Use this form for actions that
-    ///   immediately transition to a transient state (e.g. `.loading`) before performing async
-    ///   work—especially for your view's initial `onAppear` observation.
+    /// - **`@StateSequenceBuilder` with a plain `State` value before `Next`** — The first
+    ///   plain `State` value is applied *synchronously*, in the same run-loop iteration as the
+    ///   call to this method, before a `Task` is created. Any subsequent states produced by
+    ///   `Next { ... }` expressions (or plain values that appear *after* a `Next`) are applied
+    ///   asynchronously inside a `Task`. This means only the leading plain-value states are
+    ///   synchronous; once async work begins, the rest of the sequence is async. Use this form
+    ///   when you need the first state (e.g. `.loading`) to appear on the very first frame
+    ///   SwiftUI renders—especially for your view's initial `onAppear` observation.
     ///
-    /// - **``StateSequence/init(_:)``** — All closures are async. The first state change happens
-    ///   after a `Task` has been scheduled, meaning SwiftUI may render one frame of the previous
-    ///   state before the first closure executes. This is generally fine for user-initiated
-    ///   actions that occur after the view is already visible, where a brief delay is imperceptible.
+    /// - **Array literal or variadic ``StateSequence/init(_:)``** — All closures are async,
+    ///   including the first one. The first state change happens after a `Task` has been
+    ///   scheduled, meaning SwiftUI may render one frame of the previous state before the
+    ///   first closure executes. This is generally fine for user-initiated actions that occur
+    ///   after the view is already visible, where a brief delay is imperceptible.
     ///
-    /// ## Choosing the right initializer
+    /// ## Choosing the right creation style
     ///
     /// For your view's first observation—typically called from `onAppear`—prefer
-    /// ``StateSequence/init(first:rest:)`` to ensure the transition state appears immediately:
+    /// `@StateSequenceBuilder` to ensure the transition state appears immediately:
     ///
     /// ```swift
     /// // Recommended for onAppear: first state is applied synchronously
+    /// @StateSequenceBuilder
     /// func load() -> StateSequence<ExampleViewState> {
-    ///     StateSequence(
-    ///         first: .loading,
-    ///         rest: { await self.fetchItems() }
-    ///     )
+    ///     ExampleViewState.loading
+    ///     Next { await self.fetchItems() }
     /// }
     /// ```
     ///
@@ -500,10 +501,10 @@ public extension AsyncStateContainer {
     /// ```swift
     /// // Fine for button taps or other user actions
     /// func refresh() -> StateSequence<ExampleViewState> {
-    ///     StateSequence(
+    ///     [
     ///         { .loading },
     ///         { await self.fetchItems() }
-    ///     )
+    ///     ]
     /// }
     /// ```
     ///
@@ -513,11 +514,10 @@ public extension AsyncStateContainer {
     /// struct InitializedViewStateModel: Sendable {
     ///     private let repository: ItemRepository
     ///
+    ///     @StateSequenceBuilder
     ///     func load() -> StateSequence<ExampleViewState> {
-    ///         StateSequence(
-    ///             first: .loading,
-    ///             rest: { await self.fetchItems() }
-    ///         )
+    ///         ExampleViewState.loading
+    ///         Next { await self.fetchItems() }
     ///     }
     ///
     ///     @concurrent
@@ -568,23 +568,25 @@ public extension AsyncStateContainer {
         let postName: StaticString = "Sequence"
         let sequenceState = signposter.beginInterval(postName, id: sequenceID, "State Sequence")
         
-        // If the first closure is synchronous, apply it inline on the current call stack
-        // so the state is updated in the same run loop iteration as the call to observe().
-        if let syncFirst = stateSequence.synchronousFirst {
-            performStateChange(syncFirst)
+        // Apply all synchronous state actions inline on the current call stack
+        // so they are applied in the same run loop iteration as the call to observe().
+        for syncAction in stateSequence.synchronousStateActions {
+            let syncState = syncAction()
+            performStateChange(syncState)
             let eventName: StaticString = "StateSequence Changed State"
-            signposter.emitEvent(eventName, id: sequenceID, "State changed to \(String(describing: syncFirst))")
-            
-            // If there are no remaining async closures, the sequence is complete.
-            guard !stateSequence.remainingClosures.isEmpty else {
-                if loggingEnabled {
-                    os_log(.debug, log: logger, "StateSequence completed after 1 state changes")
-                }
-                let endEventName: StaticString = "State Sequence Ended"
-                signposter.emitEvent(endEventName, id: sequenceID, "Ended after 1 iterations")
-                signposter.endInterval(postName, sequenceState)
-                return
+            signposter.emitEvent(eventName, id: sequenceID, "State changed to \(String(describing: syncState))")
+        }
+        
+        // If there are no async closures, the sequence is complete.
+        guard !stateSequence.states.isEmpty else {
+            let syncCount = stateSequence.synchronousStateActions.count
+            if loggingEnabled {
+                os_log(.debug, log: logger, "StateSequence completed after %d state changes", syncCount)
             }
+            let endEventName: StaticString = "State Sequence Ended"
+            signposter.emitEvent(endEventName, id: sequenceID, "Ended after \(syncCount) iterations")
+            signposter.endInterval(postName, sequenceState)
+            return
         }
         
         stateTask = Task { @MainActor [weak self, signposter] in
@@ -594,10 +596,10 @@ public extension AsyncStateContainer {
             }
             defer { signposter.endInterval(postName, sequenceState) }
             
-            // Iterate only the remaining async closures (the synchronous first, if any,
-            // was already applied inline above before this Task was created).
-            var iterationCount = stateSequence.synchronousFirst != nil ? 2 : 1
-            var remainingIterator = stateSequence.remainingClosures.makeIterator()
+            // Iterate only the async closures (all synchronous actions, if any,
+            // were already applied inline above before this Task was created).
+            var iterationCount = stateSequence.synchronousStateActions.count + 1
+            var remainingIterator = stateSequence.states.makeIterator()
             
             while !Task.isCancelled {
                 guard let nextClosure = remainingIterator.next() else {
@@ -648,8 +650,8 @@ public extension AsyncStateContainer {
     /// after a `Task` has been scheduled. SwiftUI may render one frame of the previous state
     /// before the first value is consumed. For most user-initiated actions on an already-visible
     /// view this is imperceptible, but if you need the first state change to happen synchronously
-    /// (e.g. on your view's initial `onAppear`), use `observe(_:)` with
-    /// ``StateSequence/init(first:rest:)`` instead.
+    /// (e.g. on your view's initial `onAppear`), use `observe(_:)` with a ``StateSequence``
+    /// built via ``StateSequenceBuilder`` instead.
     ///
     /// - Parameter stream: An `AsyncStream<State>` that emits state values. `AsyncStream` is
     ///                     non-throwing by design, ensuring reliable state transitions.
@@ -801,8 +803,8 @@ public extension AsyncStateContainer {
     /// after a `Task` has been scheduled, so SwiftUI may render one frame of the previous state
     /// before the first value is consumed. For most user-initiated actions on an already-visible
     /// view this is imperceptible, but if you need the first state change to happen synchronously
-    /// (e.g. on your view's initial `onAppear`), use `observe(_:)` with
-    /// ``StateSequence/init(first:rest:)`` instead.
+    /// (e.g. on your view's initial `onAppear`), use `observe(_:)` with a ``StateSequence``
+    /// built via ``StateSequenceBuilder`` instead.
     ///
     /// ## Example
     ///

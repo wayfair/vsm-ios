@@ -44,11 +44,10 @@ extension LoadUserProfileViewState {
         let dependencies: UserDataProvidingDependency
         let userId: Int
         
+        @StateSequenceBuilder
         func load() -> StateSequence<LoadUserProfileViewState> {
-            StateSequence(
-                first: .loading,
-                rest: { await fetchUser() }
-            )
+            LoadUserProfileViewState.loading
+            Next { await fetchUser() }
         }
         
         @concurrent
@@ -99,11 +98,10 @@ extension LoadUserProfileViewState {
         let dependencies: UserDataProvidingDependency
         let userId: Int
         
+        @StateSequenceBuilder
         func load() -> StateSequence<LoadUserProfileViewState> {
-            StateSequence(
-                first: .loading,
-                rest: { await fetchUser() }
-            )
+            LoadUserProfileViewState.loading
+            Next { await fetchUser() }
         }
         
         @concurrent
@@ -176,11 +174,10 @@ extension LoadUserProfileViewState {
         let dependencies: UserDataProvidingDependency
         let userId: Int
 
+        @StateSequenceBuilder
         func load() -> StateSequence<LoadUserProfileViewState> {
-            StateSequence(
-                first: .loading,
-                rest: { await fetchUser() }
-            )
+            LoadUserProfileViewState.loading
+            Next { await fetchUser() }
         }
 
         @concurrent
@@ -225,11 +222,10 @@ extension LoadUserProfileViewState {
     struct LoaderModel: Sendable {
         let userId: Int
 
+        @StateSequenceBuilder
         func load(dependencies: any UserDataProvidingDependency) -> StateSequence<LoadUserProfileViewState> {
-            StateSequence(
-                first: .loading,
-                rest: { await fetchUser(dependencies: dependencies) }  // dependencies must be threaded through
-            )
+            LoadUserProfileViewState.loading
+            Next { await fetchUser(dependencies: dependencies) }  // dependencies must be threaded through
         }
 
         @concurrent
@@ -273,11 +269,10 @@ protocol UserProfileRefreshable: Sendable {
 }
 
 extension UserProfileRefreshable {
+    @StateSequenceBuilder
     func refresh() -> StateSequence<LoadUserProfileViewState> {
-        StateSequence(
-            first: .loading,
-            rest: { await fetchUser() }
-        )
+        LoadUserProfileViewState.loading
+        Next { await fetchUser() }
     }
     
     @concurrent

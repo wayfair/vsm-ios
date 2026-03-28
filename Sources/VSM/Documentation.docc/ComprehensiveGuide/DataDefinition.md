@@ -56,11 +56,10 @@ struct LoaderModel: Sendable {
     typealias Dependencies = UserDataStoreDependency
     let dependencies: Dependencies
 
+    @StateSequenceBuilder
     func loadUserData() -> StateSequence<UserBioViewState> {
-        StateSequence(
-            first: .loading,
-            rest: { await fetchUserData() }
-        )
+        UserBioViewState.loading
+        Next { await fetchUserData() }
     }
     
     @concurrent
@@ -180,19 +179,20 @@ StateSequence is easier to implement and reason about than AsyncStream. If you c
 
 ### How StateSequence Works
 
+The recommended way to create a `StateSequence` is with `@StateSequenceBuilder`. Plain state values listed before any `Next` expression are applied **synchronously** by the container, and `Next` closures run asynchronously:
+
 ```swift
+@StateSequenceBuilder
 func loadUserData() -> StateSequence<UserBioViewState> {
-    StateSequence(
-        first: .loading,                   // Synchronous first state
-        rest: { await fetchUserData() }    // One or more async states after first
-    )
+    UserBioViewState.loading               // Synchronous first state
+    Next { await fetchUserData() }         // Async state after first
 }
 ```
 
 The sequence executes in order:
 
-1. The `first` value is applied synchronously, returning `.loading`
-2. One or more `rest` closures execute asynchronously in order, each returning the next state
+1. Plain state values before any `Next` are applied synchronously, setting the state to `.loading`
+2. `Next` closures execute asynchronously in order, each returning the next state
 
 This pattern is perfect for "optimistic UI updates" where the loading state appears in the first frame, then updates with results once the async work completes.
 
@@ -290,11 +290,10 @@ protocol CartReloadable: Sendable {
 }
 
 extension CartReloadable {
+    @StateSequenceBuilder
     func reloadCart() -> StateSequence<CartViewState> {
-        StateSequence(
-            first: .loading,
-            rest: { await getCartProducts() }
-        )
+        CartViewState.loading
+        Next { await getCartProducts() }
     }
     
     @concurrent
@@ -597,11 +596,10 @@ struct ProductsLoaderModel: Sendable {
     typealias Dependencies = ProductStoreDependency
     let dependencies: Dependencies
     
+    @StateSequenceBuilder
     func loadProducts() -> StateSequence<ProductsViewState> {
-        StateSequence(
-            first: .loading,
-            rest: { await fetchProducts() }
-        )
+        ProductsViewState.loading
+        Next { await fetchProducts() }
     }
 }
 
@@ -876,7 +874,7 @@ Button("Load Data") {
 }
 ```
 
-With `observe`, your state transitions to `.loading` as your action emits it, updating your UI to show a progress view or skeleton screen. For initial-load flows that must show loading in the first frame, prefer `StateSequence(first:rest:)`. With `refresh`, the Pull to Refresh control handles that UX automatically.
+With `observe`, your state transitions to `.loading` as your action emits it, updating your UI to show a progress view or skeleton screen. For initial-load flows that must show loading in the first frame, prefer `@StateSequenceBuilder` with plain state values before any `Next` expressions. With `refresh`, the Pull to Refresh control handles that UX automatically.
 
 ## Legacy Combine Support
 
@@ -913,11 +911,10 @@ However, we recommend using async/await for new code:
 ### Loading → Loaded/Error Flow
 
 ```swift
+@StateSequenceBuilder
 func loadData() -> StateSequence<ViewState> {
-    StateSequence(
-        first: .loading,
-        rest: { await fetchData() }
-    )
+    ViewState.loading
+    Next { await fetchData() }
 }
 
 @concurrent

@@ -123,7 +123,7 @@ VSM 2.0 models can return different types of values depending on the action. Her
 
 ### Testing StateSequence Actions
 
-Most async actions in VSM return a `StateSequence`, which emits multiple states over time. Use `for await` to collect and verify these states:
+Most async actions in VSM return a `StateSequence`, which emits multiple states over time. A `StateSequence` may contain both **synchronous** and **asynchronous** states (especially when built with `@StateSequenceBuilder`). Synchronous states are stored in `synchronousStateActions` and are not yielded by the `AsyncIteratorProtocol` — they are applied inline by the container. When unit testing, you should verify both:
 
 ```swift
 @Test("ProductsLoaderModel loads products successfully")
@@ -133,27 +133,33 @@ func testLoadSuccess() async throws {
     )
     let subject = ProductsLoaderModel(repository: mockRepository)
     
-    var states: [ProductsViewState] = []
-    var iterator = subject.loadProducts().makeAsyncIterator()
+    let stateSequence = subject.loadProducts()
     
-    // Collect exactly 2 states from the sequence
-    while let state = await iterator.next(), states.count < 2 {
-        states.append(state)
-    }
-    
-    #expect(states.count == 2, "Expected 2 states but got \(states.count)")
-    
-    guard case .loading = states[0] else {
-        Issue.record("Expected first state of .loading, but got: \(states)")
+    // Verify synchronous states (applied inline by the container)
+    let syncStates = stateSequence.synchronousStateActions.map { $0() }
+    #expect(syncStates.count == 1, "Expected 1 synchronous state")
+    guard case .loading = syncStates.first else {
+        Issue.record("Expected synchronous state of .loading")
         return
     }
     
-    guard case .loaded = states[1] else {
-        Issue.record("Expected second state of .loaded, but got: \(states)")
+    // Verify asynchronous states (applied inside a Task by the container)
+    var asyncStates: [ProductsViewState] = []
+    var iterator = stateSequence.makeAsyncIterator()
+    while let state = try await iterator.next() {
+        asyncStates.append(state)
+    }
+    
+    #expect(asyncStates.count == 1, "Expected 1 async state but got \(asyncStates.count)")
+    
+    guard case .loaded = asyncStates[0] else {
+        Issue.record("Expected async state of .loaded, but got: \(asyncStates)")
         return
     }
 }
 ```
+
+> Note: If the action was built with the variadic initializer or array-literal syntax (where all closures are async), all states will be yielded by the async iterator and `synchronousStateActions` will be empty. The approach above works for both creation styles.
 
 ### Testing Error Handling
 

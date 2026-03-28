@@ -363,9 +363,9 @@ extension RenderedViewState.RenderedContainer {
     /// Each state value is applied to the container as it becomes available from the sequence.
     /// Any ongoing observation is cancelled before the new one begins.
     ///
-    /// The timing of the first state depends on which `StateSequence` initializer was used:
-    /// - `StateSequence(first:rest:)`: first state is applied synchronously
-    /// - `StateSequence(_:)`: first state is applied asynchronously after a `Task` is scheduled
+    /// The timing of the first state depends on how the `StateSequence` was created:
+    /// - `@StateSequenceBuilder` with plain `State` values before `Next`: first state is applied synchronously
+    /// - Array literal or variadic `StateSequence(_:)`: first state is applied asynchronously after a `Task` is scheduled
     ///
     /// - Parameter stateSequence: A `StateSequence` that produces a series of state values.
     ///
@@ -434,7 +434,7 @@ extension RenderedViewState.RenderedContainer {
     ///
     /// Because `AsyncStream` is fully asynchronous, the first state is not applied synchronously.
     /// For initial load flows that must show loading in the first frame, prefer
-    /// `observe(_ stateSequence:)` with `StateSequence(first:rest:)`.
+    /// `observe(_ stateSequence:)` with a `StateSequence` built via `@StateSequenceBuilder`.
     ///
     /// - Parameter stream: An `AsyncStream<State>` that emits state values.
     ///
@@ -503,7 +503,7 @@ extension RenderedViewState.RenderedContainer {
     ///
     /// Generic `AsyncSequence` observation is fully asynchronous, including the first element.
     /// For initial load flows that must show loading in the first frame, prefer
-    /// `observe(_ stateSequence:)` with `StateSequence(first:rest:)`.
+    /// `observe(_ stateSequence:)` with a `StateSequence` built via `@StateSequenceBuilder`.
     ///
     /// - Parameter sequence: Any `AsyncSequence` that emits `State` values with `Failure` type of `Never`.
     @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, macCatalyst 18.0, *)

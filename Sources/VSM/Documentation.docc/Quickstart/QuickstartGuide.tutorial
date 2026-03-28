@@ -224,7 +224,7 @@
             }
             
             @Step {
-                Begin implementing the `loadEntry()` function by returning a `StateSequence` using `first:rest:` so the first state synchronously emits the "loading" state.
+                Begin implementing the `loadEntry()` function by returning a `StateSequence` using `@StateSequenceBuilder` so the first state synchronously emits the "loading" state.
                 
                 This is the view state that the user will see while the blog entry is loading from the data store.
                 
@@ -232,7 +232,7 @@
             }
             
             @Step {
-                Add a `rest` closure to the `StateSequence` that calls a private `fetchEntry()` function, and mark it `@concurrent` so it runs off the main thread. This async closure produces the next state after the initial synchronous "loading" state.
+                Add a `Next` expression to the `StateSequence` that calls a private `fetchEntry()` function, and mark it `@concurrent` so it runs off the main thread. This async closure produces the next state after the initial synchronous "loading" state.
                 
                 @Code(name: "LoaderModel.swift", file: quickstart-models-loader-get)
             }

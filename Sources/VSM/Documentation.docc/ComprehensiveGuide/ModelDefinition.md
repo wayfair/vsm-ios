@@ -49,17 +49,16 @@ struct LoaderModel {
 }
 ```
 
-To implement the model in a readable way, we'll define the `load()` function to orchestrate the load work by returning the appropriate view states as the data loads. The `load()` function returns a `StateSequence` that applies `.loading` synchronously first, then calls `fetchUser()` which performs the data request asynchronously.
+To implement the model in a readable way, we'll define the `load()` function to orchestrate the load work by returning the appropriate view states as the data loads. The `load()` function returns a `StateSequence` that applies `.loading` synchronously first, then calls `fetchUser()` which performs the data request asynchronously. We use the ``StateSequenceBuilder`` DSL to declare this sequence — plain state values listed before any `Next` expression are applied synchronously, ensuring the loading indicator is visible on the very first frame.
 
 ```swift
 struct LoaderModel {
     let userId: Int
 
+    @StateSequenceBuilder
     func load() -> StateSequence<LoadUserProfileViewState> {
-        StateSequence(
-            first: .loading,
-            rest: { await fetchUser() }
-        )
+        LoadUserProfileViewState.loading
+        Next { await fetchUser() }
     }
 }
 ```
@@ -72,11 +71,10 @@ Upon completion of the request, the function returns the `.loaded` view state co
 struct LoaderModel {
     let userId: Int
 
+    @StateSequenceBuilder
     func load() -> StateSequence<LoadUserProfileViewState> {
-        StateSequence(
-            first: .loading,
-            rest: { await fetchUser() }
-        )
+        LoadUserProfileViewState.loading
+        Next { await fetchUser() }
     }
 
     @concurrent
@@ -117,11 +115,10 @@ Our final Load Profile model looks like this:
 struct LoaderModel {
     let userId: Int
 
+    @StateSequenceBuilder
     func load() -> StateSequence<LoadUserProfileViewState> {
-        StateSequence(
-            first: .loading,
-            rest: { await fetchUser() }
-        )
+        LoadUserProfileViewState.loading
+        Next { await fetchUser() }
     }
 
     @concurrent
@@ -206,19 +203,18 @@ After we have a good idea of how the states and data should flow, we can begin i
 struct EditingModel {
     let userData: UserData
 
+    @StateSequenceBuilder
     func save(username: String) -> StateSequence<EditUserProfileViewState> {
-        StateSequence(
-            first: EditUserProfileViewState(
-                data: userData,
-                editingState: .saving
-            ),
-            rest: { await performSave(username: username) }
+        EditUserProfileViewState(
+            data: userData,
+            editingState: .saving
         )
+        Next { await performSave(username: username) }
     }
 }
 ```
 
-Similar to the load action from the Load Profile model, we apply a new `.saving` state synchronously while the save operation is processing. Notice how we recreate the view state struct as the `first` value to do so.
+Similar to the load action from the Load Profile model, we apply a new `.saving` state synchronously while the save operation is processing. Using `@StateSequenceBuilder`, the plain state value placed before the `Next` expression is applied synchronously by the container.
 
 Next, we'll implement the `performSave()` function by using the `UserDataRepository` to save the username to the data source. (We will cover proper dependency injection in <doc:DataDefinition>.)
 
@@ -272,14 +268,13 @@ The final editing view model becomes this:
 struct EditingModel {
     let userData: UserData
 
+    @StateSequenceBuilder
     func save(username: String) -> StateSequence<EditUserProfileViewState> {
-        StateSequence(
-            first: EditUserProfileViewState(
-                data: userData,
-                editingState: .saving
-            ),
-            rest: { await performSave(username: username) }
+        EditUserProfileViewState(
+            data: userData,
+            editingState: .saving
         )
+        Next { await performSave(username: username) }
     }
 
     @concurrent
