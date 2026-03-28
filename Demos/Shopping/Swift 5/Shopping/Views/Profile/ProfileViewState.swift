@@ -36,24 +36,26 @@ struct ProfileLoaderModel {
     let dependencies: Dependencies
     let error: String?
     
+    @StateSequenceBuilder
     func load() -> StateSequence<ProfileViewState> {
-        return StateSequence<ProfileViewState>(
-            { .loading },
-            {
-                do {
-                    let username = try await dependencies.profileRepository.loadUsername()
-                    return .loaded(ProfileLoadedModel(
-                        dependencies: dependencies,
-                        fetchedUsername: username
-                    ))
-                } catch {
-                    return .initialized(ProfileLoaderModel(
-                        dependencies: dependencies,
-                        error: error.localizedDescription
-                    ))
-                }
-            }
-        )
+        ProfileViewState.loading
+        Next { await fetchProfile() }
+    }
+    
+    @concurrent
+    private func fetchProfile() async -> ProfileViewState {
+        do {
+            let username = try await dependencies.profileRepository.loadUsername()
+            return ProfileViewState.loaded(ProfileLoadedModel(
+                dependencies: dependencies,
+                fetchedUsername: username
+            ))
+        } catch {
+            return ProfileViewState.initialized(ProfileLoaderModel(
+                dependencies: dependencies,
+                error: error.localizedDescription
+            ))
+        }
     }
 }
 
@@ -77,31 +79,30 @@ struct ProfileEditingModel: MutatingCopyable {
     var username: String
     var editingState: ProfileEditingState
     
+    @StateSequenceBuilder
     func save(username: String) -> StateSequence<ProfileViewState> {
-        guard username != self.username else {
-            return StateSequence({ ProfileViewState.editing(self) })
+        if username == self.username {
+            ProfileViewState.editing(self)
+        } else if username.isEmpty {
+            ProfileViewState.editing(self.copy(mutating: { $0.editingState = .error(Errors.emptyUsername) }))
+        } else {
+            ProfileViewState.editing(self.copy(mutating: { $0.editingState = .saving }))
+            Next { await saveProfile(username: username) }
         }
-        guard !username.isEmpty else {
-            return StateSequence({
-                ProfileViewState.editing(self.copy(mutating: { $0.editingState = .error(Errors.emptyUsername) }))
+    }
+    
+    @concurrent
+    private func saveProfile(username: String) async -> ProfileViewState {
+        do {
+            try await dependencies.profileRepository.save(username: username)
+            let updatedEditingState = self.copy(mutating: {
+                $0.editingState = .editing
+                $0.username = username
             })
+            return ProfileViewState.editing(updatedEditingState)
+        } catch {
+            return ProfileViewState.editing(self.copy(mutating: { $0.editingState = .error(error) }))
         }
-        return StateSequence<ProfileViewState>(
-            {
-                return .editing(self.copy(mutating: { $0.editingState = .saving }))
-            },
-            {
-                do {
-                    try await dependencies.profileRepository.save(username: username)
-                    return .editing(self.copy(mutating: {
-                        $0.editingState = .editing
-                        $0.username = username
-                    }))
-                } catch {
-                    return .editing(self.copy(mutating: { $0.editingState = .error(error) }))
-                }
-            }
-        )
     }
     
     enum Errors: Error {

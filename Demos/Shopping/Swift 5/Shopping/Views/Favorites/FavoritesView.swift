@@ -85,7 +85,7 @@ struct FavoritesView: View {
             Text("Oops!").font(.title)
             Text(errorModel.message)
             Button("Retry") {
-                $state.observe(errorModel.retry())
+                $state.observe { await errorModel.retry() }
             }
         }
     }
@@ -96,7 +96,7 @@ struct FavoritesView: View {
             VStack { }
                 .alert("Oops!", isPresented: $showErrorAlert) {
                     Button("Retry") {
-                        $state.observe(deletingErrorModel.retry())
+                        $state.observe { await deletingErrorModel.retry() }
                     }
                     Button("Cancel") {
                         $state.observe(deletingErrorModel.cancel())
@@ -109,7 +109,7 @@ struct FavoritesView: View {
                 .alert(isPresented: $showErrorAlert) {
                     Alert(title: Text("Oops!"),
                           message: Text(deletingErrorModel.message),
-                          primaryButton: .default(Text("Retry"), action: { $state.observe(deletingErrorModel.retry()) }),
+                          primaryButton: .default(Text("Retry"), action: { $state.observe { await deletingErrorModel.retry() } }),
                           secondaryButton: .default(Text("Cancel"), action: { $state.observe(deletingErrorModel.cancel()) }))
                 }
         }
@@ -157,7 +157,7 @@ struct FavoritesView_Previews: PreviewProvider {
         .previewDisplayName("loaded Some Data State")
         
         NavigationView {
-            FavoritesView(state: .loadingError(FavoritesViewErrorModel(message: "Loading Error!", retry: { .empty() })))
+            FavoritesView(state: .loadingError(FavoritesViewErrorModel(message: "Loading Error!", retry: { .loading })))
         }
         .previewDisplayName("loadingError State")
         
@@ -170,8 +170,8 @@ struct FavoritesView_Previews: PreviewProvider {
             FavoritesView(state: .deletingError(
                 FavoritesViewDeletingErrorModel(favorites: someFavorites,
                                                 message: "Deleting Error!",
-                                                retry: { .empty() },
-                                                cancel: { .empty() })
+                                                retry: { .loading },
+                                                cancel: { .loading })
             ))
         }
         .previewDisplayName("deletingError State")

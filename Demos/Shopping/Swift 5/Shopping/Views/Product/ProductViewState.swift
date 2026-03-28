@@ -25,11 +25,10 @@ struct ProductDetailLoaderModel {
     let dependencies: Dependencies
     let productId: Int
     
+    @StateSequenceBuilder
     func loadProductDetail() -> StateSequence<ProductViewState> {
-        StateSequence(
-            { .loading },
-            { await self.getProductDetail() }
-        )
+        ProductViewState.loading
+        Next { await self.getProductDetail() }
     }
     
     @concurrent

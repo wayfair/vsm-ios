@@ -23,7 +23,7 @@ struct ProductDetailViewStateTests {
         var iterator = subject.addToCart().makeAsyncIterator()
         
         // Collect exactly 3 states from the sequence
-        while let state = await iterator.next(), states.count < 3 {
+        while let state = try await iterator.next(), states.count < 3 {
             states.append(state)
         }
         
@@ -59,10 +59,10 @@ struct ProductDetailViewStateTests {
         
         // Collect first 2 states (addingToCart and error)
         // Note: StateSequence will have 3 states total, but we only check the error state
-        if let state1 = await iterator.next() {
+        if let state1 = try await iterator.next() {
             states.append(state1)
         }
-        if let state2 = await iterator.next() {
+        if let state2 = try await iterator.next() {
             states.append(state2)
         }
         

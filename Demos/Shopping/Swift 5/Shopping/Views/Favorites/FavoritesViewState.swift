@@ -7,6 +7,7 @@
 
 import Combine
 import Foundation
+import VSM
 
 // MARK: - State & Model Definitions
 
@@ -51,23 +52,25 @@ struct FavoritesLoaderModel: Equatable {
     let dependencies: Dependencies
     let modelBuilder: FavoritesViewModelBuilding
     
-    func loadFavorites() -> AnyPublisher<FavoritesViewState, Never> {
-        return dependencies.favoritesRepository.getFavoritesPublisher()
-            .map({ (favoritesDatabaseState) -> FavoritesViewState in
-                switch favoritesDatabaseState {
-                case .loading:
-                    return FavoritesViewState.loading
-                case .loaded(let favorites):
-                    return FavoritesViewState.loaded(modelBuilder.buildFavoritesViewLoadedModel(favorites: favorites))
-                case .error(let error):
-                    return FavoritesViewState.loadingError(
-                        FavoritesViewErrorModel(
-                            message: "Failed to load favorites: \(error)",
-                            retry: { loadFavorites() }
-                        )
-                    )
-                }
-            }).eraseToAnyPublisher()
+    @StateSequenceBuilder
+    func loadFavorites() -> StateSequence<FavoritesViewState> {
+        FavoritesViewState.loading
+        Next { await fetchFavorites() }
+    }
+    
+    @concurrent
+    private func fetchFavorites() async -> FavoritesViewState {
+        do {
+            let favorites = try await dependencies.favoritesRepository.getFavoritesPublisher().asyncFirstLoaded()
+            return .loaded(modelBuilder.buildFavoritesViewLoadedModel(favorites: favorites))
+        } catch {
+            return .loadingError(
+                FavoritesViewErrorModel(
+                    message: "Failed to load favorites: \(error)",
+                    retry: { await fetchFavorites() }
+                )
+            )
+        }
     }
 }
 
@@ -82,20 +85,28 @@ struct FavoritesViewLoadedModel: Equatable {
     let modelBuilder: FavoritesViewModelBuilding
     let favorites: [FavoritedProduct]
     
-    func delete(productId: Int) -> AnyPublisher<FavoritesViewState, Never> {
-        let statePublisher = Just(FavoritesViewState.deleting(favorites.filter({ $0.id != productId })))
-        let apiPublisher = dependencies.favoritesRepository.removeFavorite(productId: productId)
-            .flatMap({ modelBuilder.buildLoaderModel().loadFavorites() })
-            .catch({ error in Just(FavoritesViewState.deletingError(
+    @StateSequenceBuilder
+    func delete(productId: Int) -> StateSequence<FavoritesViewState> {
+        FavoritesViewState.deleting(favorites.filter({ $0.id != productId }))
+        Next { await performDelete(productId: productId) }
+    }
+    
+    @concurrent
+    private func performDelete(productId: Int) async -> FavoritesViewState {
+        do {
+            try await dependencies.favoritesRepository.removeFavorite(productId: productId).asyncAwait()
+            let favorites = try await dependencies.favoritesRepository.getFavoritesPublisher().asyncFirstLoaded()
+            return .loaded(modelBuilder.buildFavoritesViewLoadedModel(favorites: favorites))
+        } catch {
+            return .deletingError(
                 FavoritesViewDeletingErrorModel(
                     favorites: favorites,
                     message: "Failed to delete favorite: \(error)",
-                    retry: { delete(productId: productId) },
-                    cancel: { Just(FavoritesViewState.loaded(self)).eraseToAnyPublisher() })))
-            })
-        return statePublisher
-                    .merge(with: apiPublisher)
-                    .eraseToAnyPublisher()
+                    retry: { await performDelete(productId: productId) },
+                    cancel: { .loaded(self) }
+                )
+            )
+        }
     }
 }
 
@@ -105,7 +116,7 @@ struct FavoritesViewErrorModel: Equatable {
     }
     
     let message: String
-    let retry: () -> AnyPublisher<FavoritesViewState, Never>
+    let retry: () async -> FavoritesViewState
 }
 
 struct FavoritesViewDeletingErrorModel: Equatable {
@@ -115,8 +126,8 @@ struct FavoritesViewDeletingErrorModel: Equatable {
     
     let favorites: [FavoritedProduct]
     let message: String
-    let retry: () -> AnyPublisher<FavoritesViewState, Never>
-    let cancel: () -> AnyPublisher<FavoritesViewState, Never>
+    let retry: () async -> FavoritesViewState
+    let cancel: () -> FavoritesViewState
 }
 
 extension FavoritesViewState {

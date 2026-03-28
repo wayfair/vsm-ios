@@ -34,11 +34,10 @@ protocol CartReloadable {
 }
 
 extension CartReloadable {
+    @StateSequenceBuilder
     func reloadCart() -> StateSequence<CartViewState> {
-        StateSequence(
-            { .loading },
-            { await getCartProducts() }
-        )
+        CartViewState.loading
+        Next { await getCartProducts() }
     }
     
     @concurrent
@@ -65,11 +64,10 @@ struct CartLoaderModel {
     typealias Dependencies = CartRepositoryDependency & CartLoadedModel.Dependencies
     let dependencies: Dependencies
     
+    @StateSequenceBuilder
     func loadCart() -> StateSequence<CartViewState> {
-        StateSequence(
-            { .loading },
-            { await getCartProducts() }
-        )
+        CartViewState.loading
+        Next { await getCartProducts() }
     }
     
     func refreshCart() async -> CartViewState {
