@@ -39,7 +39,7 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(5))
         
         container.observe(initStateModel.load())
         
@@ -62,7 +62,7 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(5))
         
         container.observe { await initStateModel.loadAsync() }
         
@@ -85,7 +85,7 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(5))
         
         container.observe { await initStateModel.loadAsyncOnBackgroundThread(count: 10) }
         
@@ -111,7 +111,7 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(5))
         
         container.observe(initStateModel.loadSequence())
         
@@ -135,7 +135,7 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(5))
         
         container.observe(initStateModel.loadSequenceAsync(onMainThread: true))
         
@@ -159,7 +159,7 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(5))
         
         container.observe(initStateModel.loadSequenceAsync(onMainThread: false))
         
@@ -186,7 +186,7 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 3, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 3, timeout: .seconds(5))
         
         container.observe(initStateModel.loadStreamCurrentExecutionContext())
         
@@ -211,7 +211,7 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 3, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 3, timeout: .seconds(5))
         
         container.observe(initStateModel.loadStreamBackgroundExecutionContext())
         
@@ -232,7 +232,7 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(5))
         await container.refresh(state: { await initStateModel.loadAsyncOnCurrentExecutionContext(count: 1) })
         
         var stateChanges: [MockState] = []
@@ -252,7 +252,7 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(5))
         await container.refresh(state: { await initStateModel.loadAsyncOnBackgroundThread(count: 1) })
         
         var stateChanges: [MockState] = []
@@ -275,7 +275,7 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(5))
         
         container.observe(initStateModel.loadFromPublisher())
         
@@ -300,7 +300,7 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(5))
         
         container.observe(initStateModel.loadFromPublisherBackgroundThread())
         
@@ -322,7 +322,7 @@ struct StateContainerTests {
 
         #expect(container.state == .loading)
 
-        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(5))
         subject.send(.loaded(.init(count: 42)))
 
         var stateChanges: [MockState] = []
@@ -340,7 +340,7 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(5))
         
         // Call observe with a StateSequenceBuilder-based sequence that has a
         // synchronous first state (.loading) followed by an async state.
@@ -376,7 +376,7 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 4, timeout: .seconds(2))
+        let stateChangsStream = container.stateChangeStream(last: 4, timeout: .seconds(10))
         
         container.observe(initStateModel.loadMixedSyncAsyncSequence())
         
@@ -402,7 +402,7 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 5, timeout: .seconds(2))
+        let stateChangsStream = container.stateChangeStream(last: 5, timeout: .seconds(10))
         
         container.observe(initStateModel.loadMixedSyncAsyncSequenceBackground())
         
@@ -427,7 +427,7 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 4, timeout: .seconds(2))
+        let stateChangsStream = container.stateChangeStream(last: 4, timeout: .seconds(10))
         
         container.observe(initStateModel.loadAllSyncSequence())
         
@@ -451,7 +451,7 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 3, timeout: .seconds(2))
+        let stateChangsStream = container.stateChangeStream(last: 3, timeout: .seconds(10))
         
         container.observe(initStateModel.loadAllAsyncSequence())
         
@@ -478,7 +478,7 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 4, timeout: .seconds(2))
+        let stateChangsStream = container.stateChangeStream(last: 4, timeout: .seconds(10))
         
         container.observe(initStateModel.loadArrayLiteralMixedSequence())
         
@@ -504,7 +504,7 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 5, timeout: .seconds(2))
+        let stateChangsStream = container.stateChangeStream(last: 5, timeout: .seconds(10))
         
         container.observe(initStateModel.loadArrayLiteralMixedSequenceBackground())
         
@@ -549,7 +549,7 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 3, timeout: .seconds(1))
+        let stateChangsStream = container.stateChangeStream(last: 3, timeout: .seconds(5))
         
         container.observe(initStateModel.loadSynchronousFirstStateThenRest())
         

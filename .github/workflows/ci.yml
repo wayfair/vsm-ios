@@ -9,63 +9,76 @@ on: # Rebuild any PRs and main branch changes
 
 jobs:
   test-vsm:
-    runs-on: macos-26 # Apple Silicon (arm64), Xcode 26 default
+    runs-on: macos-26
     steps:
       - name: Prepare Xcode
         uses: maxim-lobanov/setup-xcode@v1 # https://github.com/marketplace/actions/setup-xcode-version
         with:
-          xcode-version: '26.2' # Pinned: default on macos-26 is 26.2; update as new stable releases land
+          # NOTE: Xcode 26.2 has a known bug where simulator test runners hang/fail
+          # (FB21363735). Pinned to 26.1 for simulator destinations until Apple fixes it.
+          xcode-version: '26.1'
 
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build and Test VSM on macOS (Apple Silicon)
-        uses: sersoft-gmbh/xcodebuild-action@v3 # https://github.com/marketplace/actions/xcodebuild-action
-        with:
-          spm-package: ./
-          scheme: VSM
-          destination: platform=macOS,arch=arm64
-          action: test
+      - name: Install xcbeautify
+        run: brew install xcbeautify
 
-      - name: Build and Test VSM on Mac Catalyst (Apple Silicon)
-        uses: sersoft-gmbh/xcodebuild-action@v3 # https://github.com/marketplace/actions/xcodebuild-action
-        with:
-          spm-package: ./
-          scheme: VSM
-          destination: platform=macOS,arch=arm64,variant=Mac Catalyst
-          action: test
+      - name: Build and Test VSM on macOS (Apple Silicon)
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -scheme VSM \
+            -destination "platform=macOS,arch=arm64" \
+            | xcbeautify
+
+      - name: Boot iOS Simulator
+        run: xcrun simctl bootstatus "iPhone 17" -b
 
       - name: Build and Test VSM on iOS
-        uses: sersoft-gmbh/xcodebuild-action@v3 # https://github.com/marketplace/actions/xcodebuild-action
-        with:
-          spm-package: ./
-          scheme: VSM
-          destination: platform=iOS Simulator,OS=26.2,name=iPhone 16
-          action: test
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -scheme VSM \
+            -destination "platform=iOS Simulator,OS=26.1,name=iPhone 17" \
+            -sdk iphonesimulator \
+            | xcbeautify
+
+      - name: Boot watchOS Simulator
+        run: xcrun simctl bootstatus "Apple Watch Series 11 (46mm)" -b
 
       - name: Build and Test VSM on watchOS
-        uses: sersoft-gmbh/xcodebuild-action@v3 # https://github.com/marketplace/actions/xcodebuild-action
-        with:
-          spm-package: ./
-          scheme: VSM
-          destination: platform=watchOS Simulator,OS=26.2,name=Apple Watch Series 10 (46mm)
-          action: test
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -scheme VSM \
+            -destination "platform=watchOS Simulator,OS=26.1,name=Apple Watch Series 11 (46mm)" \
+            -sdk watchsimulator \
+            | xcbeautify
+
+      - name: Boot tvOS Simulator
+        run: xcrun simctl bootstatus "Apple TV 4K (3rd generation) (at 1080p)" -b
 
       - name: Build and Test VSM on tvOS
-        uses: sersoft-gmbh/xcodebuild-action@v3 # https://github.com/marketplace/actions/xcodebuild-action
-        with:
-          spm-package: ./
-          scheme: VSM
-          destination: platform=tvOS Simulator,OS=26.2,name=Apple TV 4K (3rd generation) (at 1080p)
-          action: test
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -scheme VSM \
+            -destination "platform=tvOS Simulator,OS=26.1,name=Apple TV 4K (3rd generation) (at 1080p)" \
+            -sdk appletvsimulator \
+            | xcbeautify
+
+      - name: Boot visionOS Simulator
+        run: xcrun simctl bootstatus "Apple Vision Pro" -b
 
       - name: Build and Test VSM on visionOS
-        uses: sersoft-gmbh/xcodebuild-action@v3 # https://github.com/marketplace/actions/xcodebuild-action
-        with:
-          spm-package: ./
-          scheme: VSM
-          destination: platform=visionOS Simulator,OS=26.2,name=Apple Vision Pro
-          action: test
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -scheme VSM \
+            -destination "platform=visionOS Simulator,OS=26.1,name=Apple Vision Pro" \
+            -sdk xrsimulator \
+            | xcbeautify
 
   # The following jobs are disabled until further notice to unblock work
   # Xcode currently has UI test runtime issues since Xcode 14.3
@@ -75,36 +88,44 @@ jobs:
   #   runs-on: macos-26
   #   steps:
   #     - name: Prepare Xcode
-  #       uses: maxim-lobanov/setup-xcode@v1 # https://github.com/marketplace/actions/setup-xcode-version
+  #       uses: maxim-lobanov/setup-xcode@v1
   #       with:
-  #         xcode-version: '26.2'
+  #         xcode-version: '26.1'
 
   #     - name: Checkout
   #       uses: actions/checkout@v4
 
+  #     - name: Boot iOS Simulator
+  #       run: xcrun simctl bootstatus "iPhone 17" -b
+
   #     - name: Build and Test Demo App
-  #       uses: sersoft-gmbh/xcodebuild-action@v3 # https://github.com/marketplace/actions/xcodebuild-action
-  #       with:
-  #         project: ./Demos/Shopping/Shopping.xcodeproj
-  #         scheme: Shopping
-  #         destination: platform=iOS Simulator,OS=26.2,name=iPhone 16
-  #         action: test
+  #       run: |
+  #         set -o pipefail
+  #         xcodebuild test \
+  #           -project ./Demos/Shopping/Shopping.xcodeproj \
+  #           -scheme Shopping \
+  #           -destination "platform=iOS Simulator,OS=26.1,name=iPhone 17" \
+  #           | xcbeautify
 
   # test-uikit-demo-app:
   #   runs-on: macos-26
   #   steps:
   #     - name: Prepare Xcode
-  #       uses: maxim-lobanov/setup-xcode@v1 # https://github.com/marketplace/actions/setup-xcode-version
+  #       uses: maxim-lobanov/setup-xcode@v1
   #       with:
-  #         xcode-version: '26.2'
+  #         xcode-version: '26.1'
 
   #     - name: Checkout
   #       uses: actions/checkout@v4
 
+  #     - name: Boot iOS Simulator
+  #       run: xcrun simctl bootstatus "iPhone 17" -b
+
   #     - name: (UIKit) Build and Test Demo App
-  #       uses: sersoft-gmbh/xcodebuild-action@v3 # https://github.com/marketplace/actions/xcodebuild-action
-  #       with:
-  #         project: ./Demos/Shopping/Shopping.xcodeproj
-  #         scheme: Shopping - UIKit
-  #         destination: platform=iOS Simulator,OS=26.2,name=iPhone 16
-  #         action: test
+  #       run: |
+  #         set -o pipefail
+  #         xcodebuild test \
+  #           -project ./Demos/Shopping/Shopping.xcodeproj \
+  #           -scheme "Shopping - UIKit" \
+  #           -destination "platform=iOS Simulator,OS=26.1,name=iPhone 17" \
+  #           | xcbeautify
