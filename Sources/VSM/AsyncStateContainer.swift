@@ -186,8 +186,10 @@ public final class AsyncStateContainer<State: Sendable>: Sendable, StateObservin
     @ObservationIgnored
     private var publisherCancellable: AnyCancellable?
     
+    #if DEBUG
     @ObservationIgnored
     private var streamContinuation: AsyncStream<State>.Continuation?
+    #endif
     
     @ObservationIgnored
     private var numberOfWatchedStates: Int = 0
@@ -204,8 +206,10 @@ public final class AsyncStateContainer<State: Sendable>: Sendable, StateObservin
     @ObservationIgnored
     private let loggingEnabled: Bool
     
+    #if DEBUG
     @ObservationIgnored
     private var streamTimeoutTask: Task<Void, Never>?
+    #endif
     
     init(state: State, logger: OSLog, loggingEnabled: Bool = false) {
         self.state = state
@@ -217,7 +221,9 @@ public final class AsyncStateContainer<State: Sendable>: Sendable, StateObservin
     deinit {
         stateTask?.cancel()
         publisherCancellable?.cancel()
+        #if DEBUG
         streamTimeoutTask?.cancel()
+        #endif
         streamContinuation?.finish()
         streamContinuation = nil
     }
@@ -375,7 +381,7 @@ public extension AsyncStateContainer {
     ///
     /// This method is specifically designed to enable pull-to-refresh (PTR) functionality in
     /// VSM-managed SwiftUI views. SwiftUI's `refreshable` view modifier requires an async
-    /// closure that suspends until the refresh operation completes. By using `observe(waitingFor:)`,
+    /// closure that suspends until the refresh operation completes. By using `refresh(state:)`,
     /// the refresh indicator will remain visible until the state has been updated.
     ///
     /// The `refreshable` modifier can be applied to scrollable views like `List` and `ScrollView`,
@@ -1117,7 +1123,7 @@ private extension AsyncStateContainer {
 }
 
 // MARK: - Internal Testing Extension
-
+#if DEBUG
 internal extension AsyncStateContainer {
     /// Creates an `AsyncStream` that collects a specified number of state changes for unit testing.
     ///
@@ -1185,5 +1191,6 @@ internal extension AsyncStateContainer {
         return stateChangeStream.stream
     }
 }
+#endif
 
 #endif

@@ -38,8 +38,8 @@ package protocol StateObserving<State> {
     
     /// Observes and updates the state using an asynchronous closure.
     ///
-    /// Executes the provided closure asynchronously to produce the next state. The closure can run
-    /// on any thread, but the resulting state change is guaranteed to occur on the main thread.
+    /// Executes the provided closure asynchronously to produce the next state. The state change
+    /// is guaranteed to occur on the main thread.
     func observe(_ nextStateClosure: @escaping @Sendable () async -> State)
     
     // MARK: - Observe Sequence of State Changes Functions
