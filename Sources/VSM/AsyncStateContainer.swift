@@ -186,16 +186,27 @@ public final class AsyncStateContainer<State: Sendable>: Sendable, StateObservin
     @ObservationIgnored
     private var publisherCancellable: AnyCancellable?
     
+    // MARK: - Debug-only Testing Infrastructure
+    //
+    // The following properties support `stateChangeStream(last:timeout:)`, an internal method
+    // used exclusively by this package's own unit tests. They are excluded from non-DEBUG builds
+    // to keep release binaries free of test-only code. `internal` access control prevents
+    // external callers from reaching this API even in DEBUG builds.
+    //
+    // See the "Internal Testing Extension" section at the bottom of this file for usage details.
     #if DEBUG
     @ObservationIgnored
     private var streamContinuation: AsyncStream<State>.Continuation?
-    #endif
     
     @ObservationIgnored
     private var numberOfWatchedStates: Int = 0
     
     @ObservationIgnored
     private var stateChanges: Int = 0
+    
+    @ObservationIgnored
+    private var streamTimeoutTask: Task<Void, Never>?
+    #endif
     
     @ObservationIgnored
     private let logger: OSLog
@@ -205,11 +216,6 @@ public final class AsyncStateContainer<State: Sendable>: Sendable, StateObservin
     
     @ObservationIgnored
     private let loggingEnabled: Bool
-    
-    #if DEBUG
-    @ObservationIgnored
-    private var streamTimeoutTask: Task<Void, Never>?
-    #endif
     
     init(state: State, logger: OSLog, loggingEnabled: Bool = false) {
         self.state = state
@@ -222,10 +228,11 @@ public final class AsyncStateContainer<State: Sendable>: Sendable, StateObservin
         stateTask?.cancel()
         publisherCancellable?.cancel()
         #if DEBUG
+        // Clean up testing infrastructure. See the debug-only properties above for context.
         streamTimeoutTask?.cancel()
-        #endif
         streamContinuation?.finish()
         streamContinuation = nil
+        #endif
     }
 }
 
@@ -1108,9 +1115,9 @@ private extension AsyncStateContainer {
         
         self.state = newState
         
-        // This code tracks state changes for testing purposes only. It should only be invoked
-        // if the user called the stateChangeStream function and that should only be accessible via
-        // unit tests.
+        #if DEBUG
+        // Forward the new state to any active test stream. No-ops when no test is observing.
+        // See the debug-only properties and the "Internal Testing Extension" for context.
         guard let streamContinuation else { return }
         streamContinuation.yield(newState)
         stateChanges += 1
@@ -1119,6 +1126,7 @@ private extension AsyncStateContainer {
             streamContinuation.finish()
             self.streamContinuation = nil
         }
+        #endif
     }
 }
 
