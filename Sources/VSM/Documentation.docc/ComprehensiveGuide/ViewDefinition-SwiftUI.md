@@ -368,6 +368,8 @@ struct MyView: View {
 }
 ```
 
+> Note: Because this example uses `.onChange(of:)` rather than Combine's `onReceive(_:)`, the closure will only be called while the view is part of the active view hierarchy. If a state change occurs after the user has navigated away from this view, the `.onChange(of:)` closure will not fire for that update. This is generally desirable behavior — view-specific side effects like animations should only run while the view is on screen — but it is worth keeping in mind if your closure performs work that must happen regardless of the view's visibility.
+
 > Tip: Make your view state conform to `Equatable` to enable the `.onChange(of:)` modifier. For simple view states, you can add `Equatable` conformance automatically. For complex states with closures or non-equatable types, you may need to implement custom equality or use alternative approaches like comparing specific properties.
 
 ### Logic Coordination for the Editing View

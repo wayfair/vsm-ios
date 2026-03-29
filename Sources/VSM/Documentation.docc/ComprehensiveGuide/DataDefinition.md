@@ -30,7 +30,7 @@ VSM 2.0 represents a major architectural shift from Combine to Swift's async/awa
 
 ## Defining View State
 
-View states in VSM 2.0 are enums with associated values representing different states:
+A common approach for defining view states in VSM is to use an enum with associated values representing different states. For example:
 
 ```swift
 enum UserBioViewState: Sendable {

@@ -46,11 +46,16 @@ import os.signpost
 ///
 /// ## State Models and Actions
 ///
-/// In VSM, each state in your view's state enum should have an associated **state model** that contains
-/// the actions available in that state. This design ensures that:
+/// In VSM, state models contain the actions available in a given state. For example, when your view
+/// state is defined as an enum, each case can have an associated **state model**. This pattern provides
+/// benefits such as:
 /// - Each state has a well-defined, limited set of actions
 /// - Actions are only available when they make sense for the current state
 /// - The compiler enforces that you handle all states in your view
+///
+/// > Note: Enums are a common choice for view states, but not the only one. You can use structs or
+/// > other data types depending on the shape of your feature. See <doc:StateDefinition> for examples
+/// > of alternative view state shapes.
 ///
 /// ### Defining State Models
 ///
@@ -267,7 +272,7 @@ public extension AsyncStateContainer {
     ///             ContentView(model: model)
     ///                 .toolbar {
     ///                     Button("Retry") {
-    ///                         $state.observe(.loading)
+    ///                         $state.observe(viewModel.load())
     ///                     }
     ///                 }
     ///         case .error(let error):
