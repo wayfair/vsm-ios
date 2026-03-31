@@ -1,8 +1,9 @@
 //
 //  DebouncedChangeModifier.swift
-//  VSM
+//  Shopping
 //
-//  Created by Bill Dunay on 2/12/26.
+//  Demonstrates debouncing SwiftUI input using Async Algorithms' `debounce` on an `AsyncStream`.
+//  Copied from the VSM package for the demo app; the VSM library does not ship this modifier.
 //
 
 import AsyncAlgorithms
@@ -10,7 +11,7 @@ import SwiftUI
 
 extension View {
     // MARK: - Basic version (old and new values)
-    
+
     /// Adds a modifier for this view that fires an action when a specific value changes, debouncing the changes.
     ///
     /// This debounced version of `onChange` delays the execution of the action until a specified duration has passed
@@ -53,9 +54,9 @@ extension View {
             action: action
         ))
     }
-    
+
     // MARK: - With cancel signal
-    
+
     /// Adds a modifier for this view that fires an action when a specific value changes, debouncing the changes,
     /// with the ability to manually cancel pending debounced actions via a binding.
     ///
@@ -104,9 +105,9 @@ extension View {
             action: action
         ))
     }
-    
+
     // MARK: - With cancel callback
-    
+
     /// Adds a modifier for this view that fires an action when a specific value changes, debouncing the changes,
     /// with the ability to manually cancel pending debounced actions via a callback.
     ///
@@ -153,55 +154,29 @@ extension View {
 // MARK: - View Modifiers
 
 /// Basic debounced change modifier that provides old and new values to the action closure.
-///
-/// ## Implementation Details
-///
-/// This modifier uses AsyncStream with Swift Async Algorithms' `debounce` to implement the debouncing behavior:
-///
-/// 1. **Value Collection**: When the observed value changes, it's yielded to an AsyncStream via the continuation.
-///    The stream uses `.bufferingNewest(1)` policy, which means only the latest value is kept if multiple values
-///    are yielded before the debounce processes them.
-///
-/// 2. **Debouncing**: The stream is piped through `.debounce(for:)` which delays emission until the specified
-///    duration has elapsed with no new values. This is more efficient than creating/cancelling Tasks manually.
-///
-/// 3. **Previous Value Tracking**: We maintain `previousValue` in @State to provide the "old value" to the action.
-///    This is updated both when values are yielded (in onChange) and when they're processed (in the debounce loop).
-///
-/// 4. **Lifecycle Management**:
-///    - `onAppear`: Creates the stream, starts the consumption task
-///    - `onDisappear`: Finishes the stream and cancels the task to prevent leaks
-///
-/// ## Why AsyncStream + debounce?
-///
-/// We chose this approach over manual Task.sleep() because:
-/// - Less boilerplate and state management
-/// - Built-in debounce logic from Swift Async Algorithms is well-tested
-/// - Cleaner separation: stream handles collection, debounce handles timing
-/// - No need to manually track and cancel intermediate tasks
 private struct DebouncedChangeModifier<V: Equatable & Sendable>: ViewModifier {
     let value: V
     let duration: Duration
     let initial: Bool
     let action: @MainActor @Sendable (V, V) -> Void
-    
+
     @State private var continuation: AsyncStream<V>.Continuation?
     @State private var task: Task<Void, Never>?
     @State private var hasAppeared = false
     @State private var previousValue: V?
-    
+
     func body(content: Content) -> some View {
         content
             .onAppear {
                 let (stream, cont) = AsyncStream<V>.makeStream(bufferingPolicy: .bufferingNewest(1))
                 continuation = cont
-                
+
                 if initial && !hasAppeared {
                     action(value, value)
                     hasAppeared = true
                 }
                 previousValue = value
-                
+
                 task = Task { @MainActor in
                     for await debouncedValue in stream.debounce(for: duration) {
                         let oldValue = previousValue ?? debouncedValue
@@ -214,7 +189,7 @@ private struct DebouncedChangeModifier<V: Equatable & Sendable>: ViewModifier {
                 continuation?.finish()
                 task?.cancel()
             }
-            .onChange(of: value, initial: false) { oldValue, newValue in
+            .onChange(of: value, initial: false) { _, newValue in
                 continuation?.yield(newValue)
                 previousValue = newValue
             }
@@ -222,51 +197,30 @@ private struct DebouncedChangeModifier<V: Equatable & Sendable>: ViewModifier {
 }
 
 /// Debounced change modifier with manual cancellation via a Boolean binding.
-///
-/// ## Implementation Details
-///
-/// This extends the basic debounced modifier with the ability to cancel and reset the debounce operation
-/// via a Boolean binding. When `cancelSignal` is set to `true`:
-///
-/// 1. The current consumption task is cancelled
-/// 2. The old stream is finished (preventing memory leaks)
-/// 3. A new stream and continuation are created
-/// 4. A new consumption task is started
-/// 5. The `cancelSignal` is reset to `false`
-///
-/// This is useful when you need to programmatically cancel pending operations, such as when clearing
-/// a search field or navigating away from a screen.
-///
-/// ## Why recreate the stream?
-///
-/// We can't just cancel the task and restart it with the same stream because:
-/// - The debounce operator maintains internal timing state
-/// - We want a clean slate for the debounce timer
-/// - Finishing and recreating ensures no stale values linger in the buffer
 private struct DebouncedChangeModifierWithSignal<V: Equatable & Sendable>: ViewModifier {
     let value: V
     let duration: Duration
     let initial: Bool
     @Binding var cancelSignal: Bool
     let action: @MainActor @Sendable (V, V) -> Void
-    
+
     @State private var continuation: AsyncStream<V>.Continuation?
     @State private var task: Task<Void, Never>?
     @State private var hasAppeared = false
     @State private var previousValue: V?
-    
+
     func body(content: Content) -> some View {
         content
             .onAppear {
                 let (stream, cont) = AsyncStream<V>.makeStream(bufferingPolicy: .bufferingNewest(1))
                 continuation = cont
-                
+
                 if initial && !hasAppeared {
                     action(value, value)
                     hasAppeared = true
                 }
                 previousValue = value
-                
+
                 task = Task { @MainActor in
                     for await debouncedValue in stream.debounce(for: duration) {
                         let oldValue = previousValue ?? debouncedValue
@@ -279,18 +233,18 @@ private struct DebouncedChangeModifierWithSignal<V: Equatable & Sendable>: ViewM
                 continuation?.finish()
                 task?.cancel()
             }
-            .onChange(of: value, initial: false) { oldValue, newValue in
+            .onChange(of: value, initial: false) { _, newValue in
                 continuation?.yield(newValue)
                 previousValue = newValue
             }
-            .onChange(of: cancelSignal, initial: false) { oldValue, newValue in
+            .onChange(of: cancelSignal, initial: false) { _, newValue in
                 if newValue {
                     task?.cancel()
                     continuation?.finish()
-                    
+
                     let (stream, cont) = AsyncStream<V>.makeStream(bufferingPolicy: .bufferingNewest(1))
                     continuation = cont
-                    
+
                     task = Task { @MainActor in
                         for await debouncedValue in stream.debounce(for: duration) {
                             let oldVal = previousValue ?? debouncedValue
@@ -298,7 +252,7 @@ private struct DebouncedChangeModifierWithSignal<V: Equatable & Sendable>: ViewM
                             previousValue = debouncedValue
                         }
                     }
-                    
+
                     cancelSignal = false
                 }
             }
@@ -306,66 +260,29 @@ private struct DebouncedChangeModifierWithSignal<V: Equatable & Sendable>: ViewM
 }
 
 /// Debounced change modifier with manual cancellation via a stable callback closure.
-///
-/// ## Implementation Details
-///
-/// This variant provides a stable cancel closure that can be stored and invoked at any time.
-/// The key challenge here is providing a `@Sendable` closure that can safely access and mutate
-/// @State properties across actor boundaries.
-///
-/// ### The Stable Cancel Closure Pattern
-///
-/// The cancel closure is created once in `onAppear` and stored in `@State`. This closure:
-///
-/// 1. Is marked `@Sendable` so it can be passed around safely in concurrent contexts
-/// 2. Captures `self` to access the modifier's @State properties
-/// 3. Wraps its work in `Task { @MainActor ... }` to ensure all state mutations happen on the main actor
-/// 4. References `self.cancelClosure` when recreating the stream, ensuring the same stable closure
-///    is passed to subsequent action invocations
-///
-/// ### Why a stable closure matters
-///
-/// Without storing the closure in @State and reusing it:
-/// - Each invocation of the action would get a different cancel closure instance
-/// - If the user stores the cancel closure, it might become stale after being called once
-/// - The closure reference wouldn't be stable throughout the view's lifetime
-///
-/// With our approach:
-/// - The same closure reference is used throughout the view's lifetime
-/// - The closure always operates on the current task/continuation via `self`
-/// - Users can safely store and invoke the closure at any point
-///
-/// ### Memory Management
-///
-/// The cancel closure captures `self`, but this is safe because:
-/// - ViewModifiers are value types, so there's no reference cycle
-/// - The closure is stored in @State which is owned by the view
-/// - When the view disappears, all @State is cleaned up
 private struct DebouncedChangeModifierWithCallback<V: Equatable & Sendable>: ViewModifier {
     let value: V
     let duration: Duration
     let initial: Bool
     let action: @MainActor @Sendable (V, V, @escaping @Sendable () -> Void) -> Void
-    
+
     @State private var continuation: AsyncStream<V>.Continuation?
     @State private var task: Task<Void, Never>?
     @State private var hasAppeared = false
     @State private var previousValue: V?
     @State private var cancelClosure: (@Sendable () -> Void)?
-    
+
     func body(content: Content) -> some View {
         content
             .onAppear {
-                // Create stable cancel closure once
                 let cancel: @Sendable () -> Void = { @Sendable in
                     Task { @MainActor [self] in
                         self.task?.cancel()
                         self.continuation?.finish()
-                        
+
                         let (newStream, newCont) = AsyncStream<V>.makeStream(bufferingPolicy: .bufferingNewest(1))
                         self.continuation = newCont
-                        
-                        // Use the stored stable cancel closure
+
                         if let stableCancel = self.cancelClosure {
                             self.task = Task { @MainActor in
                                 for await debouncedValue in newStream.debounce(for: self.duration) {
@@ -378,16 +295,16 @@ private struct DebouncedChangeModifierWithCallback<V: Equatable & Sendable>: Vie
                     }
                 }
                 cancelClosure = cancel
-                
+
                 let (stream, cont) = AsyncStream<V>.makeStream(bufferingPolicy: .bufferingNewest(1))
                 continuation = cont
-                
+
                 if initial && !hasAppeared {
                     action(value, value, cancel)
                     hasAppeared = true
                 }
                 previousValue = value
-                
+
                 task = Task { @MainActor in
                     for await debouncedValue in stream.debounce(for: duration) {
                         let oldValue = previousValue ?? debouncedValue
@@ -400,7 +317,7 @@ private struct DebouncedChangeModifierWithCallback<V: Equatable & Sendable>: Vie
                 continuation?.finish()
                 task?.cancel()
             }
-            .onChange(of: value, initial: false) { oldValue, newValue in
+            .onChange(of: value, initial: false) { _, newValue in
                 continuation?.yield(newValue)
                 previousValue = newValue
             }

@@ -419,7 +419,7 @@ The recommended approach uses three complementary techniques:
 
 1. **Focused local state**: Store the text field value in a `@State` property rather than driving it directly from the view state. This lets the text field update freely without touching VSM on every keystroke.
 2. **`@FocusState`**: Start the editing session only when the user actually focuses the field, keeping the view state simple.
-3. **`onChange(of:debounce:)`**: VSM provides a debounced `onChange` modifier that fires only after the user pauses typing, preventing the model from being called for every character.
+3. **Debounced `onChange`**: Debounce at the view layer (the Shopping demo app ships an example `View` extension backed by Swift Async Algorithms' `debounce`) so work fires only after the user pauses typing, not on every character.
 
 ```swift
 struct ProfileView: View {

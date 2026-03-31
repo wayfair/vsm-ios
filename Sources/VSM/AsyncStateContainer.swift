@@ -6,7 +6,6 @@
 //
 
 #if canImport(Observation)
-import AsyncAlgorithms
 @preconcurrency import Combine
 import Foundation
 import Observation

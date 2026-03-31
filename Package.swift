@@ -21,15 +21,11 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
-        .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0")
     ],
     targets: [        
         // Legacy VSM
         .target(
-            name: "VSM",
-            dependencies: [
-                .product(name: "AsyncAlgorithms", package: "swift-async-algorithms")
-            ]
+            name: "VSM"
         ),
         .testTarget(
             name: "VSMTests",

@@ -758,7 +758,7 @@ The recommended approach combines three techniques:
 
 1. **Focused local state**: Store the text field's value in a `@State` property on the view, completely decoupled from VSM. This lets SwiftUI's text field bind directly to local state, so keystrokes never touch `AsyncStateContainer`.
 2. **`@FocusState`**: Transition the view state into an "editing" mode only when the user actually focuses the field — not on every character change.
-3. **`onChange(of:debounce:)`**: VSM's debounced `onChange` modifier fires only after the user pauses for a specified interval. This is the single point where local state "crosses the boundary" into VSM.
+3. **Debounced `onChange`**: Debounce at the view layer (see the Shopping demo's `DebouncedChangeModifier`) so observation fires only after the user pauses for a specified interval. That is the single point where local state "crosses the boundary" into VSM.
 
 ```swift
 struct ProfileView: View {
@@ -821,9 +821,9 @@ func save(username: String) -> StateSequence<ProfileViewState> {
 }
 ```
 
-Together, `@FocusState` prevents premature state transitions, `onChange(of:debounce:)` gates all VSM calls behind a quiet period, and the model's equality guard prevents redundant async work — so `AsyncStateContainer` only receives observations when there is genuinely something new to do.
+Together, `@FocusState` prevents premature state transitions, a debounced `onChange` gates all VSM calls behind a quiet period, and the model's equality guard prevents redundant async work — so `AsyncStateContainer` only receives observations when there is genuinely something new to do.
 
-> Note: **Migrating from VSM 1.0?** Earlier versions of VSM included `observe(_:debounced:)` overloads directly on `AsyncStateContainer`. These have been removed in VSM 2.0 because the debounce belonged at the _view_ layer, not the state container layer. Keeping the debounce in the view (via `onChange(of:debounce:)`) gives you full control over the quiet period for each individual input, avoids coupling async scheduling to the container, and makes the intent of the code easier to follow.
+> Note: **Migrating from VSM 1.0?** Earlier versions of VSM included `observe(_:debounced:)` overloads directly on `AsyncStateContainer`. These have been removed in VSM 2.0 because the debounce belonged at the _view_ layer, not the state container layer. Keeping debouncing in the view (for example with a custom `onChange` that debounces) gives you full control over the quiet period for each individual input, avoids coupling async scheduling to the container, and makes the intent of the code easier to follow.
 
 ### State Bindings
 

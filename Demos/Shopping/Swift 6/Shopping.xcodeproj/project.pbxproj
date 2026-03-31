@@ -11,6 +11,8 @@
 		32F1B64727CABA3D00819F76 /* VSM in Frameworks */ = {isa = PBXBuildFile; productRef = 32F1B64627CABA3D00819F76 /* VSM */; };
 		32F1B64B27CABF0D00819F76 /* CombineSchedulers in Frameworks */ = {isa = PBXBuildFile; productRef = 32F1B64A27CABF0D00819F76 /* CombineSchedulers */; };
 		BE68E4192F3CD166003D0DC0 /* VSM in Frameworks */ = {isa = PBXBuildFile; productRef = BE68E4182F3CD166003D0DC0 /* VSM */; };
+		C0DEB0ECE00004C0DEB0ECE4 /* AsyncAlgorithms in Frameworks */ = {isa = PBXBuildFile; productRef = C0DEB0ECE00002C0DEB0ECE2 /* AsyncAlgorithms */; };
+		C0DEB0ECE00005C0DEB0ECE5 /* AsyncAlgorithms in Frameworks */ = {isa = PBXBuildFile; productRef = C0DEB0ECE00003C0DEB0ECE3 /* AsyncAlgorithms */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -49,6 +51,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BE68E4192F3CD166003D0DC0 /* VSM in Frameworks */,
+				C0DEB0ECE00004C0DEB0ECE4 /* AsyncAlgorithms in Frameworks */,
 				32F1B64B27CABF0D00819F76 /* CombineSchedulers in Frameworks */,
 				32F1B64727CABA3D00819F76 /* VSM in Frameworks */,
 			);
@@ -58,6 +61,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C0DEB0ECE00005C0DEB0ECE5 /* AsyncAlgorithms in Frameworks */,
 				32F1B63F27CAAED100819F76 /* CombineSchedulers in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -131,6 +135,7 @@
 			name = Shopping;
 			packageProductDependencies = (
 				32F1B64627CABA3D00819F76 /* VSM */,
+				C0DEB0ECE00002C0DEB0ECE2 /* AsyncAlgorithms */,
 				32F1B64A27CABF0D00819F76 /* CombineSchedulers */,
 				BE68E4182F3CD166003D0DC0 /* VSM */,
 			);
@@ -157,6 +162,7 @@
 			);
 			name = ShoppingTests;
 			packageProductDependencies = (
+				C0DEB0ECE00003C0DEB0ECE3 /* AsyncAlgorithms */,
 				32F1B63E27CAAED100819F76 /* CombineSchedulers */,
 			);
 			productName = ShoppingTests;
@@ -218,6 +224,7 @@
 			mainGroup = 32EEC6E427B482B5001AB9C7;
 			packageReferences = (
 				32F1B63927CAAE7100819F76 /* XCRemoteSwiftPackageReference "combine-schedulers" */,
+				C0DEB0ECE00001C0DEB0ECE1 /* XCRemoteSwiftPackageReference "swift-async-algorithms" */,
 				BE68E4172F3CD166003D0DC0 /* XCLocalSwiftPackageReference "../../../../vsm-ios" */,
 			);
 			productRefGroup = 32EEC6EE27B482B5001AB9C7 /* Products */;
@@ -612,6 +619,14 @@
 				minimumVersion = 0.5.3;
 			};
 		};
+		C0DEB0ECE00001C0DEB0ECE1 /* XCRemoteSwiftPackageReference "swift-async-algorithms" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-async-algorithms";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -642,6 +657,16 @@
 		BE68E4182F3CD166003D0DC0 /* VSM */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = VSM;
+		};
+		C0DEB0ECE00002C0DEB0ECE2 /* AsyncAlgorithms */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C0DEB0ECE00001C0DEB0ECE1 /* XCRemoteSwiftPackageReference "swift-async-algorithms" */;
+			productName = AsyncAlgorithms;
+		};
+		C0DEB0ECE00003C0DEB0ECE3 /* AsyncAlgorithms */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C0DEB0ECE00001C0DEB0ECE1 /* XCRemoteSwiftPackageReference "swift-async-algorithms" */;
+			productName = AsyncAlgorithms;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
