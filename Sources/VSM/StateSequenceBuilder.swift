@@ -35,7 +35,7 @@ import Foundation
 public protocol SyncStateProviding {
     associatedtype State
     
-    var action: @Sendable () -> State { get }
+    var action: () -> State { get }
 }
 
 /// A type that provides an asynchronous action for producing a state value.
@@ -66,7 +66,7 @@ public protocol SyncStateProviding {
 public protocol AsyncStateProviding {
     associatedtype State
     
-    var action: @Sendable () async -> State { get }
+    var action: () async -> State { get }
 }
 
 /// A result builder that constructs a ``StateSequence`` from a declarative list of
@@ -221,8 +221,8 @@ public struct StateSequenceBuilder {
     /// builder processes each expression. It is not intended for direct use—the builder's
     /// ``buildFinalResult(_:)`` method converts it into a ``StateSequence``.
     public struct Container<State> {
-        let syncActions: [@Sendable () -> State]
-        let asyncActions: [@Sendable () async -> State]
+        let syncActions: [() -> State]
+        let asyncActions: [() async -> State]
     }
     
     /// Converts a plain `State` value into a synchronous container expression.
@@ -232,7 +232,7 @@ public struct StateSequenceBuilder {
     /// Plain state values are classified as synchronous and will be applied inline
     /// on the current call stack.
     @_disfavoredOverload
-    public static func buildExpression<State: Sendable>(_ expression: State) -> Container<State> {
+    public static func buildExpression<State>(_ expression: State) -> Container<State> {
         .init(syncActions: [{ expression }], asyncActions: [])
     }
     
@@ -252,14 +252,14 @@ public struct StateSequenceBuilder {
     /// Once an asynchronous action is encountered, all subsequent actions (including synchronous ones)
     /// are promoted to asynchronous to guarantee they execute in the declared order.
     public static func buildBlock<State>(_ components: Container<State>...) -> Container<State> {
-        var finalSyncActions: [@Sendable () -> State] = []
-        var finalAsyncActions: [@Sendable () async -> State] = []
+        var finalSyncActions: [() -> State] = []
+        var finalAsyncActions: [() async -> State] = []
         for component in components {
             if finalAsyncActions.isEmpty {
                 finalSyncActions += component.syncActions
                 finalAsyncActions += component.asyncActions
             } else {
-                let mappedSyncActions: [@Sendable () async -> State] = component.syncActions.map { syncAction in
+                let mappedSyncActions: [() async -> State] = component.syncActions.map { syncAction in
                     { syncAction() }
                 }
                 finalAsyncActions += mappedSyncActions + component.asyncActions
@@ -328,12 +328,12 @@ public struct StateSequenceBuilder {
 ///
 /// - SeeAlso: ``Next``, ``SyncStateProviding``, ``StateSequenceBuilder``
 public struct First<State>: SyncStateProviding {
-    public let action: @Sendable () -> State
+    public let action: () -> State
     
     /// Creates a synchronous state provider with the given closure.
     ///
-    /// - Parameter action: A sendable closure that synchronously produces a state value.
-    public init(action: @Sendable @escaping () -> State) {
+    /// - Parameter action: A closure that synchronously produces a state value.
+    public init(action: @escaping () -> State) {
         self.action = action
     }
 }
@@ -392,12 +392,12 @@ public struct First<State>: SyncStateProviding {
 ///
 /// - SeeAlso: ``First``, ``AsyncStateProviding``, ``StateSequenceBuilder``
 public struct Next<State>: AsyncStateProviding {
-    public let action: @Sendable () async -> State
+    public let action: () async -> State
     
     /// Creates an asynchronous state provider with the given closure.
     ///
-    /// - Parameter action: A sendable async closure that produces a state value.
-    public init(action: @Sendable @escaping () async -> State) {
+    /// - Parameter action: An async closure that produces a state value.
+    public init(action: @escaping () async -> State) {
         self.action = action
     }
 }

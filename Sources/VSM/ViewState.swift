@@ -54,7 +54,7 @@ import SwiftUI
 /// diagnose unexpected behavior or verify that actions are triggering the correct state changes.
 @MainActor
 @propertyWrapper
-public struct ViewState<State>: DynamicProperty where State: Sendable {
+public struct ViewState<State>: DynamicProperty {
     // @State gives us "init once" semantics: SwiftUI stores the container in its
     // view graph on first appearance and restores it on every subsequent re-render
     // of the same view identity, regardless of how many times the parent rebuilds

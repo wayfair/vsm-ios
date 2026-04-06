@@ -99,7 +99,7 @@ import OSLog
 @available(watchOS, unavailable, message: "watchOS only uses SwiftUI, so this UIKit-specific property wrapper is not available")
 @MainActor
 @propertyWrapper
-public struct RenderedViewState<State: Sendable> {
+public struct RenderedViewState<State> {
     
     let renderedContainer: RenderedContainer
     
@@ -150,7 +150,7 @@ public struct RenderedViewState<State: Sendable> {
         subsystem: String = "com.wayfair.vsm",
         loggingEnabled: Bool = false
     )
-    where Parent: AnyObject & Sendable {
+    where Parent: AnyObject {
         let observedViewType = String(describing: Parent.self)
         let anyRender: (AnyObject, State) -> () = { parent, state in
             guard let parent = parent as? Parent else { return }
@@ -173,7 +173,7 @@ public struct RenderedViewState<State: Sendable> {
         subsystem: String = "com.wayfair.vsm",
         loggingEnabled: Bool = false
     )
-    where Parent: AnyObject & Sendable {
+    where Parent: AnyObject {
         let observedViewType = String(describing: Parent.self)
         let anyRender: (AnyObject, State) -> () = { parent, state in
             guard let parent = parent as? Parent else { return }
@@ -227,7 +227,7 @@ public extension RenderedViewState {
     ///
     /// - Warning: This type is deprecated starting with iOS 26.0. Use ``ViewState`` instead, which leverages Apple's native observation tracking.
     @MainActor
-    struct RenderedContainer: Sendable, StateObserving {
+    struct RenderedContainer {
         /// The wrapped state container for managing changes in state
         let container: AsyncStateContainer<State>
         /// Implicitly used by UIKit views to automatically call the provided function when the state changes
@@ -264,7 +264,7 @@ public extension RenderedViewState {
     }
 }
 
-// MARK: - StateObserving Conformance
+// MARK: - Observation API Pass-throughs
 
 @available(iOS, introduced: 17.0, deprecated: 26.0, renamed: "ViewState", message: "iOS 26 supports property observation in UIViewControllers and UIViews. Use @ViewState instead and override the updateProperties method which will replace your render method.")
 @available(iOS, introduced: 17.0, deprecated: 26.0, renamed: "ViewState", message: "iOS 26 supports property observation in UIViewControllers and UIViews. Use @ViewState instead and override the updateProperties method which will replace your render method.")
@@ -353,8 +353,16 @@ extension RenderedViewState.RenderedContainer {
     ///     }
     /// }
     /// ```
-    public func observe(_ nextStateClosure: @escaping @Sendable () async -> State) {
+    public func observe(_ nextStateClosure: sending @escaping () async -> State) {
         container.observe(nextStateClosure)
+    }
+    
+    /// Refreshes the state using an async closure, suspending until complete.
+    ///
+    /// Designed for pull-to-refresh in UIKit. Suspends until the state has been
+    /// produced and applied, so the refresh indicator remains visible until completion.
+    public func refresh(state nextStateClosure: sending @escaping () async -> State) async {
+        await container.refresh(state: nextStateClosure)
     }
     
     /// Observes and updates the state through a sequence of state values.
@@ -422,79 +430,10 @@ extension RenderedViewState.RenderedContainer {
     ///     }
     /// }
     /// ```
-    public func observe(_ stateSequence: StateSequence<State>) {
+    public func observe(_ stateSequence: sending StateSequence<State>) {
         container.observe(stateSequence)
     }
-    
-    /// Observes and updates the state from an `AsyncStream`.
-    ///
-    /// This method consumes an `AsyncStream` that emits state values over time. Use `AsyncStream`
-    /// when you need fine-grained control over when states are emitted. Any ongoing observation is
-    /// cancelled before the new one begins.
-    ///
-    /// Because `AsyncStream` is fully asynchronous, the first state is not applied synchronously.
-    /// For initial load flows that must show loading in the first frame, prefer
-    /// `observe(_ stateSequence:)` with a `StateSequence` built via `@StateSequenceBuilder`.
-    ///
-    /// - Parameter stream: An `AsyncStream<State>` that emits state values.
-    ///
-    /// ## Example
-    ///
-    /// First, define a state model that returns an `AsyncStream`:
-    ///
-    /// ```swift
-    /// struct LoadedViewStateModel: Sendable {
-    ///     let items: [Item]
-    ///     private let repository: ItemRepository
-    ///     
-    ///     func checkout() -> AsyncStream<ExampleViewState> {
-    ///         AsyncStream { continuation in
-    ///             Task {
-    ///                 continuation.yield(.checkingOut)
-    ///                 await self.performCheckout(continuation)
-    ///                 continuation.finish()
-    ///             }
-    ///         }
-    ///     }
-    ///     
-    ///     @concurrent
-    ///     private func performCheckout(_ continuation: AsyncStream<ExampleViewState>.Continuation) async {
-    ///         do {
-    ///             try await repository.checkout()
-    ///             continuation.yield(.checkoutComplete)
-    ///             try? await Task.sleep(for: .seconds(2))
-    ///             continuation.yield(.loaded(LoadedViewStateModel(items: [], repository: repository)))
-    ///         } catch {
-    ///             continuation.yield(.checkoutError(error: error, model: self))
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    ///
-    /// Then observe the stream in your view controller:
-    ///
-    /// ```swift
-    /// class ExampleViewController: UIViewController {
-    ///     @RenderedViewState(render: ExampleViewController.render)
-    ///     var state: ExampleViewState = .loaded(LoadedViewStateModel())
-    ///     
-    ///     func render() {
-    ///         switch state {
-    ///         case .loaded(let model):
-    ///             checkoutButton.addAction(UIAction { [weak self] _ in
-    ///                 self?.$state.observe(model.checkout())
-    ///             }, for: .touchUpInside)
-    ///         case .checkingOut:
-    ///             activityIndicator.startAnimating()
-    ///         // ... other cases
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    public func observe(_ stream: AsyncStream<State>) {
-        container.observe(stream)
-    }
-    
+        
     /// Observes and updates the state from a generic `AsyncSequence` that never throws.
     ///
     /// This method consumes any `AsyncSequence` whose element type is `State` and failure type
@@ -507,25 +446,63 @@ extension RenderedViewState.RenderedContainer {
     ///
     /// - Parameter sequence: Any `AsyncSequence` that emits `State` values with `Failure` type of `Never`.
     @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, macCatalyst 18.0, *)
-    public func observe<SomeAsyncSequence>(_ sequence: SomeAsyncSequence)
-    where SomeAsyncSequence: AsyncSequence,
-          SomeAsyncSequence.Element == State,
-          SomeAsyncSequence.Failure == Never {
+    public func observe(_ sequence: some AsyncSequence<State, Never>) {
         container.observe(sequence)
     }
     
-    /// Observes and updates the state from a Combine `Publisher`.
-    ///
-    /// Consumes a Combine `Publisher` that emits state values over time. Exists for ease of
-    /// migration from VSM to AsyncVSM.
-    ///
-    /// The implementation subscribes immediately and bridges emissions to structured concurrency.
-    /// If the publisher emits its first value synchronously on subscription (for example,
-    /// `CurrentValueSubject` on the main thread), that first state is applied immediately.
-    ///
-    /// - Parameter publisher: A Combine `Publisher` that emits `State` values and never fails.
-    public func observe(_ publisher: some Publisher<State, Never>) {
-        container.observe(publisher)
+    /// **(Legacy — unsafe)** Observes a publisher, applying `firstState` synchronously.
+    /// Works with any `State` type. See ``AsyncStateContainer/observeLegacyUnsafe(_:firstState:)``
+    /// for safety details regarding non-Sendable mutable reference types.
+    public func observeLegacyUnsafe(_ publisher: some Publisher<State, Never>, firstState: State) {
+        container.observeLegacyUnsafe(publisher, firstState: firstState)
+    }
+    
+    /// **(Legacy — unsafe)** Observes a publisher, consuming all emissions asynchronously (hops).
+    /// Works with any `State` type. See ``AsyncStateContainer/observeLegacyAsyncUnsafe(_:)``
+    /// for safety details regarding non-Sendable mutable reference types.
+    public func observeLegacyAsyncUnsafe(_ publisher: some Publisher<State, Never>) {
+        container.observeLegacyAsyncUnsafe(publisher)
+    }
+    
+    /// **(Legacy — unsafe, blocking)** Observes a publisher using a lock to capture the first
+    /// emission synchronously. Works with any `State` type. Briefly blocks the calling thread.
+    /// Uses `@unchecked Sendable` internally. Intended for deletion once callers adopt `Sendable`.
+    /// See ``AsyncStateContainer/observeLegacyBlockingUnsafe(_:)`` for full details.
+    public func observeLegacyBlockingUnsafe(_ publisher: some Publisher<State, Never>) {
+        container.observeLegacyBlockingUnsafe(publisher)
+    }
+}
+
+// MARK: - Sendable-Only Pass-throughs
+
+extension RenderedViewState.RenderedContainer where State: Sendable {
+    
+    /// `@Sendable` overload — preferred by the compiler when `State: Sendable`.
+    public func observe(_ nextStateClosure: @escaping @Sendable () async -> State) {
+        container.observe(nextStateClosure)
+    }
+    
+    /// `@Sendable` overload of `refresh(state:)`.
+    public func refresh(state nextStateClosure: @escaping @Sendable () async -> State) async {
+        await container.refresh(state: nextStateClosure)
+    }
+    
+    /// **(Legacy — safe)** Observes a publisher, applying `firstState` synchronously.
+    /// Requires `State: Sendable`. No lock, no hop.
+    public func observeLegacy(_ publisher: some Publisher<State, Never>, firstState: State) {
+        container.observeLegacy(publisher, firstState: firstState)
+    }
+    
+    /// **(Legacy — safe)** Observes a publisher, consuming all emissions asynchronously (hops).
+    /// Requires `State: Sendable`.
+    public func observeLegacyAsync(_ publisher: some Publisher<State, Never>) {
+        container.observeLegacyAsync(publisher)
+    }
+    
+    /// **(Legacy)** Observes a publisher using a lock to capture the first emission synchronously.
+    /// Requires `State: Sendable`. Briefly blocks the calling thread.
+    public func observeLegacyBlocking(_ publisher: some Publisher<State, Never>) {
+        container.observeLegacyBlocking(publisher)
     }
 }
 #endif

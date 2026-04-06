@@ -91,7 +91,7 @@ import Foundation
 /// cancelled, iteration stops and no further states are emitted.
 ///
 /// - SeeAlso: ``StateSequenceBuilder``, ``AsyncStateContainer``, ``First``, ``Next``
-public struct StateSequence<State: Sendable>: AsyncSequence, AsyncIteratorProtocol {
+public struct StateSequence<State>: AsyncSequence, AsyncIteratorProtocol {
     public typealias Element = State
     
     /// Closures that produce state values synchronously.
@@ -99,26 +99,26 @@ public struct StateSequence<State: Sendable>: AsyncSequence, AsyncIteratorProtoc
     /// When a `StateSequence` is created via ``StateSequenceBuilder``, plain `State` values
     /// that appear before any ``Next`` expression are stored here. The ``AsyncStateContainer``
     /// applies these inline on the current call stack before creating a `Task`.
-    let synchronousStateActions: [@Sendable () -> State]
+    let synchronousStateActions: [() -> State]
     
     /// Closures that produce state values asynchronously.
     ///
     /// These closures are executed sequentially inside a `Task` by the ``AsyncStateContainer``.
     /// Each closure runs after the previous one completes, and the resulting state is applied
     /// to the container on the main thread.
-    let states: [@Sendable () async -> State]
+    let states: [() async -> State]
     
     /// Internal iterator over the synchronous closures.
     ///
     /// Drives the first portion of `AsyncIteratorProtocol` conformance. The `next()` method
     /// drains this iterator before moving on to the async closures.
-    private var syncIterator: IndexingIterator<[@Sendable () -> State]>
+    private var syncIterator: IndexingIterator<[() -> State]>
 
     /// Internal iterator over the async closures.
     ///
     /// Drives the `AsyncIteratorProtocol` conformance. The `next()` method drains this
     /// iterator sequentially, executing each closure and returning its result.
-    private var iterator: IndexingIterator<[@Sendable () async -> State]>
+    private var iterator: IndexingIterator<[() async -> State]>
 
     /// Creates a `StateSequence` from a variadic list of async closures.
     ///
@@ -137,7 +137,7 @@ public struct StateSequence<State: Sendable>: AsyncSequence, AsyncIteratorProtoc
     ///     )
     /// }
     /// ```
-    public init(_ states: @Sendable () async -> State...) {
+    public init(_ states: () async -> State...) {
         self.synchronousStateActions = []
         self.states = states
         syncIterator = self.synchronousStateActions.makeIterator()
@@ -155,7 +155,7 @@ public struct StateSequence<State: Sendable>: AsyncSequence, AsyncIteratorProtoc
     ///     by the ``AsyncStateContainer`` before any `Task` is created.
     ///   - states: Closures that produce state values asynchronously. Executed sequentially
     ///     inside a `Task`.
-    public init(synchronousStates: [@Sendable () -> State], states: [@Sendable () async -> State]) {
+    public init(synchronousStates: [() -> State], states: [() async -> State]) {
         self.synchronousStateActions = synchronousStates
         self.states = states
         syncIterator = synchronousStates.makeIterator()
@@ -239,7 +239,7 @@ public struct StateSequence<State: Sendable>: AsyncSequence, AsyncIteratorProtoc
 /// }
 /// ```
 extension StateSequence: ExpressibleByArrayLiteral {
-    public init(arrayLiteral elements: @Sendable () async -> State...) {
+    public init(arrayLiteral elements: () async -> State...) {
         self.init(synchronousStates: [], states: elements)
     }
 }

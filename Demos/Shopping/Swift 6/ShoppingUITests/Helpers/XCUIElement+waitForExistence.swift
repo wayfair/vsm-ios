@@ -8,7 +8,7 @@
 import XCTest
 
 extension XCUIElement {
-    
+    @MainActor
     private enum Constants {
         static var defaultTimeout: TimeInterval = 5.0
         static var waitInterval: TimeInterval = 0.1

@@ -6,11 +6,10 @@
 //
 
 #if canImport(Observation)
-@preconcurrency import Combine
+import Combine
 import Foundation
 import Observation
 import os.signpost
-
 /// A container that manages state changes on the main thread while allowing state production on any thread.
 ///
 /// `AsyncStateContainer` provides thread-safe state management by guaranteeing that all state changes occur
@@ -173,7 +172,7 @@ import os.signpost
 /// - Note: All state changes are automatically published to SwiftUI views through the `@Observable` macro.
 @Observable
 @MainActor
-public final class AsyncStateContainer<State: Sendable>: Sendable, StateObserving {
+public final class AsyncStateContainer<State> {
     /// The current state of the container.
     ///
     /// This property is observable and will trigger view updates when changed.
@@ -200,7 +199,10 @@ public final class AsyncStateContainer<State: Sendable>: Sendable, StateObservin
     // See the "Internal Testing Extension" section at the bottom of this file for usage details.
     #if DEBUG
     @ObservationIgnored
-    private var streamContinuation: AsyncStream<State>.Continuation?
+    private var _yieldState: ((State) -> Void)?
+    
+    @ObservationIgnored
+    private var _finishStream: (() -> Void)?
     
     @ObservationIgnored
     private var numberOfWatchedStates: Int = 0
@@ -230,15 +232,18 @@ public final class AsyncStateContainer<State: Sendable>: Sendable, StateObservin
     
     deinit {
         stateTask?.cancel()
-        publisherCancellable?.cancel()
+        // AnyCancellable auto-cancels on deallocation — no explicit cancel needed.
         #if DEBUG
-        // Clean up testing infrastructure. See the debug-only properties above for context.
         streamTimeoutTask?.cancel()
-        streamContinuation?.finish()
-        streamContinuation = nil
         #endif
     }
 }
+
+// MARK: - Conditional Sendable Conformance
+
+extension AsyncStateContainer: Sendable where State: Sendable {}
+
+// MARK: - Core API (always available, no Sendable constraint)
 
 public extension AsyncStateContainer {
 
@@ -286,7 +291,6 @@ public extension AsyncStateContainer {
         }
         
         cancelRunningObservations()
-        stateChanges = 0
         
         let signpostId = signposter.makeSignpostID()
         let postName: StaticString = "State"
@@ -297,53 +301,9 @@ public extension AsyncStateContainer {
         signposter.endInterval(postName, state)
     }
     
-    /// Observes and updates the state using an asynchronous closure.
-    ///
-    /// This method executes the provided closure asynchronously to produce the next state.
-    /// The closure can run on any thread based on Swift's concurrency model, but the resulting
-    /// state change is guaranteed to occur on the main thread. The method returns immediately
-    /// without waiting for the closure to complete.
-    ///
-    /// Any ongoing state observations are cancelled before starting the new observation.
-    /// If the observation task is cancelled before completion, the state will not be updated.
-    ///
-    /// - Parameter nextStateClosure: An async closure that produces the next state value.
-    ///                                This closure must not throw errors and must be `@Sendable`,
-    ///                                meaning all captured values must be thread-safe.
-    ///
-    /// ## Example
-    ///
-    /// ```swift
-    /// struct ExampleView: View {
-    ///     @ViewState var state = ExampleViewState.initialized(.init())
-    ///     
-    ///     var body: some View {
-    ///         switch state {
-    ///         case .initialized(let viewModel):
-    ///             HStack {
-    ///                 Color.clear
-    ///                     .onAppear {
-    ///                         $state.observe(viewModel.load())
-    ///                     }
-    ///             }
-    ///         case .loaded(let model):
-    ///             ContentView(model: model)
-    ///         case .error(let viewModel):
-    ///             ErrorView(viewModel: viewModel)
-    ///                 .toolbar {
-    ///                     Button("Retry") {
-    ///                         $state.observe { await viewModel.retry() }
-    ///                     }
-    ///                 }
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    ///
-    /// - Note: The closure is captured with `@escaping @Sendable` and executed within a `Task` on the main actor.
-    ///         The `@Sendable` requirement ensures thread-safe capture of values that may be accessed
-    ///         across different concurrency domains.
-    func observe(_ nextStateClosure: @escaping @Sendable () async -> State) {
+    // MARK: - Core Async Observe (private — sending)
+
+    private func _observe(_ nextStateClosure: sending @escaping () async -> State) {
         if loggingEnabled {
             os_log(.debug, log: logger, "observe(async closure) called")
         }
@@ -360,7 +320,7 @@ public extension AsyncStateContainer {
             
             let nextStateValue = await nextStateClosure()
             
-            guard Task.isCancelled == false else {
+            guard !Task.isCancelled else {
                 if self.loggingEnabled {
                     os_log(.debug, log: self.logger, "observe(async closure) cancelled before state change")
                 }
@@ -370,231 +330,108 @@ public extension AsyncStateContainer {
             self.performStateChange(nextStateValue)
         }
     }
-    
-    /// Refreshes the state using an asynchronous closure, suspending until complete.
-    ///
-    /// This method executes the provided closure asynchronously to produce the next state,
-    /// suspending the caller until the state has been produced and applied. Unlike ``observe(_:)-(State)``,
-    /// this method waits for the state production to complete before returning.
-    ///
-    /// The closure can run on any thread based on Swift's concurrency model, but the resulting
-    /// state change is guaranteed to occur on the main thread. Any ongoing state observations
-    /// are cancelled before starting the new observation.
-    ///
-    /// If the observation task is cancelled before completion, the state will not be updated
-    /// and the method will return early.
-    ///
-    /// - Parameter nextState: An async closure that produces the next state value.
-    ///                        This closure must not throw errors and must be `@Sendable`,
-    ///                        meaning all captured values must be thread-safe.
-    ///
-    /// ## Pull-to-Refresh Support
-    ///
-    /// This method is specifically designed to enable pull-to-refresh (PTR) functionality in
-    /// VSM-managed SwiftUI views. SwiftUI's `refreshable` view modifier requires an async
-    /// closure that suspends until the refresh operation completes. By using `refresh(state:)`,
-    /// the refresh indicator will remain visible until the state has been updated.
-    ///
-    /// The `refreshable` modifier can be applied to scrollable views like `List` and `ScrollView`,
-    /// providing users with a standard pull-to-refresh gesture to manually update content.
-    ///
-    /// ## Example
-    ///
-    /// First, define a state model that implements a `refresh()` action returning the next state:
-    ///
-    /// ```swift
-    /// struct LoadedViewStateModel: Sendable {
-    ///     let items: [Item]
-    ///     private let repository: ItemRepository
-    ///     
-    ///     func refresh() async -> ExampleViewState {
-    ///         do {
-    ///             let freshItems = try await repository.fetchItems()
-    ///             return .loaded(LoadedViewStateModel(items: freshItems, repository: repository))
-    ///         } catch {
-    ///             // Return the current state with items preserved, or handle error as appropriate
-    ///             return .loaded(self)
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    ///
-    /// Then use the `refresh(state:)` method in your view's `refreshable` modifier:
-    ///
-    /// ```swift
-    /// struct ExampleView: View {
-    ///     @ViewState var state = ExampleViewState.loaded(LoadedViewStateModel())
-    ///     
-    ///     var body: some View {
-    ///         switch state {
-    ///         case .loaded(let model):
-    ///             List(model.items) { item in
-    ///                 ItemRow(item: item)
-    ///             }
-    ///             .refreshable {
-    ///                 await $state.refresh(state: {
-    ///                     await model.refresh()
-    ///                 })
-    ///             }
-    ///         default:
-    ///             ProgressView()
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    ///
-    /// In this example, when the user pulls down on the list, the refresh indicator appears
-    /// and remains visible until the state update completes. The `refresh(state:)` method
-    /// ensures the refresh operation fully completes before the indicator is dismissed.
-    ///
-    /// - Note: Use this method when you need to ensure the state update completes before
-    ///         proceeding with subsequent operations, particularly with SwiftUI's `refreshable` modifier.
-    ///         The closure must be `@Sendable` to ensure thread-safe capture of values that may be
-    ///         accessed across different concurrency domains.
-    func refresh(state nextState: @escaping @Sendable () async -> State) async {
+
+    // Note: _refresh wraps its work in a stored Task so that subsequent actions
+    // (observe/refresh) can cancel an in-flight refresh via cancelRunningObservations().
+    // Without this, _refresh runs on the caller's task which the container has no handle to cancel.
+    // We considered using withUnsafeCurrentTask to capture the caller's task, but the docs explicitly
+    // forbid storing the UnsafeCurrentTask reference outside its closure (undefined behavior).
+    // withTaskCancellationHandler bridges cancellation from the caller's task to the stored task,
+    // so cancellation works from both directions: container-initiated and caller-initiated.
+    private func _refresh(state nextStateClosure: sending @escaping () async -> State) async {
         if loggingEnabled {
             os_log(.debug, log: logger, "refresh(state:) called")
         }
         
         cancelRunningObservations()
-        let signpostId = signposter.makeSignpostID()
-        let postName: StaticString = "Refresh"
-        let state = signposter.beginInterval(postName, id: signpostId)
-        defer { signposter.endInterval(postName, state) }
         
-        let nextStateValue = await nextState()
-        guard Task.isCancelled == false else {
-            if loggingEnabled {
-                os_log(.debug, log: logger, "refresh(state:) cancelled before state change")
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            
+            let signpostId = signposter.makeSignpostID()
+            let postName: StaticString = "Refresh"
+            let signpostState = signposter.beginInterval(postName, id: signpostId)
+            defer { signposter.endInterval(postName, signpostState) }
+            
+            let nextStateValue = await nextStateClosure()
+            guard !Task.isCancelled else {
+                if self.loggingEnabled {
+                    os_log(.debug, log: self.logger, "refresh(state:) cancelled before state change")
+                }
+                return
             }
-            return
+            self.performStateChange(nextStateValue)
         }
-        performStateChange(nextStateValue)
+        stateTask = task
+        
+        await withTaskCancellationHandler {
+            await task.value
+        } onCancel: { [loggingEnabled, logger] in
+            if loggingEnabled {
+                os_log(.debug, log: logger, "refresh(state:) caller task cancelled — forwarding cancellation to stored task")
+            }
+            task.cancel()
+        }
     }
-    
-    // MARK: - Observe Sequence of State Changes Functions
+
+    // MARK: - Public Observe (sending — works for all State)
+
+    /// Observes and updates the state using an async `sending` closure.
+    ///
+    /// This is the core async observation method. It works for **all** `State` types, including
+    /// non-Sendable ones. The `sending` keyword uses region-based isolation (SE-0430) to prove
+    /// exclusive ownership of the closure and its captures at compile time, rather than requiring
+    /// `@Sendable` capture checking.
+    ///
+    /// The closure inherits the caller's actor isolation via `Task.init` (which takes
+    /// `sending @escaping @isolated(any)`). When called from `@MainActor` context, the closure
+    /// runs on the main actor unless individual methods within it opt into `@concurrent`.
+    ///
+    /// - Parameter nextStateClosure: An async closure that produces the next state value.
+    ///                                Transferred via `sending` for region-based safety.
+    func observe(_ nextStateClosure: sending @escaping () async -> State) {
+        _observe(nextStateClosure)
+    }
+
+    /// Refreshes the state using an async `sending` closure, suspending until complete.
+    ///
+    /// Works for all `State` types. Designed for pull-to-refresh when using non-Sendable states
+    /// (where the `.refreshable` modifier's `@Sendable` closure requirement cannot be met).
+    /// Use a toolbar `Button` calling this method instead.
+    ///
+    /// - Parameter nextStateClosure: An async closure that produces the next state value.
+    func refresh(state nextStateClosure: sending @escaping () async -> State) async {
+        await _refresh(state: nextStateClosure)
+    }
 
     /// Observes and updates the state through a ``StateSequence``.
     ///
     /// Each state value produced by the sequence is applied to the container as it becomes
-    /// available. The method returns immediately without waiting for the sequence to complete,
-    /// and any ongoing state observation is cancelled before the new one begins.
+    /// available. Synchronous state actions are applied inline on the current call stack;
+    /// async actions run sequentially inside a `Task`.
     ///
-    /// ## First-state timing: synchronous vs. asynchronous
-    ///
-    /// The behavior of the first state change depends on how the ``StateSequence`` was created:
-    ///
-    /// - **`@StateSequenceBuilder` with a plain `State` value before `Next`** — The first
-    ///   plain `State` value is applied *synchronously*, in the same run-loop iteration as the
-    ///   call to this method, before a `Task` is created. Any subsequent states produced by
-    ///   `Next { ... }` expressions (or plain values that appear *after* a `Next`) are applied
-    ///   asynchronously inside a `Task`. This means only the leading plain-value states are
-    ///   synchronous; once async work begins, the rest of the sequence is async. Use this form
-    ///   when you need the first state (e.g. `.loading`) to appear on the very first frame
-    ///   SwiftUI renders—especially for your view's initial `onAppear` observation.
-    ///
-    /// - **Array literal or variadic ``StateSequence/init(_:)``** — All closures are async,
-    ///   including the first one. The first state change happens after a `Task` has been
-    ///   scheduled, meaning SwiftUI may render one frame of the previous state before the
-    ///   first closure executes. This is generally fine for user-initiated actions that occur
-    ///   after the view is already visible, where a brief delay is imperceptible.
-    ///
-    /// ## Choosing the right creation style
-    ///
-    /// For your view's first observation—typically called from `onAppear`—prefer
-    /// `@StateSequenceBuilder` to ensure the transition state appears immediately:
-    ///
-    /// ```swift
-    /// // Recommended for onAppear: first state is applied synchronously
-    /// @StateSequenceBuilder
-    /// func load() -> StateSequence<ExampleViewState> {
-    ///     ExampleViewState.loading
-    ///     Next { await self.fetchItems() }
-    /// }
-    /// ```
-    ///
-    /// For user-initiated actions on an already-visible view, the all-async form is fine:
-    ///
-    /// ```swift
-    /// // Fine for button taps or other user actions
-    /// func refresh() -> StateSequence<ExampleViewState> {
-    ///     [
-    ///         { .loading },
-    ///         { await self.fetchItems() }
-    ///     ]
-    /// }
-    /// ```
-    ///
-    /// ## Example
-    ///
-    /// ```swift
-    /// struct InitializedViewStateModel: Sendable {
-    ///     private let repository: ItemRepository
-    ///
-    ///     @StateSequenceBuilder
-    ///     func load() -> StateSequence<ExampleViewState> {
-    ///         ExampleViewState.loading
-    ///         Next { await self.fetchItems() }
-    ///     }
-    ///
-    ///     @concurrent
-    ///     private func fetchItems() async -> ExampleViewState {
-    ///         do {
-    ///             let items = try await repository.fetchItems()
-    ///             return .loaded(LoadedViewStateModel(items: items, repository: repository))
-    ///         } catch {
-    ///             return .error(ErrorViewStateModel(error: error, retry: { await self.fetchItems() }))
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// struct ExampleView: View {
-    ///     @ViewState var state = ExampleViewState.initialized(InitializedViewStateModel())
-    ///
-    ///     var body: some View {
-    ///         switch state {
-    ///         case .initialized(let viewModel):
-    ///             Color.clear
-    ///                 .onAppear {
-    ///                     $state.observe(viewModel.load())
-    ///                 }
-    ///         case .loading:
-    ///             ProgressView()
-    ///         case .loaded(let model):
-    ///             ContentView(model: model)
-    ///         case .error(let model):
-    ///             ErrorView(model: model)
-    ///         }
-    ///     }
-    /// }
-    /// ```
+    /// The `sending` parameter uses region-based isolation (SE-0430) to prove exclusive
+    /// ownership of the sequence and all its captured values at compile time.
     ///
     /// - Parameter stateSequence: A ``StateSequence`` that produces a series of state values.
-    ///                            ``StateSequence`` is designed to never throw; errors from async
-    ///                            work should be caught and converted into appropriate error states.
-    func observe(_ stateSequence: StateSequence<State>) {
+    func observe(_ stateSequence: sending StateSequence<State>) {
         if loggingEnabled {
             os_log(.debug, log: logger, "observe(StateSequence) called")
         }
         
         cancelRunningObservations()
-        stateChanges = 0
-        
-        // Begin signpost interval before any state changes so it spans the full observation.
+
         let sequenceID = signposter.makeSignpostID()
         let postName: StaticString = "Sequence"
         let sequenceState = signposter.beginInterval(postName, id: sequenceID, "State Sequence")
-        
-        // Apply all synchronous state actions inline on the current call stack
-        // so they are applied in the same run loop iteration as the call to observe().
+
         for syncAction in stateSequence.synchronousStateActions {
             let syncState = syncAction()
             performStateChange(syncState)
             let eventName: StaticString = "StateSequence Changed State"
             signposter.emitEvent(eventName, id: sequenceID, "State changed to \(String(describing: syncState))")
         }
-        
-        // If there are no async closures, the sequence is complete.
+
         guard !stateSequence.states.isEmpty else {
             let syncCount = stateSequence.synchronousStateActions.count
             if loggingEnabled {
@@ -605,22 +442,20 @@ public extension AsyncStateContainer {
             signposter.endInterval(postName, sequenceState)
             return
         }
-        
-        stateTask = Task { @MainActor [weak self, signposter] in
+
+        let asyncStates = stateSequence.states
+        stateTask = Task { [weak self, signposter] in
             guard let self else {
                 signposter.endInterval(postName, sequenceState)
                 return
             }
             defer { signposter.endInterval(postName, sequenceState) }
-            
-            // Iterate only the async closures (all synchronous actions, if any,
-            // were already applied inline above before this Task was created).
+
             var iterationCount = stateSequence.synchronousStateActions.count + 1
-            var remainingIterator = stateSequence.states.makeIterator()
-            
+            var remainingIterator = asyncStates.makeIterator()
+
             while !Task.isCancelled {
                 guard let nextClosure = remainingIterator.next() else {
-                    // Sequence completed naturally
                     if self.loggingEnabled {
                         os_log(.debug, log: self.logger, "StateSequence completed after %d state changes", iterationCount - 1)
                     }
@@ -629,9 +464,9 @@ public extension AsyncStateContainer {
                                          "Ended after \(iterationCount - 1) iterations")
                     break
                 }
-                
+
                 let nextState = await nextClosure()
-                
+
                 guard !Task.isCancelled else {
                     if self.loggingEnabled {
                         os_log(.debug, log: self.logger, "StateSequence cancelled during iteration %d", iterationCount)
@@ -642,274 +477,52 @@ public extension AsyncStateContainer {
                     break
                 }
                 self.performStateChange(nextState)
-                
-                // Emit an event to mark the state change
-                // Note: Avoid accessing self.state in the message to prevent observation side effects
+
                 let eventName: StaticString = "StateSequence Changed State"
                 signposter.emitEvent(eventName, id: sequenceID, "State changed to \(String(describing: nextState))")
                 iterationCount += 1
             }
         }
     }
-    
-    /// Observes and updates the state from an `AsyncStream`.
-    ///
-    /// Each state value emitted by the stream is applied to the container as it becomes available.
-    /// The method returns immediately without waiting for the stream to complete, and any ongoing
-    /// state observation is cancelled before the new one begins.
-    ///
-    /// State values can be produced on any thread, but all state changes are guaranteed to occur
-    /// on the main thread.
-    ///
-    /// ## One-tick run loop delay
-    ///
-    /// Because `AsyncStream` is fully asynchronous, all state changes—including the first—occur
-    /// after a `Task` has been scheduled. SwiftUI may render one frame of the previous state
-    /// before the first value is consumed. For most user-initiated actions on an already-visible
-    /// view this is imperceptible, but if you need the first state change to happen synchronously
-    /// (e.g. on your view's initial `onAppear`), use `observe(_:)` with a ``StateSequence``
-    /// built via ``StateSequenceBuilder`` instead.
-    ///
-    /// - Parameter stream: An `AsyncStream<State>` that emits state values. `AsyncStream` is
-    ///                     non-throwing by design, ensuring reliable state transitions.
-    ///
-    /// ## Example
-    ///
-    /// Use `AsyncStream` when you need fine-grained control over when states are emitted,
-    /// such as multi-step operations where intermediate states depend on async results:
-    ///
-    /// ```swift
-    /// struct LoadedViewStateModel: Sendable {
-    ///     let items: [Item]
-    ///     private let repository: ItemRepository
-    ///     
-    ///     func checkout() -> AsyncStream<ExampleViewState> {
-    ///         AsyncStream { continuation in
-    ///             Task {
-    ///                 continuation.yield(.checkingOut)
-    ///                 await self.performCheckout(continuation)
-    ///                 continuation.finish()
-    ///             }
-    ///         }
-    ///     }
-    ///     
-    ///     @concurrent
-    ///     private func performCheckout(_ continuation: AsyncStream<ExampleViewState>.Continuation) async {
-    ///         do {
-    ///             try await repository.checkout()
-    ///             continuation.yield(.checkoutComplete)
-    ///             
-    ///             try? await Task.sleep(for: .seconds(2))
-    ///             continuation.yield(.loaded(LoadedViewStateModel(items: [], repository: repository)))
-    ///         } catch {
-    ///             continuation.yield(.checkoutError(error: error, model: self))
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    ///
-    /// Then observe the stream in your view:
-    ///
-    /// ```swift
-    /// struct ExampleView: View {
-    ///     @ViewState var state = ExampleViewState.loaded(LoadedViewStateModel())
-    ///     
-    ///     var body: some View {
-    ///         switch state {
-    ///         case .loaded(let model):
-    ///             ContentView(model: model)
-    ///                 .toolbar {
-    ///                     Button("Checkout") {
-    ///                         $state.observe(model.checkout())
-    ///                     }
-    ///                 }
-    ///         case .checkingOut:
-    ///             ProgressView("Processing...")
-    ///         case .checkoutComplete:
-    ///             Text("Order complete!")
-    ///         case .checkoutError(let error, let model):
-    ///             ErrorView(error: error, retry: { $state.observe(model.checkout()) })
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    ///
-    /// - Note: `AsyncStream` is non-throwing by design, making it ideal for state management.
-    ///         Use `AsyncStream` when you need to yield multiple states at specific points
-    ///         during an async operation, rather than just at the beginning and end.
-    func observe(_ stream: AsyncStream<State>) {
-        if loggingEnabled {
-            os_log(.debug, log: logger, "observe(AsyncStream) called")
-        }
-        
-        cancelRunningObservations()
-        stateChanges = 0
-        
-        stateTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            
-            // Track the entire sequence with one interval
-            let sequenceID = signposter.makeSignpostID()
-            let postName: StaticString = "Sequence"
-            let sequenceState = signposter.beginInterval(postName, id: sequenceID, "AsyncStream Sequence")
-            defer { signposter.endInterval(postName, sequenceState) }
-            
-            var iterator = stream.makeAsyncIterator()
-            var iterationCount = 1
-            
-            while !Task.isCancelled {
-                let nextState = await iterator.next()
-                
-                guard let state = nextState else {
-                    // Sequence completed naturally
-                    if self.loggingEnabled {
-                        os_log(.debug, log: self.logger, "AsyncStream completed after %d state changes", iterationCount - 1)
-                    }
-                    let eventName: StaticString = "AsyncStream Sequence Ended"
-                    signposter.emitEvent(eventName, id: sequenceID,
-                                         "Ended after \(iterationCount - 1) iterations")
-                    break
-                }
-                
-                guard !Task.isCancelled else {
-                    if self.loggingEnabled {
-                        os_log(.debug, log: self.logger, "AsyncStream cancelled during iteration %d", iterationCount)
-                    }
-                    let eventName: StaticString = "AsyncStream Sequence Cancelled"
-                    signposter.emitEvent(eventName, id: sequenceID,
-                                         "Cancelled during iteration \(iterationCount)")
-                    break
-                }
-                self.performStateChange(state)
-                
-                // Emit an event to mark the state change
-                // Note: Avoid accessing self.state in the message to prevent observation side effects
-                let eventName: StaticString = "AsyncStream Changed State"
-                signposter.emitEvent(eventName, id: sequenceID, "State changed to \(String(describing: state))")
-                iterationCount += 1
-            }
-        }
-    }
-    
+
     /// Observes and updates the state from a generic `AsyncSequence` that never throws.
     ///
-    /// This method accepts any `AsyncSequence` whose element type is `State` and failure type
-    /// is `Never`. Each state value is applied to the container as it becomes available from
-    /// the sequence. The method returns immediately without waiting for the sequence to complete,
-    /// and any ongoing state observation is cancelled before the new one begins.
+    /// This method uses `iterator.next(isolation: #isolation)` to keep the iterator in the
+    /// caller's isolation domain, avoiding Sendable requirements on `State`.
     ///
-    /// State values can be produced on any thread, but all state changes are guaranteed to occur
-    /// on the main thread. Any ongoing state observations are cancelled before starting the new
-    /// observation.
-    ///
-    /// The observation continues until the sequence completes or the observation is cancelled.
-    /// If cancelled, no further states from the sequence will be applied.
-    ///
-    /// - Parameter sequence: Any `AsyncSequence` that emits `State` values and has a `Failure`
-    ///                       type of `Never`, ensuring it can never throw errors.
-    ///
-    /// ## Type Constraints
-    ///
-    /// - `SomeAsyncSequence.Element == State`: The sequence must emit state values
-    /// - `SomeAsyncSequence.Failure == Never`: The sequence must be non-throwing
-    ///
-    /// ## One-tick run loop delay
-    ///
-    /// Because `AsyncSequence` is fully asynchronous, there is no way to determine whether the
-    /// first element can be produced synchronously. All state changes—including the first—occur
-    /// after a `Task` has been scheduled, so SwiftUI may render one frame of the previous state
-    /// before the first value is consumed. For most user-initiated actions on an already-visible
-    /// view this is imperceptible, but if you need the first state change to happen synchronously
-    /// (e.g. on your view's initial `onAppear`), use `observe(_:)` with a ``StateSequence``
-    /// built via ``StateSequenceBuilder`` instead.
-    ///
-    /// ## Example
-    ///
-    /// This method accepts any `AsyncSequence` with a `Failure` type of `Never`. The most common
-    /// type that satisfies this constraint is `AsyncStream`. First, define a state model that
-    /// implements an action returning an `AsyncStream`:
-    ///
-    /// ```swift
-    /// struct LoadedViewStateModel: Sendable {
-    ///     let items: [Item]
-    ///     private let repository: ItemRepository
-    ///     
-    ///     func checkout() -> AsyncStream<ExampleViewState> {
-    ///         AsyncStream { continuation in
-    ///             Task {
-    ///                 continuation.yield(.checkingOut)
-    ///                 await self.performCheckout(continuation)
-    ///                 continuation.finish()
-    ///             }
-    ///         }
-    ///     }
-    ///     
-    ///     @concurrent
-    ///     private func performCheckout(_ continuation: AsyncStream<ExampleViewState>.Continuation) async {
-    ///         do {
-    ///             try await repository.checkout()
-    ///             continuation.yield(.checkoutComplete)
-    ///             
-    ///             try? await Task.sleep(for: .seconds(2))
-    ///             continuation.yield(.loaded(LoadedViewStateModel(items: [], repository: repository)))
-    ///         } catch {
-    ///             continuation.yield(.checkoutError(error: error, model: self))
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    ///
-    /// Then observe the stream in your view:
-    ///
-    /// ```swift
-    /// struct ExampleView: View {
-    ///     @ViewState var state = ExampleViewState.loaded(LoadedViewStateModel())
-    ///     
-    ///     var body: some View {
-    ///         switch state {
-    ///         case .loaded(let model):
-    ///             ContentView(model: model)
-    ///                 .toolbar {
-    ///                     Button("Checkout") {
-    ///                         $state.observe(model.checkout())
-    ///                     }
-    ///                 }
-    ///         case .checkingOut:
-    ///             ProgressView("Processing...")
-    ///         case .checkoutComplete:
-    ///             Text("Order complete!")
-    ///         case .checkoutError(let error, let model):
-    ///             ErrorView(error: error, retry: { $state.observe(model.checkout()) })
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    ///
-    /// 
+    /// - Parameter sequence: Any `AsyncSequence` that emits `State` values with `Failure` of `Never`.
     @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, macCatalyst 18.0, *)
-    func observe<SomeAsyncSequence>(_ sequence: SomeAsyncSequence)
-    where SomeAsyncSequence: AsyncSequence,
-          SomeAsyncSequence.Element == State,
-          SomeAsyncSequence.Failure == Never {
+    func observe(_ sequence: some AsyncSequence<State, Never>) {
         if loggingEnabled {
             os_log(.debug, log: logger, "observe(AsyncSequence) called")
         }
         
         cancelRunningObservations()
-        stateChanges = 0
         
         stateTask = Task { @MainActor [weak self] in
             guard let self else { return }
             
-            // Track the entire sequence with one interval
             let sequenceID = signposter.makeSignpostID()
             let postName: StaticString = "Sequence"
             let sequenceState = signposter.beginInterval(postName, id: sequenceID, "\(String(describing: sequence.self)) Sequence")
             defer { signposter.endInterval(postName, sequenceState) }
             
+            var iterator = sequence.makeAsyncIterator()
             var iterationCount = 1
             
-            for await state in sequence {
+            while !Task.isCancelled {
+                let nextState = await iterator.next(isolation: #isolation)
+                
+                guard let state = nextState else {
+                    if self.loggingEnabled {
+                        os_log(.debug, log: self.logger, "AsyncSequence completed after %d state changes", iterationCount - 1)
+                    }
+                    let eventName: StaticString = "Some AsyncSequence Sequence Ended"
+                    signposter.emitEvent(eventName, id: sequenceID,
+                                         "Ended after \(iterationCount - 1) iterations")
+                    break
+                }
+                
                 guard !Task.isCancelled else {
                     if self.loggingEnabled {
                         os_log(.debug, log: self.logger, "AsyncSequence cancelled during iteration %d", iterationCount)
@@ -921,94 +534,323 @@ public extension AsyncStateContainer {
                 }
                 self.performStateChange(state)
                 
-                // Emit an event to mark the state change
-                // Note: Avoid accessing self.state in the message to prevent observation side effects
                 let eventName: StaticString = "Some AsyncSequence Changed State"
                 signposter.emitEvent(eventName, id: sequenceID, "State changed to \(String(describing: state))")
                 iterationCount += 1
             }
+        }
+    }
+    
+    // MARK: - Core Legacy Publisher Observation (private — unsafe)
+
+    private func _observeLegacyPublisherUnsafe(_ publisher: some Publisher<State, Never>, firstState: State?) {
+        cancelRunningObservations()
+        
+        let sequenceID = signposter.makeSignpostID()
+        let postName: StaticString = "Publisher"
+        let sequenceState = signposter.beginInterval(postName, id: sequenceID, "Combine Publisher \(String(describing: publisher.self))")
+        
+        if let firstState {
+            performStateChange(firstState)
+            let eventName: StaticString = "Publisher emitted new State"
+            signposter.emitEvent(eventName, id: sequenceID, "State changed to \(String(describing: firstState))")
+        }
+        
+        stateTask = Task { @MainActor [weak self, signposter] in
+            guard let self else {
+                signposter.endInterval(postName, sequenceState)
+                return
+            }
+            defer {
+                signposter.endInterval(postName, sequenceState)
+            }
             
-            if !Task.isCancelled {
-                // Sequence completed naturally
-                if self.loggingEnabled {
-                    os_log(.debug, log: self.logger, "AsyncSequence completed after %d state changes", iterationCount - 1)
+            var iterationCount = firstState == nil ? 1 : 2
+            
+            for await newState in publisher.values {
+                guard !Task.isCancelled else {
+                    if self.loggingEnabled {
+                        os_log(.debug, log: self.logger, "Publisher cancelled during iteration %d", iterationCount)
+                    }
+                    let eventName: StaticString = "Publisher Cancelled"
+                    signposter.emitEvent(eventName, id: sequenceID, "Cancelled during iteration \(iterationCount)")
+                    break
                 }
-                let eventName: StaticString = "Some AsyncSequence Sequence Ended"
-                signposter.emitEvent(eventName, id: sequenceID,
-                                     "Ended after \(iterationCount - 1) iterations")
+                
+                self.performStateChange(newState)
+                
+                let eventName: StaticString = "Publisher emitted new State"
+                signposter.emitEvent(eventName, id: sequenceID, "State changed to \(String(describing: newState))")
+                iterationCount += 1
+            }
+            
+            if self.loggingEnabled {
+                os_log(.debug, log: self.logger, "Publisher subscription finished after %d state changes", iterationCount - 1)
             }
         }
     }
 
-    // MARK: - Observe Combine Publisher State Change Functions
+    // MARK: - Legacy Combine Publisher Observation (unsafe — no Sendable requirement)
 
-    /// Observes and updates the state from a Combine `Publisher`.
+    /// **(Legacy / Combine migration — unsafe)** Observes a Combine `Publisher`, applying
+    /// `firstState` synchronously and consuming subsequent emissions asynchronously via
+    /// `publisher.values`.
     ///
-    /// This method consumes a Combine `Publisher` that emits state values over time. Each state value
-    /// is applied to the container as it becomes available from the publisher. The method returns
-    /// immediately without waiting for the publisher to complete.
+    /// Works with **any** `State` type — including non-`Sendable`. The caller provides the
+    /// first state explicitly, which is applied immediately (synchronously) before the `Task`
+    /// begins consuming the publisher.
     ///
-    /// State values can be produced on any thread, but all state changes are guaranteed to occur
-    /// on the main thread. Any ongoing state observations are cancelled before starting the new
-    /// observation.
+    /// **Warning:** This method uses Apple's `publisher.values` bridge internally, which does
+    /// **not** require `Sendable`. For value types (structs) this is safe because values are
+    /// copied. For non-`Sendable` mutable reference types (classes), the bridge only
+    /// synchronizes the reference handoff — not the object's internal state. If the publisher
+    /// emits a mutable class instance and both sides retain a reference, data races on the
+    /// object's properties are possible. This is the same trade-off Apple makes in their
+    /// `publisher.values` implementation.
     ///
-    /// The observation continues until the publisher completes or the observation is cancelled.
-    /// If cancelled, no further states from the publisher will be applied.
+    /// When `State: Sendable`, prefer ``observeLegacy(_:firstState:)`` which provides the same
+    /// behavior with compile-time safety guarantees.
     ///
-    /// ## Thread Safety
+    /// ## When to use which legacy publisher API
     ///
-    /// Combine publishers are not `Sendable`, which creates potential thread-safety concerns. This
-    /// method addresses this by:
-    /// - Subscribing immediately with Combine `sink` to preserve publisher ordering semantics
-    /// - Bridging emissions into an `AsyncStream` for structured-concurrency consumption
-    /// - Performing all state changes on the main actor via `performStateChange`
+    /// | Method | `Sendable`? | First state | Trade-off |
+    /// |---|---|---|---|
+    /// | ``observeLegacy(_:firstState:)`` | **Yes** | Explicit, sync | Safest — no lock, no hop |
+    /// | ``observeLegacyAsync(_:)`` | **Yes** | Async (hops) | First frame may flicker |
+    /// | ``observeLegacyBlocking(_:)`` | **Yes** | Auto-captured, sync | Briefly blocks thread |
+    /// | ``observeLegacyUnsafe(_:firstState:)`` | No | Explicit, sync | `.values` bridge risk for non-Sendable classes |
+    /// | ``observeLegacyAsyncUnsafe(_:)`` | No | Async (hops) | `.values` bridge risk for non-Sendable classes |
+    /// | ``observeLegacyBlockingUnsafe(_:)`` | No | Auto-captured, sync | Blocks thread + `@unchecked Sendable` risk |
     ///
-    /// **Important**: If you're using a mutable publisher (e.g., `CurrentValueSubject`), ensure that
-    /// all mutations happen on the main thread to maintain thread safety.
-    ///
-    /// - Parameter publisher: A Combine `Publisher` that emits `State` values and has a `Failure`
-    ///                        type of `Never`, ensuring it can never throw errors.
-    ///
-    /// ## Example
-    ///
-    /// ```swift
-    /// struct ExampleView: View {
-    ///     @ViewState var state = ExampleViewState.initialized(.init())
-    ///     
-    ///     var body: some View {
-    ///         switch state {
-    ///         case .initialized(let viewModel):
-    ///             HStack {
-    ///                 Color.clear
-    ///                     .onAppear {
-    ///                         // viewModel.loadPublisher() returns a Publisher<ExampleViewState, Never>
-    ///                         $state.observe(viewModel.loadPublisher())
-    ///                     }
-    ///             }
-    ///         case .loading:
-    ///             ProgressView()
-    ///         case .loaded(let model):
-    ///             ContentView(model: model)
-    ///         case .error(let error):
-    ///             ErrorView(error: error)
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    ///
-    /// - Note: This method exists for ease of migration from VSM to AsyncVSM and may be removed
-    ///         in the future if Apple ever deprecates Combine in favor of Swift Concurrency.
-    func observe(_ publisher: some Publisher<State, Never>) {
+    /// - Parameters:
+    ///   - publisher: A Combine `Publisher` that emits `State` values and never fails.
+    ///   - firstState: The initial state to apply synchronously before consuming the publisher.
+    func observeLegacyUnsafe(_ publisher: some Publisher<State, Never>, firstState: State) {
         if loggingEnabled {
-            os_log(.debug, log: logger, "observe(Publisher) called")
+            os_log(.debug, log: logger, "observeLegacyUnsafe(_:firstState:) called")
+        }
+        _observeLegacyPublisherUnsafe(publisher, firstState: firstState)
+    }
+
+    /// **(Legacy / Combine migration — unsafe)** Observes a Combine `Publisher`, consuming all
+    /// emissions asynchronously — including the first one.
+    ///
+    /// Works with **any** `State` type — including non-`Sendable`. The first emission is
+    /// delivered asynchronously (one `Task` hop), so there may be a brief UI flicker if the
+    /// publisher emits synchronously on subscription.
+    ///
+    /// **Warning:** Uses Apple's `publisher.values` bridge which does **not** protect
+    /// non-`Sendable` mutable reference types from data races. See
+    /// ``observeLegacyUnsafe(_:firstState:)`` for a full explanation.
+    ///
+    /// When `State: Sendable`, prefer ``observeLegacyAsync(_:)`` for compile-time safety.
+    /// Prefer ``observeLegacyUnsafe(_:firstState:)`` when you know the first state upfront,
+    /// as it avoids the hop entirely.
+    ///
+    /// - Parameter publisher: A Combine `Publisher` that emits `State` values and never fails.
+    func observeLegacyAsyncUnsafe(_ publisher: some Publisher<State, Never>) {
+        if loggingEnabled {
+            os_log(.debug, log: logger, "observeLegacyAsyncUnsafe(_:) called")
+        }
+        _observeLegacyPublisherUnsafe(publisher, firstState: nil)
+    }
+
+    // MARK: - Legacy Combine Publisher (blocking, unsafe — no Sendable requirement)
+
+    /// **(Legacy / Combine migration — unsafe, blocking)** Observes a Combine `Publisher`,
+    /// using a lock to capture the first emission synchronously — avoiding a `Task` hop on the
+    /// first frame. Works with **any** `State` type, including non-`Sendable`.
+    ///
+    /// **Warning:** Uses `@unchecked Sendable` internally to bypass the compiler's Sendable
+    /// checks. For non-`Sendable` mutable reference types (classes), data races on the object's
+    /// properties are possible if both the publisher and the consumer retain a reference.
+    /// This is the same trade-off as calling `publisher.values` directly on a non-Sendable type.
+    ///
+    /// **Intended for deletion** once all callers have migrated to `Sendable` state types.
+    /// When `State: Sendable`, prefer ``observeLegacyBlocking(_:)`` which provides the same
+    /// behavior with compiler-proven safety.
+    ///
+    /// ## When to use which legacy publisher API
+    ///
+    /// | Method | `Sendable`? | First state | Trade-off |
+    /// |---|---|---|---|
+    /// | ``observeLegacy(_:firstState:)`` | **Yes** | Explicit, sync | Safest — no lock, no hop |
+    /// | ``observeLegacyAsync(_:)`` | **Yes** | Async (hops) | First frame may flicker |
+    /// | ``observeLegacyBlocking(_:)`` | **Yes** | Auto-captured, sync | Briefly blocks thread |
+    /// | ``observeLegacyUnsafe(_:firstState:)`` | No | Explicit, sync | `.values` bridge risk |
+    /// | ``observeLegacyAsyncUnsafe(_:)`` | No | Async (hops) | `.values` bridge risk |
+    /// | ``observeLegacyBlockingUnsafe(_:)`` | No | Auto-captured, sync | Blocks thread + `@unchecked Sendable` risk |
+    ///
+    /// - Parameter publisher: A Combine `Publisher` that emits `State` values and never fails.
+    func observeLegacyBlockingUnsafe(_ publisher: some Publisher<State, Never>) {
+        if loggingEnabled {
+            os_log(.debug, log: logger, "observeLegacyBlockingUnsafe(_:) called")
         }
 
         cancelRunningObservations()
-        stateChanges = 0
 
-        // Backward-compatible Combine behavior:
-        // if the publisher emits synchronously during subscription on the main thread,
-        // apply the first state inline to avoid the extra run-loop turn.
+        typealias Boxed = UnsafeSendableBox<State>
+        let boxedStream = AsyncStream<Boxed>.makeStream(of: Boxed.self, bufferingPolicy: .unbounded)
+        let firstEmissionBuffer = SynchronousFirstEmissionBuffer<Boxed>()
+        let receiveValue = firstEmissionBuffer.makeReceiveValue(continuation: boxedStream.continuation)
+        publisherCancellable = publisher.sink(
+            receiveCompletion: firstEmissionBuffer.makeReceiveCompletion(continuation: boxedStream.continuation),
+            receiveValue: { receiveValue(Boxed(value: $0)) }
+        )
+
+        let sequenceID = signposter.makeSignpostID()
+        let postName: StaticString = "Publisher"
+        let sequenceState = signposter.beginInterval(postName, id: sequenceID, "Combine Publisher \(String(describing: publisher.self))")
+
+        let synchronousFirst = firstEmissionBuffer.finishSubscribing()?.value
+        if let synchronousFirst {
+            performStateChange(synchronousFirst)
+            let eventName: StaticString = "Publisher emitted new State"
+            signposter.emitEvent(eventName, id: sequenceID, "State changed to \(String(describing: synchronousFirst))")
+        }
+
+        stateTask = Task { @MainActor [weak self, signposter] in
+            guard let self else {
+                signposter.endInterval(postName, sequenceState)
+                return
+            }
+            defer {
+                signposter.endInterval(postName, sequenceState)
+                self.publisherCancellable = nil
+            }
+
+            var iterationCount = synchronousFirst == nil ? 1 : 2
+
+            for await box in boxedStream.stream {
+                let newState = box.value
+                guard !Task.isCancelled else {
+                    if self.loggingEnabled {
+                        os_log(.debug, log: self.logger, "Publisher cancelled during iteration %d", iterationCount)
+                    }
+                    let eventName: StaticString = "Publisher Cancelled"
+                    signposter.emitEvent(eventName, id: sequenceID, "Cancelled during iteration \(iterationCount)")
+                    break
+                }
+
+                self.performStateChange(newState)
+
+                let eventName: StaticString = "Publisher emitted new State"
+                signposter.emitEvent(eventName, id: sequenceID, "State changed to \(String(describing: newState))")
+                iterationCount += 1
+            }
+
+            if self.loggingEnabled {
+                os_log(.debug, log: self.logger, "Publisher subscription finished after %d state changes", iterationCount - 1)
+            }
+        }
+    }
+}
+
+// MARK: - Strict API (requires State: Sendable)
+
+public extension AsyncStateContainer where State: Sendable {
+
+    // MARK: - Observe Single State Change Functions (@Sendable)
+
+    /// `@Sendable` overload — preferred by the compiler when `State: Sendable`.
+    ///
+    /// Forwards to the `sending`-based implementation. A `@Sendable` closure satisfies
+    /// `sending` because `@Sendable` is strictly more constrained.
+    func observe(_ nextStateClosure: @escaping @Sendable () async -> State) {
+        _observe(nextStateClosure)
+    }
+    
+    /// `@Sendable` overload of `refresh(state:)`.
+    func refresh(state nextState: @escaping @Sendable () async -> State) async {
+        await _refresh(state: nextState)
+    }
+
+    // MARK: - Legacy Combine Publisher (safe — Sendable only)
+
+    /// **(Legacy / Combine migration — safe)** Observes a Combine `Publisher`, applying
+    /// `firstState` synchronously and consuming subsequent emissions asynchronously via
+    /// `publisher.values`.
+    ///
+    /// **Requires `State: Sendable`.** This guarantees no shared mutable state can cross
+    /// isolation boundaries through the `publisher.values` bridge.
+    ///
+    /// The caller provides the first state explicitly, which is applied immediately
+    /// (synchronously) before the `Task` begins consuming the publisher. No lock, no hop.
+    ///
+    /// For non-`Sendable` states, use ``observeLegacyUnsafe(_:firstState:)`` (same behavior,
+    /// but without compile-time safety for reference types).
+    ///
+    /// - Parameters:
+    ///   - publisher: A Combine `Publisher` that emits `State` values and never fails.
+    ///   - firstState: The initial state to apply synchronously before consuming the publisher.
+    func observeLegacy(_ publisher: some Publisher<State, Never>, firstState: State) {
+        if loggingEnabled {
+            os_log(.debug, log: logger, "observeLegacy(_:firstState:) called")
+        }
+        _observeLegacyPublisherSafe(publisher, firstState: firstState)
+    }
+
+    /// **(Legacy / Combine migration — safe)** Observes a Combine `Publisher`, consuming all
+    /// emissions asynchronously — including the first one.
+    ///
+    /// **Requires `State: Sendable`.** The first emission is delivered asynchronously (one
+    /// `Task` hop), so there may be a brief UI flicker if the publisher emits synchronously
+    /// on subscription.
+    ///
+    /// Prefer ``observeLegacy(_:firstState:)`` when you know the first state upfront, as it
+    /// avoids the hop entirely. For auto-captured synchronous first emission,
+    /// ``observeLegacyBlocking(_:)`` uses a lock instead.
+    ///
+    /// For non-`Sendable` states, use ``observeLegacyAsyncUnsafe(_:)``.
+    ///
+    /// - Parameter publisher: A Combine `Publisher` that emits `State` values and never fails.
+    func observeLegacyAsync(_ publisher: some Publisher<State, Never>) {
+        if loggingEnabled {
+            os_log(.debug, log: logger, "observeLegacyAsync(_:) called")
+        }
+        _observeLegacyPublisherSafe(publisher, firstState: nil)
+    }
+
+    // MARK: - Legacy Combine Publisher (blocking — Sendable only)
+
+    /// **(Legacy / Combine migration)** Observes a Combine `Publisher`, using a lock to capture the
+    /// first emission synchronously — avoiding a `Task` hop on the first frame.
+    ///
+    /// **Requires `State: Sendable`.** This method subscribes via Combine's `sink` and uses a
+    /// lock-based buffer (`SynchronousFirstEmissionBuffer`) to intercept the first synchronous
+    /// emission. The lock briefly **blocks the calling thread** during subscription. Subsequent
+    /// emissions are bridged into an `AsyncStream` for structured-concurrency consumption.
+    ///
+    /// ## When to use which legacy publisher API
+    ///
+    /// | Method | `Sendable`? | First state | Trade-off |
+    /// |---|---|---|---|
+    /// | ``observeLegacy(_:firstState:)`` | **Yes** | Explicit, sync | Safest — no lock, no hop |
+    /// | ``observeLegacyAsync(_:)`` | **Yes** | Async (hops) | First frame may flicker |
+    /// | ``observeLegacyBlocking(_:)`` | **Yes** | Auto-captured, sync | **Briefly blocks thread** |
+    /// | ``observeLegacyUnsafe(_:firstState:)`` | No | Explicit, sync | `.values` bridge risk for non-Sendable classes |
+    /// | ``observeLegacyAsyncUnsafe(_:)`` | No | Async (hops) | `.values` bridge risk for non-Sendable classes |
+    /// | ``observeLegacyBlockingUnsafe(_:)`` | No | Auto-captured, sync | Blocks thread + `@unchecked Sendable` risk |
+    ///
+    /// For non-`Sendable` states, use ``observeLegacyUnsafe(_:firstState:)``, ``observeLegacyAsyncUnsafe(_:)``,
+    /// or ``observeLegacyBlockingUnsafe(_:)``.
+    ///
+    /// ## Known Combine Limitations
+    ///
+    /// Combine has known race conditions with certain operator combinations — notably
+    /// `.append` + `.delay` + `.subscribe(on:)` — where the publisher may fire its completion
+    /// before appended publishers emit their values. This is a Combine framework issue, not a
+    /// VSM issue, and will affect any `sink` subscriber in the same way. See
+    /// `CombinePublisherRaceConditionTests` for an isolated reproduction.
+    ///
+    /// - Parameter publisher: A Combine `Publisher` that emits `State` values and never fails.
+    func observeLegacyBlocking(_ publisher: some Publisher<State, Never>) {
+        if loggingEnabled {
+            os_log(.debug, log: logger, "observeLegacyBlocking(_:) called")
+        }
+
+        cancelRunningObservations()
+
         let stream = AsyncStream<State>.makeStream(of: State.self, bufferingPolicy: .unbounded)
         let firstEmissionBuffer = SynchronousFirstEmissionBuffer<State>()
         publisherCancellable = publisher.sink(
@@ -1063,10 +905,28 @@ public extension AsyncStateContainer {
     }
 }
 
-private final class SynchronousFirstEmissionBuffer<State: Sendable>: @unchecked Sendable {
-    private let lock = NSLock()
-    private var isSubscribing = true
-    private var firstEmission: State?
+// MARK: - Safe Legacy Publisher Forwarding (State: Sendable)
+
+private extension AsyncStateContainer where State: Sendable {
+    func _observeLegacyPublisherSafe(_ publisher: some Publisher<State, Never>, firstState: State?) {
+        _observeLegacyPublisherUnsafe(publisher, firstState: firstState)
+    }
+}
+
+// MARK: - SynchronousFirstEmissionBuffer (iOS 16+, State: Sendable)
+
+/// Buffers the first synchronous emission from a Combine publisher during subscription,
+/// allowing it to be applied inline before any `await` suspension point.
+///
+/// Uses `OSAllocatedUnfairLock` for compiler-verified exclusive access to the protected state.
+/// Available on iOS 16+ (unlike `Mutex` which requires iOS 18+).
+private final class SynchronousFirstEmissionBuffer<State: Sendable>: Sendable {
+    private struct BufferState: Sendable {
+        var isSubscribing = true
+        var firstEmission: State?
+    }
+
+    private let lock = OSAllocatedUnfairLock(initialState: BufferState())
 
     func makeReceiveValue(continuation: AsyncStream<State>.Continuation) -> (State) -> Void {
         { [self] newState in
@@ -1081,25 +941,34 @@ private final class SynchronousFirstEmissionBuffer<State: Sendable>: @unchecked 
     }
 
     private func receive(_ newState: State, continuation: AsyncStream<State>.Continuation) {
-        lock.lock()
-        defer { lock.unlock() }
-
-        if isSubscribing && firstEmission == nil && Thread.isMainThread {
-            firstEmission = newState
-        } else {
-            continuation.yield(newState)
+        lock.withLock { state in
+            if state.isSubscribing && state.firstEmission == nil && Thread.isMainThread {
+                state.firstEmission = newState
+            } else {
+                continuation.yield(newState)
+            }
         }
     }
 
     func finishSubscribing() -> State? {
-        lock.lock()
-        defer { lock.unlock() }
-
-        isSubscribing = false
-        let captured = firstEmission
-        firstEmission = nil
-        return captured
+        lock.withLock { state in
+            state.isSubscribing = false
+            let captured = state.firstEmission
+            state.firstEmission = nil
+            return captured
+        }
     }
+}
+
+// MARK: - UnsafeSendableBox (deletable — used only by observeLegacyBlockingUnsafe)
+
+/// Wraps a non-`Sendable` value so it satisfies `Sendable` constraints, allowing it to be
+/// stored in `SynchronousFirstEmissionBuffer` and yielded through `AsyncStream`.
+///
+/// **Intended for deletion** alongside `observeLegacyBlockingUnsafe` once all callers
+/// adopt `Sendable` state types.
+private struct UnsafeSendableBox<T>: @unchecked Sendable {
+    let value: T
 }
 
 private extension AsyncStateContainer {
@@ -1110,7 +979,13 @@ private extension AsyncStateContainer {
 
         publisherCancellable?.cancel()
         publisherCancellable = nil
+
+        #if DEBUG
+        stateChanges = 0
+        #endif
     }
+
+
     
     private func performStateChange(_ newState: State) {
         if loggingEnabled {
@@ -1120,15 +995,14 @@ private extension AsyncStateContainer {
         self.state = newState
         
         #if DEBUG
-        // Forward the new state to any active test stream. No-ops when no test is observing.
-        // See the debug-only properties and the "Internal Testing Extension" for context.
-        guard let streamContinuation else { return }
-        streamContinuation.yield(newState)
+        guard let yield = _yieldState else { return }
+        yield(newState)
         stateChanges += 1
 
         if numberOfWatchedStates == stateChanges {
-            streamContinuation.finish()
-            self.streamContinuation = nil
+            _finishStream?()
+            _yieldState = nil
+            _finishStream = nil
         }
         #endif
     }
@@ -1136,7 +1010,7 @@ private extension AsyncStateContainer {
 
 // MARK: - Internal Testing Extension
 #if DEBUG
-internal extension AsyncStateContainer {
+internal extension AsyncStateContainer where State: Sendable {
     /// Creates an `AsyncStream` that collects a specified number of state changes for unit testing.
     ///
     /// - Warning: **This method is exclusively for VSM's internal unit tests.**
@@ -1175,27 +1049,24 @@ internal extension AsyncStateContainer {
     /// - Important: Call this method **before** triggering the action that causes state changes
     ///   to ensure all transitions are captured.
     func stateChangeStream(last numberOfChanges: Int, timeout: Duration? = nil) -> AsyncStream<State> {
-        // Cancel any existing timeout task
         streamTimeoutTask?.cancel()
         streamTimeoutTask = nil
         
-        // Finish any existing stream to prevent deadlocks on previous callers
-        streamContinuation?.finish()
+        _finishStream?()
         
         numberOfWatchedStates = numberOfChanges
         let stateChangeStream = AsyncStream<State>.makeStream(of: State.self, bufferingPolicy: .bufferingNewest(numberOfChanges))
         
-        streamContinuation = stateChangeStream.continuation
+        _yieldState = { stateChangeStream.continuation.yield($0) }
+        _finishStream = { stateChangeStream.continuation.finish() }
         
-        // Set up timeout if specified.
-        // The Task.sleep(for:) suspends without holding the actor, allowing state changes
-        // to proceed in parallel. When the sleep completes, cleanup runs on the main actor.
         if let timeout {
             streamTimeoutTask = Task { @MainActor [weak self] in
                 try? await Task.sleep(for: timeout)
                 guard !Task.isCancelled else { return }
-                self?.streamContinuation?.finish()
-                self?.streamContinuation = nil
+                self?._finishStream?()
+                self?._yieldState = nil
+                self?._finishStream = nil
                 self?.streamTimeoutTask = nil
             }
         }

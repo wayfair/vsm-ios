@@ -47,7 +47,7 @@ struct FavoriteButtonView: View {
         .disabled(isLoading)
         .onAppear {
             if case .initialized(let loaderModel) = state {
-                $state.observe(loaderModel.loadFavoriteInfo(dependencies: dependencies, productId: productId, productName: productName))
+                $state.observeLegacyBlocking(loaderModel.loadFavoriteInfo(dependencies: dependencies, productId: productId, productName: productName))
             }
         }
     }

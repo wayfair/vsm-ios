@@ -9,6 +9,7 @@ import Combine
 import Foundation
 import Observation
 import OSLog
+import SwiftUI
 import Testing
 
 @testable import VSM
@@ -23,7 +24,7 @@ struct StateContainerTests {
     /// which requires a SwiftUI view graph to work correctly.
     @MainActor
     private func makeContainer(initialState: MockState = .initialize()) -> AsyncStateContainer<MockState> {
-        AsyncStateContainer(state: initialState, logger: .disabled)
+        AsyncStateContainer(state: initialState, logger: .default, loggingEnabled: true)
     }
     
     // MARK: - Single State Change Tests
@@ -174,6 +175,7 @@ struct StateContainerTests {
     // MARK: - Multi-State Change Tests via AsyncStream
     
     @Test("State Change via AsyncStream expecting 3 states (Run on Main Thread)")
+    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, macCatalyst 18.0, *)
     @MainActor
     func stateChangeViaStateStream() async throws {
         let expectedResult: [MockState] = [
@@ -199,6 +201,7 @@ struct StateContainerTests {
     }
     
     @Test("State Change via AsyncStream expecting 3 states (Run on Background Thread)")
+    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, macCatalyst 18.0, *)
     @MainActor
     func stateChangeViaStateStreamBackgroundThread() async throws {
         let expectedResult: [MockState] = [
@@ -263,6 +266,58 @@ struct StateContainerTests {
         #expect(stateChanges == [expectedResult])
     }
     
+    // MARK: - Refresh Cancellation Tests
+
+    @Test("refresh(state:) is cancelled when a new observe is called (container-initiated)")
+    @MainActor
+    func refreshCancelledByNewObserve() async throws {
+        let container = makeContainer()
+
+        let refreshStarted = OSAllocatedUnfairLock(initialState: false)
+        let refreshTask = Task { @MainActor in
+            await container.refresh(state: {
+                refreshStarted.withLock { $0 = true }
+                try? await Task.sleep(for: .milliseconds(500))
+                return .loaded(.init(count: 999))
+            })
+        }
+
+        while !refreshStarted.withLock({ $0 }) {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        container.observe(.loading)
+        #expect(container.state == .loading)
+
+        await refreshTask.value
+
+        #expect(container.state == .loading)
+    }
+
+    @Test("refresh(state:) is cancelled when caller's task is cancelled (withTaskCancellationHandler)")
+    @MainActor
+    func refreshCancelledByCallerTask() async throws {
+        let container = makeContainer()
+
+        let refreshStarted = OSAllocatedUnfairLock(initialState: false)
+        let callerTask = Task { @MainActor in
+            await container.refresh(state: {
+                refreshStarted.withLock { $0 = true }
+                try? await Task.sleep(for: .milliseconds(500))
+                return .loaded(.init(count: 888))
+            })
+        }
+
+        while !refreshStarted.withLock({ $0 }) {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        callerTask.cancel()
+        await callerTask.value
+
+        #expect(container.state == .initialize(.init()))
+    }
+
     @Test("Observing State Publisher should result in state changes")
     @MainActor
     func testObservingStatePublisher() async throws {
@@ -277,7 +332,7 @@ struct StateContainerTests {
         }
         let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(5))
         
-        container.observe(initStateModel.loadFromPublisher())
+        container.observeLegacyBlocking(initStateModel.loadFromPublisher())
         
         var stateChanges: [MockState] = []
         for await stateChange in stateChangsStream {
@@ -288,6 +343,9 @@ struct StateContainerTests {
         #expect(stateChanges.count == 2)
     }
     
+    /// - Note: This test may fail intermittently due to a known Combine race condition
+    ///   with `.append` + `.delay` + `.subscribe(on:)`. See `CombinePublisherRaceConditionTests`
+    ///   for an isolated reproduction that proves the issue is in Combine, not in VSM.
     @Test("Observing State Publisher that works on a background thread should result in state changes")
     @MainActor
     func testObservingStatePublisherOnBackgroundThread() async throws {
@@ -302,7 +360,7 @@ struct StateContainerTests {
         }
         let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(5))
         
-        container.observe(initStateModel.loadFromPublisherBackgroundThread())
+        container.observeLegacyBlocking(initStateModel.loadFromPublisherBackgroundThread())
         
         var stateChanges: [MockState] = []
         for await stateChange in stateChangsStream {
@@ -318,7 +376,7 @@ struct StateContainerTests {
         let container = makeContainer()
         let subject = CurrentValueSubject<MockState, Never>(.loading)
 
-        container.observe(subject.eraseToAnyPublisher())
+        container.observeLegacyBlocking(subject.eraseToAnyPublisher())
 
         #expect(container.state == .loading)
 
@@ -332,7 +390,197 @@ struct StateContainerTests {
 
         #expect(stateChanges == [.loaded(.init(count: 42))])
     }
-    
+
+    @Test("observeLegacyBlocking cancels previous publisher on new observation")
+    @MainActor
+    func testObserveLegacyBlockingCancelsOnNewObservation() async throws {
+        let container = makeContainer()
+        let subject = CurrentValueSubject<MockState, Never>(.loading)
+
+        container.observeLegacyBlocking(subject.eraseToAnyPublisher())
+        #expect(container.state == .loading)
+
+        // New observation replaces the publisher
+        container.observe(.initialize(.init()))
+        #expect(container.state == .initialize(.init()))
+
+        // Emissions from the old publisher should be ignored
+        subject.send(.loaded(.init(count: 99)))
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(container.state == .initialize(.init()))
+    }
+
+    @Test("observeLegacyBlocking delivers multiple emissions")
+    @MainActor
+    func testObserveLegacyBlockingMultipleEmissions() async throws {
+        let container = makeContainer()
+        let subject = CurrentValueSubject<MockState, Never>(.loading)
+
+        container.observeLegacyBlocking(subject.eraseToAnyPublisher())
+        #expect(container.state == .loading)
+
+        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(5))
+
+        subject.send(.loaded(.init(count: 1)))
+        subject.send(.loaded(.init(count: 2)))
+
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
+        }
+
+        #expect(stateChanges == [
+            .loaded(.init(count: 1)),
+            .loaded(.init(count: 2)),
+        ])
+    }
+
+    // MARK: - observeLegacy (safe — Sendable)
+
+    @Test("observeLegacy(_:firstState:) applies firstState synchronously with Sendable state")
+    @MainActor
+    func testObserveLegacySafeFirstState() async throws {
+        let container = makeContainer()
+        let subject = PassthroughSubject<MockState, Never>()
+
+        container.observeLegacy(subject, firstState: .loading)
+        #expect(container.state == .loading)
+
+        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(5))
+
+        try await Task.sleep(for: .milliseconds(50))
+        subject.send(.loaded(.init(count: 42)))
+
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
+        }
+
+        #expect(stateChanges == [.loaded(.init(count: 42))])
+    }
+
+    @Test("observeLegacy(_:firstState:) delivers multiple emissions after firstState")
+    @MainActor
+    func testObserveLegacySafeFirstStateMultipleEmissions() async throws {
+        let container = makeContainer()
+        let subject = PassthroughSubject<MockState, Never>()
+
+        container.observeLegacy(subject, firstState: .loading)
+        #expect(container.state == .loading)
+
+        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(5))
+
+        try await Task.sleep(for: .milliseconds(50))
+        subject.send(.loaded(.init(count: 1)))
+        try await Task.sleep(for: .milliseconds(50))
+        subject.send(.loaded(.init(count: 2)))
+
+        var stateChanges: [MockState] = []
+        for await stateChange in stateChangsStream {
+            stateChanges.append(stateChange)
+        }
+
+        #expect(stateChanges == [
+            .loaded(.init(count: 1)),
+            .loaded(.init(count: 2)),
+        ])
+    }
+
+    @Test("observeLegacy(_:firstState:) cancels on new observation")
+    @MainActor
+    func testObserveLegacySafeFirstStateCancels() async throws {
+        let container = makeContainer()
+        let subject = PassthroughSubject<MockState, Never>()
+
+        container.observeLegacy(subject, firstState: .loading)
+        #expect(container.state == .loading)
+
+        try await Task.sleep(for: .milliseconds(50))
+
+        container.observe(.initialize(.init()))
+        #expect(container.state == .initialize(.init()))
+
+        subject.send(.loaded(.init(count: 99)))
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(container.state == .initialize(.init()))
+    }
+
+    // MARK: - observeLegacyAsync (safe — Sendable)
+
+    @Test("observeLegacyAsync delivers emissions asynchronously with Sendable state")
+    @MainActor
+    func testObserveLegacySafeAsync() async throws {
+        let container = makeContainer()
+        let subject = CurrentValueSubject<MockState, Never>(.loading)
+
+        container.observeLegacyAsync(subject.eraseToAnyPublisher())
+
+        #expect(container.state == .initialize(.init()))
+
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(container.state == .loading)
+    }
+
+    @Test("observeLegacyAsync proves hop — first state not applied synchronously")
+    @MainActor
+    func testObserveLegacySafeAsyncProvesHop() async throws {
+        let container = makeContainer()
+        let publisher = Just(MockState.loading)
+
+        container.observeLegacyAsync(publisher)
+
+        #expect(container.state == .initialize(.init()))
+
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(container.state == .loading)
+    }
+
+    @Test("observeLegacyAsync delivers multiple emissions")
+    @MainActor
+    func testObserveLegacySafeAsyncMultipleEmissions() async throws {
+        let container = makeContainer()
+        let subject = PassthroughSubject<MockState, Never>()
+
+        container.observeLegacyAsync(subject)
+
+        #expect(container.state == .initialize(.init()))
+
+        try await Task.sleep(for: .milliseconds(50))
+
+        subject.send(.loading)
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(container.state == .loading)
+
+        subject.send(.loaded(.init(count: 42)))
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(container.state == .loaded(.init(count: 42)))
+
+        subject.send(completion: .finished)
+    }
+
+    @Test("observeLegacyAsync cancels on new observation")
+    @MainActor
+    func testObserveLegacySafeAsyncCancels() async throws {
+        let container = makeContainer()
+        let subject = PassthroughSubject<MockState, Never>()
+
+        container.observeLegacyAsync(subject)
+        try await Task.sleep(for: .milliseconds(50))
+
+        subject.send(.loading)
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(container.state == .loading)
+
+        container.observe(.initialize(.init()))
+        #expect(container.state == .initialize(.init()))
+
+        subject.send(.loaded(.init(count: 99)))
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(container.state == .initialize(.init()))
+    }
+
+    // MARK: - StateSequence
+
     @Test("Synchronous states in StateSequenceBuilder are applied immediately before observe returns")
     @MainActor
     func synchronousStateAppliedImmediatelyBeforeObserveReturns() async throws {
@@ -598,6 +846,29 @@ struct StateContainerTests {
         
         #expect(stateChanges == expectedResult)
     }
+
+    // MARK: - Binding Tests
+
+    @Test("bind with Sendable state")
+    @MainActor
+    func bindWithSendableState() {
+        struct FormState: Sendable, Equatable {
+            var name: String
+        }
+
+        let container = AsyncStateContainer(state: FormState(name: "hello"), logger: .disabled)
+
+        let binding: Binding<String> = container.bind(\.name, to: { state, newName in
+            var copy = state
+            copy.name = newName
+            return copy
+        })
+
+        #expect(binding.wrappedValue == "hello")
+
+        binding.wrappedValue = "world"
+        #expect(container.state.name == "world")
+    }
 }
 
 // MARK: - Mock Types for Testing State transitions
@@ -820,5 +1091,42 @@ extension MockState {
     
     struct LoadedStateModel: Sendable, Equatable {
         let count: Int
+    }
+}
+
+// MARK: - Combine-only Race Condition Reproduction
+
+/// Isolated reproduction of a known Combine framework race condition.
+///
+/// Combine's `.append` + `.delay` + `.subscribe(on:)` operator combination can cause
+/// the publisher's completion to fire before the appended publisher emits its value.
+/// This is a pure Combine issue — no `AsyncStateContainer` or bridge code is involved.
+///
+/// This test exists to document the bug and explain intermittent failures in
+/// `testObservingStatePublisherOnBackgroundThread`, which uses the same publisher pipeline.
+@Suite("Combine Publisher Race Condition")
+struct CombinePublisherRaceConditionTests {
+
+    @Test("Pure Combine: append + delay + subscribe(on:) delivers all values before completion")
+    func appendDelaySubscribeOnRace() async throws {
+        let expectedValues: [MockState] = [.loading, .loaded(.init(count: 11))]
+
+        let publisher = MockState.InitializeStateModel().loadFromPublisherBackgroundThread()
+
+        let values = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[MockState], Error>) in
+            var received: [MockState] = []
+            var cancellable: AnyCancellable?
+            cancellable = publisher.sink(
+                receiveCompletion: { _ in
+                    continuation.resume(returning: received)
+                    _ = cancellable // prevent premature dealloc
+                },
+                receiveValue: { value in
+                    received.append(value)
+                }
+            )
+        }
+
+        #expect(values == expectedValues)
     }
 }

@@ -27,7 +27,7 @@ struct MainView: View {
             ProgressView()
                 .onAppear {
                     if case .initialized(let loaderModel) = state {
-                        $state.observe(loaderModel.loadDependencies())
+                        $state.observeLegacyBlocking(loaderModel.loadDependencies())
                     }
                 }
         case .loaded(let loadedModel):

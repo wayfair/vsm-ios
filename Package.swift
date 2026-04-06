@@ -33,5 +33,6 @@ let package = Package(
                 "VSM",
             ]
         )
-    ]
+    ],
+    swiftLanguageModes: [.v6]
 )

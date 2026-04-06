@@ -46,14 +46,21 @@ struct MainViewStateTests {
         
         // Observe cart count stream with a timeout
         let stream = subject.observeCardCount()
-        var stateReceived = false
+        actor TrackState {
+            var stateReceived = false
+            
+            func receive() {
+                stateReceived = true
+            }
+        }
+        let tackState = TrackState()
         
         // Use a task with timeout to avoid hanging indefinitely
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
                 for await state in stream.prefix(1) {
                     if case .loaded(let model) = state {
-                        stateReceived = true
+                        await tackState.receive()
                         #expect(model.cardCount >= 0)
                         break
                     }
@@ -68,7 +75,7 @@ struct MainViewStateTests {
             try await group.next()
             group.cancelAll()
         }
-        
+        let stateReceived = await tackState.stateReceived
         #expect(stateReceived, "Expected to receive at least one state from cart count stream")
     }
 
