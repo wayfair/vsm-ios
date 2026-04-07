@@ -474,7 +474,13 @@ extension RenderedViewState.RenderedContainer {
 }
 
 // MARK: - Sendable-Only Pass-throughs
-
+@available(iOS, introduced: 17.0, deprecated: 26.0, renamed: "ViewState", message: "iOS 26 supports property observation in UIViewControllers and UIViews. Use @ViewState instead and override the updateProperties method which will replace your render method.")
+@available(iOS, introduced: 17.0, deprecated: 26.0, renamed: "ViewState", message: "iOS 26 supports property observation in UIViewControllers and UIViews. Use @ViewState instead and override the updateProperties method which will replace your render method.")
+@available(macOS, introduced: 14.0, deprecated: 26.0, renamed: "ViewState", message: "iOS 26 supports property observation in UIViewControllers and UIViews. Use @ViewState instead and override the updateProperties method which will replace your render method.")
+@available(tvOS, introduced: 17.0, deprecated: 26.0, renamed: "ViewState", message: "iOS 26 supports property observation in UIViewControllers and UIViews. Use @ViewState instead and override the updateProperties method which will replace your render method.")
+@available(visionOS, introduced: 1.0, deprecated: 26.0, renamed: "ViewState", message: "iOS 26 supports property observation in UIViewControllers and UIViews. Use @ViewState instead and override the updateProperties method which will replace your render method.")
+@available(macCatalyst, introduced: 17.0, deprecated: 26.0, renamed: "ViewState", message: "iOS 26 supports property observation in UIViewControllers and UIViews. Use @ViewState instead and override the updateProperties method which will replace your render method.")
+@available(watchOS, unavailable, message: "watchOS only uses SwiftUI, so this UIKit-specific property wrapper is not available")
 extension RenderedViewState.RenderedContainer where State: Sendable {
     
     /// `@Sendable` overload — preferred by the compiler when `State: Sendable`.
