@@ -476,10 +476,11 @@ public extension AsyncStateContainer {
                                          "Cancelled during iteration \(iterationCount)")
                     break
                 }
+                let nextStateDescription = String(describing: nextState)
                 self.performStateChange(nextState)
 
                 let eventName: StaticString = "StateSequence Changed State"
-                signposter.emitEvent(eventName, id: sequenceID, "State changed to \(String(describing: nextState))")
+                signposter.emitEvent(eventName, id: sequenceID, "State changed to \(nextStateDescription)")
                 iterationCount += 1
             }
         }
@@ -987,7 +988,7 @@ private extension AsyncStateContainer {
 
 
     
-    private func performStateChange(_ newState: State) {
+    private func performStateChange(_ newState: sending State) {
         if loggingEnabled {
             os_log(.info, log: logger, "State changed to: %{public}@", String(describing: newState))
         }
