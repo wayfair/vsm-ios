@@ -285,7 +285,7 @@ public extension AsyncStateContainer {
     ///     }
     /// }
     /// ```
-    func observe(_ nextState: State) {
+    func observe(_ nextState: sending State) {
         if loggingEnabled {
             os_log(.debug, log: logger, "observe(State) called")
         }

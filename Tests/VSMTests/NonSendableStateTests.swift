@@ -45,6 +45,57 @@ struct NonSendableStateTests {
         #expect(container.state == .loading)
     }
 
+    @Test("Observe synchronous non-Sendable state — value reuse after observe (same actor)")
+    @MainActor
+    func observeSynchronousStateValueReuse() {
+        let container = makeContainer()
+        let model = NonSendableState.NonSendableModel(value: 42)
+        let state = NonSendableState.loaded(model)
+        container.observe(state)
+        // Same actor: sending is a no-op, value reuse is fine
+        #expect(container.state == .loaded(.init(value: 42)))
+        #expect(model.value == 42)
+        model.value = 99
+        #expect(model.value == 99)
+    }
+
+    // MARK: — sending enforcement proof
+
+    // `observe(_ nextState: sending State)` declares that the value is
+    // transferred to the container's @MainActor region.
+    //
+    // When caller and callee share the same actor (the common case),
+    // `sending` is a no-op — the value stays in the same region and can
+    // be reused freely. (See observeSynchronousStateValueReuse above.)
+    //
+    // To prove region tracking protects against cross-isolation reuse,
+    // we create a value on @MainActor, connect it to the actor's region
+    // via observe(), then try to capture it into a Task.detached. This
+    // mirrors the pattern from the bug report (swiftlang/swift#86896).
+    //
+    // ⚠️ As of Swift 6.3 (Xcode 26), there is a known compiler gap
+    // (https://github.com/swiftlang/swift/issues/86896) where the
+    // region-based isolation checker does not diagnose non-Sendable values
+    // captured from an actor-isolated region into a concurrent context.
+    // The issue is confirmed, triaged by @hborla, and assigned to
+    // @gottesmm (fix in progress as of Feb 2026 but not yet shipped).
+    // Once fixed, uncommenting the test below should produce a compiler
+    // error on `state.value = 99`.
+    //
+    // UNCOMMENT AFTER swiftlang/swift#86896 IS FIXED:
+    //
+    // @Test("Region tracking prevents cross-isolation reuse")
+    // @MainActor
+    // func regionTrackingPreventsReuseAcrossIsolation() {
+    //     final class DirectState { var value = 0 }
+    //     let container = AsyncStateContainer(state: DirectState(), logger: .disabled)
+    //     let state = DirectState()
+    //     container.observe(state)    // state is now in the @MainActor region
+    //     Task.detached {
+    //         state.value = 99        // ← should error: captured from @MainActor
+    //     }
+    // }
+
     @Test("Observe async closure with non-Sendable state")
     @MainActor
     func observeAsyncClosure() async throws {
