@@ -79,7 +79,7 @@ struct PublisherValuesSendableGapTests {
         // With a race, increments get lost due to torn reads/writes.
         // The compiler allowed all of this — no Sendable check anywhere.
         let finalCount = model.counter
-        withKnownIssue("Apple's .values bridge allows data races on non-Sendable types") {
+        withKnownIssue("Apple's .values bridge allows data races on non-Sendable types", isIntermittent: true) {
             #expect(finalCount == 20_000, "Data race — got \(finalCount) instead of 20,000")
         }
 
