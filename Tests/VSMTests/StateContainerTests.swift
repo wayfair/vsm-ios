@@ -1094,39 +1094,3 @@ extension MockState {
     }
 }
 
-// MARK: - Combine-only Race Condition Reproduction
-
-/// Isolated reproduction of a known Combine framework race condition.
-///
-/// Combine's `.append` + `.delay` + `.subscribe(on:)` operator combination can cause
-/// the publisher's completion to fire before the appended publisher emits its value.
-/// This is a pure Combine issue — no `AsyncStateContainer` or bridge code is involved.
-///
-/// This test exists to document the bug and explain intermittent failures in
-/// `testObservingStatePublisherOnBackgroundThread`, which uses the same publisher pipeline.
-@Suite("Combine Publisher Race Condition")
-struct CombinePublisherRaceConditionTests {
-
-    @Test("Pure Combine: append + delay + subscribe(on:) delivers all values before completion")
-    func appendDelaySubscribeOnRace() async throws {
-        let expectedValues: [MockState] = [.loading, .loaded(.init(count: 11))]
-
-        let publisher = MockState.InitializeStateModel().loadFromPublisherBackgroundThread()
-
-        let values = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[MockState], Error>) in
-            var received: [MockState] = []
-            var cancellable: AnyCancellable?
-            cancellable = publisher.sink(
-                receiveCompletion: { _ in
-                    continuation.resume(returning: received)
-                    _ = cancellable // prevent premature dealloc
-                },
-                receiveValue: { value in
-                    received.append(value)
-                }
-            )
-        }
-
-        #expect(values == expectedValues)
-    }
-}

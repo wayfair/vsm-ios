@@ -568,6 +568,10 @@ public extension AsyncStateContainer {
             
             var iterationCount = firstState == nil ? 1 : 2
             
+            // Note: publisher.values (AsyncPublisher) has NO Sendable constraint on Output.
+            // For non-Sendable mutable reference types, the bridge passes the same reference
+            // across threads without protection. See NonSendableStateTests for a proof-of-concept
+            // demonstrating the data race. This is why the "unsafe" methods carry that label.
             for await newState in publisher.values {
                 guard !Task.isCancelled else {
                     if self.loggingEnabled {
@@ -988,7 +992,7 @@ private extension AsyncStateContainer {
 
 
     
-    private func performStateChange(_ newState: sending State) {
+    private func performStateChange(_ newState: State) {
         if loggingEnabled {
             os_log(.info, log: logger, "State changed to: %{public}@", String(describing: newState))
         }

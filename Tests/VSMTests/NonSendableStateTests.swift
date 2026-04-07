@@ -418,4 +418,5 @@ struct NonSendableStateTests {
         try await Task.sleep(for: .milliseconds(50))
         #expect(container.state == .idle)
     }
+
 }
