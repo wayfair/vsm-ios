@@ -1,6 +1,6 @@
 //
-//  Test.swift
-//  AsyncVSMTests
+//  StateContainerTests.swift
+//  VSMTests
 //
 //  Created by Bill Dunay on 10/9/25.
 //
@@ -22,9 +22,13 @@ struct StateContainerTests {
 
     /// Creates a fresh AsyncStateContainer for testing, avoiding @ViewState/@SwiftUI.State
     /// which requires a SwiftUI view graph to work correctly.
+    ///
+    /// Turns on `debugStateHistory` recording (`#if DEBUG` only) so `waitUntilRecordedStateChanges` can observe transitions.
     @MainActor
     private func makeContainer(initialState: MockState = .initialize()) -> AsyncStateContainer<MockState> {
-        AsyncStateContainer(state: initialState, logger: .default, loggingEnabled: true)
+        let container = AsyncStateContainer(state: initialState, logger: .default, loggingEnabled: true)
+        container.turnOnRecordingStateHistory()
+        return container
     }
     
     // MARK: - Single State Change Tests
@@ -40,15 +44,10 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(5))
-        
         container.observe(initStateModel.load())
-        
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-        
+
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 1, timeout: .seconds(5))
+
         #expect(stateChanges == expectedResult)
     }
     
@@ -63,15 +62,10 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(5))
-        
         container.observe { await initStateModel.loadAsync() }
-        
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-        
+
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 1, timeout: .seconds(5))
+
         #expect(stateChanges == expectedResult)
     }
     
@@ -86,15 +80,10 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(5))
-        
         container.observe { await initStateModel.loadAsyncOnBackgroundThread(count: 10) }
-        
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-        
+
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 1, timeout: .seconds(5))
+
         #expect(stateChanges == expectedResult)
     }
     
@@ -112,15 +101,10 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(5))
-        
         container.observe(initStateModel.loadSequence())
-        
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-        
+
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 2, timeout: .seconds(5))
+
         #expect(stateChanges == expectedResult)
     }
     
@@ -136,15 +120,10 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(5))
-        
         container.observe(initStateModel.loadSequenceAsync(onMainThread: true))
-        
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-        
+
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 2, timeout: .seconds(5))
+
         #expect(stateChanges == expectedResult)
     }
     
@@ -160,15 +139,10 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(5))
-        
         container.observe(initStateModel.loadSequenceAsync(onMainThread: false))
-        
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-        
+
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 2, timeout: .seconds(5))
+
         #expect(stateChanges == expectedResult)
     }
     
@@ -188,15 +162,10 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 3, timeout: .seconds(5))
-        
         container.observe(initStateModel.loadStreamCurrentExecutionContext())
-        
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-        
+
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 3, timeout: .seconds(5))
+
         #expect(stateChanges == expectedResult)
     }
     
@@ -214,15 +183,10 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 3, timeout: .seconds(5))
-        
         container.observe(initStateModel.loadStreamBackgroundExecutionContext())
-        
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-        
+
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 3, timeout: .seconds(5))
+
         #expect(stateChanges == expectedResult)
     }
     
@@ -235,14 +199,10 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(5))
         await container.refresh(state: { await initStateModel.loadAsyncOnCurrentExecutionContext(count: 1) })
-        
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-        
+
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 1, timeout: .seconds(5))
+
         #expect(stateChanges == [expectedResult])
     }
     
@@ -255,18 +215,17 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(5))
         await container.refresh(state: { await initStateModel.loadAsyncOnBackgroundThread(count: 1) })
-        
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-        
+
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 1, timeout: .seconds(5))
+
         #expect(stateChanges == [expectedResult])
     }
     
     // MARK: - Refresh Cancellation Tests
+    //
+    // The 500ms sleep inside `refresh` keeps the refresh task alive long enough to cancel mid-flight.
+    // The `while` + `Task.yield()` loop waits until that body has started (no `Task.sleep` polling).
 
     @Test("refresh(state:) is cancelled when a new observe is called (container-initiated)")
     @MainActor
@@ -283,7 +242,7 @@ struct StateContainerTests {
         }
 
         while !refreshStarted.withLock({ $0 }) {
-            try await Task.sleep(for: .milliseconds(10))
+            await Task.yield()
         }
 
         container.observe(.loading)
@@ -309,7 +268,7 @@ struct StateContainerTests {
         }
 
         while !refreshStarted.withLock({ $0 }) {
-            try await Task.sleep(for: .milliseconds(10))
+            await Task.yield()
         }
 
         callerTask.cancel()
@@ -330,17 +289,11 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(5))
-        
         container.observeLegacyBlocking(initStateModel.loadFromPublisher())
-        
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-        
+
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 2, timeout: .seconds(5))
+
         #expect(stateChanges == expectedResult)
-        #expect(stateChanges.count == 2)
     }
     
     /// - Note: This test may fail intermittently due to a known Combine race condition
@@ -358,15 +311,10 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(5))
-        
         container.observeLegacyBlocking(initStateModel.loadFromPublisherBackgroundThread())
-        
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-        
+
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 2, timeout: .seconds(5))
+
         #expect(stateChanges == expectedResult)
     }
 
@@ -380,15 +328,11 @@ struct StateContainerTests {
 
         #expect(container.state == .loading)
 
-        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(5))
         subject.send(.loaded(.init(count: 42)))
 
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 2, timeout: .seconds(5))
 
-        #expect(stateChanges == [.loaded(.init(count: 42))])
+        #expect(stateChanges == [.loading, .loaded(.init(count: 42))])
     }
 
     @Test("observeLegacyBlocking cancels previous publisher on new observation")
@@ -406,7 +350,8 @@ struct StateContainerTests {
 
         // Emissions from the old publisher should be ignored
         subject.send(.loaded(.init(count: 99)))
-        try await Task.sleep(for: .milliseconds(100))
+        let history = await container.waitUntilRecordedStateChanges(atLeast: 3, timeout: .milliseconds(150))
+        #expect(history == [.loading, .initialize(.init())])
         #expect(container.state == .initialize(.init()))
     }
 
@@ -419,17 +364,13 @@ struct StateContainerTests {
         container.observeLegacyBlocking(subject.eraseToAnyPublisher())
         #expect(container.state == .loading)
 
-        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(5))
-
         subject.send(.loaded(.init(count: 1)))
         subject.send(.loaded(.init(count: 2)))
 
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 3, timeout: .seconds(5))
 
         #expect(stateChanges == [
+            .loading,
             .loaded(.init(count: 1)),
             .loaded(.init(count: 2)),
         ])
@@ -441,46 +382,32 @@ struct StateContainerTests {
     @MainActor
     func testObserveLegacySafeFirstState() async throws {
         let container = makeContainer()
-        let subject = PassthroughSubject<MockState, Never>()
+        let publisher = Just(MockState.loaded(.init(count: 42))).eraseToAnyPublisher()
 
-        container.observeLegacy(subject, firstState: .loading)
+        container.observeLegacy(publisher, firstState: .loading)
         #expect(container.state == .loading)
 
-        let stateChangsStream = container.stateChangeStream(last: 1, timeout: .seconds(5))
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 2, timeout: .seconds(5))
 
-        try await Task.sleep(for: .milliseconds(50))
-        subject.send(.loaded(.init(count: 42)))
-
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-
-        #expect(stateChanges == [.loaded(.init(count: 42))])
+        #expect(stateChanges == [.loading, .loaded(.init(count: 42))])
     }
 
     @Test("observeLegacy(_:firstState:) delivers multiple emissions after firstState")
     @MainActor
     func testObserveLegacySafeFirstStateMultipleEmissions() async throws {
         let container = makeContainer()
-        let subject = PassthroughSubject<MockState, Never>()
+        let publisher = Just(MockState.loaded(.init(count: 1)))
+            .append(Just(MockState.loaded(.init(count: 2))))
+            .eraseToAnyPublisher()
 
-        container.observeLegacy(subject, firstState: .loading)
+        container.observeLegacy(publisher, firstState: .loading)
         #expect(container.state == .loading)
 
-        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(5))
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 3, timeout: .seconds(5))
 
-        try await Task.sleep(for: .milliseconds(50))
-        subject.send(.loaded(.init(count: 1)))
-        try await Task.sleep(for: .milliseconds(50))
-        subject.send(.loaded(.init(count: 2)))
-
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-
+        #expect(container.state == .loaded(.init(count: 2)))
         #expect(stateChanges == [
+            .loading,
             .loaded(.init(count: 1)),
             .loaded(.init(count: 2)),
         ])
@@ -495,13 +422,12 @@ struct StateContainerTests {
         container.observeLegacy(subject, firstState: .loading)
         #expect(container.state == .loading)
 
-        try await Task.sleep(for: .milliseconds(50))
-
         container.observe(.initialize(.init()))
         #expect(container.state == .initialize(.init()))
 
         subject.send(.loaded(.init(count: 99)))
-        try await Task.sleep(for: .milliseconds(50))
+        let history = await container.waitUntilRecordedStateChanges(atLeast: 3, timeout: .milliseconds(150))
+        #expect(history == [.loading, .initialize(.init())])
         #expect(container.state == .initialize(.init()))
     }
 
@@ -517,7 +443,7 @@ struct StateContainerTests {
 
         #expect(container.state == .initialize(.init()))
 
-        try await Task.sleep(for: .milliseconds(100))
+        _ = await container.waitUntilRecordedStateChanges(atLeast: 1, timeout: .seconds(5))
         #expect(container.state == .loading)
     }
 
@@ -531,7 +457,7 @@ struct StateContainerTests {
 
         #expect(container.state == .initialize(.init()))
 
-        try await Task.sleep(for: .milliseconds(100))
+        _ = await container.waitUntilRecordedStateChanges(atLeast: 1, timeout: .seconds(5))
         #expect(container.state == .loading)
     }
 
@@ -539,44 +465,88 @@ struct StateContainerTests {
     @MainActor
     func testObserveLegacySafeAsyncMultipleEmissions() async throws {
         let container = makeContainer()
-        let subject = PassthroughSubject<MockState, Never>()
+        let publisher = Just(MockState.loading)
+            .append(Just(MockState.loaded(.init(count: 42))))
+            .eraseToAnyPublisher()
 
-        container.observeLegacyAsync(subject)
+        container.observeLegacyAsync(publisher)
 
         #expect(container.state == .initialize(.init()))
 
-        try await Task.sleep(for: .milliseconds(50))
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 2, timeout: .seconds(5))
 
-        subject.send(.loading)
-        try await Task.sleep(for: .milliseconds(50))
-        #expect(container.state == .loading)
-
-        subject.send(.loaded(.init(count: 42)))
-        try await Task.sleep(for: .milliseconds(50))
         #expect(container.state == .loaded(.init(count: 42)))
-
-        subject.send(completion: .finished)
+        #expect(stateChanges == [.loading, .loaded(.init(count: 42))])
     }
 
     @Test("observeLegacyAsync cancels on new observation")
     @MainActor
     func testObserveLegacySafeAsyncCancels() async throws {
         let container = makeContainer()
-        let subject = PassthroughSubject<MockState, Never>()
+        // Replays after `publisher.values` attaches — no yield loop needed (unlike PassthroughSubject).
+        let subject = CurrentValueSubject<MockState, Never>(.loading)
 
-        container.observeLegacyAsync(subject)
-        try await Task.sleep(for: .milliseconds(50))
+        container.observeLegacyAsync(subject.eraseToAnyPublisher())
 
-        subject.send(.loading)
-        try await Task.sleep(for: .milliseconds(50))
+        #expect(container.state == .initialize(.init()))
+
+        _ = await container.waitUntilRecordedStateChanges(atLeast: 1, timeout: .seconds(5))
         #expect(container.state == .loading)
 
         container.observe(.initialize(.init()))
         #expect(container.state == .initialize(.init()))
 
         subject.send(.loaded(.init(count: 99)))
-        try await Task.sleep(for: .milliseconds(50))
+        let history = await container.waitUntilRecordedStateChanges(atLeast: 3, timeout: .milliseconds(150))
+        #expect(history == [.loading, .initialize(.init())])
         #expect(container.state == .initialize(.init()))
+    }
+
+    // MARK: - publisher.values subscription gap (PassthroughSubject)
+
+    @Test("observeLegacyAsync drops PassthroughSubject if send runs before publisher.values subscription")
+    @MainActor
+    func observeLegacyAsyncDropsPassthroughIfSendBeforeSubscription() async throws {
+        let container = makeContainer()
+        let subject = PassthroughSubject<MockState, Never>()
+
+        container.observeLegacyAsync(subject)
+        #expect(container.state == .initialize(.init()))
+
+        subject.send(.loading)
+        let history = await container.waitUntilRecordedStateChanges(atLeast: 1, timeout: .milliseconds(150))
+        #expect(history.isEmpty)
+        #expect(container.state == .initialize(.init()))
+    }
+
+    @Test("observeLegacy(firstState:) drops PassthroughSubject if send runs before publisher.values subscription")
+    @MainActor
+    func observeLegacyFirstStateDropsPassthroughIfSendBeforeSubscription() async throws {
+        let container = makeContainer()
+        let subject = PassthroughSubject<MockState, Never>()
+
+        container.observeLegacy(subject, firstState: .loading)
+        #expect(container.state == .loading)
+
+        subject.send(.loaded(.init(count: 1)))
+        let history = await container.waitUntilRecordedStateChanges(atLeast: 2, timeout: .milliseconds(150))
+        #expect(history == [.loading])
+        #expect(container.state == .loading)
+    }
+
+    @Test("observeLegacyAsync receives cold Just.append chain without Passthrough timing gap")
+    @MainActor
+    func observeLegacyAsyncReceivesColdPublisherChain() async throws {
+        let container = makeContainer()
+        let publisher = Just(MockState.loading)
+            .append(Just(MockState.loaded(.init(count: 42))))
+            .eraseToAnyPublisher()
+
+        container.observeLegacyAsync(publisher)
+
+        let history = await container.waitUntilRecordedStateChanges(atLeast: 2, timeout: .seconds(5))
+        #expect(container.state == .loaded(.init(count: 42)))
+        #expect(history == [.loading, .loaded(.init(count: 42))])
     }
 
     // MARK: - StateSequence
@@ -588,24 +558,19 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 2, timeout: .seconds(5))
-        
         // Call observe with a StateSequenceBuilder-based sequence that has a
         // synchronous first state (.loading) followed by an async state.
         container.observe(initStateModel.loadSequenceAsync(onMainThread: true))
-        
+
         // The key assertion: immediately after observe() returns (no await),
         // the container's state must already be .loading because the
         // StateSequenceBuilder classified it as a synchronous action and
         // observe() applies synchronous actions inline on the current call stack.
         #expect(container.state == .loading)
-        
+
         // Wait for the full sequence to complete and verify both states arrived.
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-        
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 2, timeout: .seconds(5))
+
         #expect(stateChanges == [.loading, .loaded(.init(count: 2))])
     }
     
@@ -624,15 +589,10 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 4, timeout: .seconds(10))
-        
         container.observe(initStateModel.loadMixedSyncAsyncSequence())
-        
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-        
+
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 4, timeout: .seconds(10))
+
         #expect(stateChanges == expectedResult)
     }
     
@@ -650,15 +610,10 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 5, timeout: .seconds(10))
-        
         container.observe(initStateModel.loadMixedSyncAsyncSequenceBackground())
-        
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-        
+
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 5, timeout: .seconds(10))
+
         #expect(stateChanges == expectedResult)
     }
     
@@ -675,15 +630,10 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 4, timeout: .seconds(10))
-        
         container.observe(initStateModel.loadAllSyncSequence())
-        
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-        
+
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 4, timeout: .seconds(10))
+
         #expect(stateChanges == expectedResult)
     }
     
@@ -699,15 +649,10 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 3, timeout: .seconds(10))
-        
         container.observe(initStateModel.loadAllAsyncSequence())
-        
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-        
+
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 3, timeout: .seconds(10))
+
         #expect(stateChanges == expectedResult)
     }
     
@@ -726,15 +671,10 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 4, timeout: .seconds(10))
-        
         container.observe(initStateModel.loadArrayLiteralMixedSequence())
-        
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-        
+
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 4, timeout: .seconds(10))
+
         #expect(stateChanges == expectedResult)
     }
     
@@ -752,15 +692,10 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 5, timeout: .seconds(10))
-        
         container.observe(initStateModel.loadArrayLiteralMixedSequenceBackground())
-        
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-        
+
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 5, timeout: .seconds(10))
+
         #expect(stateChanges == expectedResult)
     }
     
@@ -797,15 +732,10 @@ struct StateContainerTests {
         guard case let .initialize(initStateModel) = container.state else {
             throw StateContainerTestError.missingStartState
         }
-        let stateChangsStream = container.stateChangeStream(last: 3, timeout: .seconds(5))
-        
         container.observe(initStateModel.loadSynchronousFirstStateThenRest())
-        
-        var stateChanges: [MockState] = []
-        for await stateChange in stateChangsStream {
-            stateChanges.append(stateChange)
-        }
-        
+
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 3, timeout: .seconds(5))
+
         #expect(stateChanges == expectedResult)
     }
     
@@ -1026,66 +956,6 @@ extension MockState {
                 { .loaded(.init(count: 30)) },
                 { await self.loadAsyncOnBackgroundThread(count: 40) },
             ]
-        }
-        
-        // MARK: - Debounce Test Helpers
-        
-        /// Creates a StateSequence that emits states rapidly (for debounce testing)
-        func loadRapidSequence() -> StateSequence<MockState> {
-            return .init(
-                { .loaded(.init(count: 1)) },
-                { .loaded(.init(count: 2)) },
-                { .loaded(.init(count: 3)) },
-                { .loaded(.init(count: 4)) },
-                { .loaded(.init(count: 5)) }
-            )
-        }
-        
-        /// Creates an AsyncStream that emits states rapidly (for debounce testing)
-        func loadRapidStream() -> AsyncStream<MockState> {
-            return AsyncStream<MockState> { continuation in
-                Task {
-                    // Emit states rapidly without delays
-                    continuation.yield(.loaded(.init(count: 1)))
-                    continuation.yield(.loaded(.init(count: 2)))
-                    continuation.yield(.loaded(.init(count: 3)))
-                    continuation.finish()
-                }
-            }
-        }
-        
-        /// Creates a Publisher that emits states rapidly (for debounce testing)
-        func loadRapidPublisher() -> AnyPublisher<MockState, Never> {
-            return Publishers.Sequence(sequence: [
-                .loaded(.init(count: 1)),
-                .loaded(.init(count: 2)),
-                .loaded(.init(count: 3))
-            ])
-            .eraseToAnyPublisher()
-        }
-        
-        /// Creates a StateSequence that emits states with delays longer than debounce period
-        func loadDelayedSequence() -> StateSequence<MockState> {
-            return .init(
-                { .loaded(.init(count: 1)) },
-                {
-                    // Add delay between emissions
-                    try? await Task.sleep(nanoseconds: 200_000_000) // 200ms delay
-                    return .loaded(.init(count: 2))
-                }
-            )
-        }
-        
-        /// Creates an AsyncStream that emits states with delays longer than debounce period
-        func loadDelayedStream() -> AsyncStream<MockState> {
-            return AsyncStream<MockState> { continuation in
-                Task {
-                    continuation.yield(.loaded(.init(count: 1)))
-                    try? await Task.sleep(nanoseconds: 200_000_000) // 200ms delay
-                    continuation.yield(.loaded(.init(count: 2)))
-                    continuation.finish()
-                }
-            }
         }
     }
     

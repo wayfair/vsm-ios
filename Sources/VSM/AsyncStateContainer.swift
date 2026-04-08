@@ -189,29 +189,15 @@ public final class AsyncStateContainer<State> {
     @ObservationIgnored
     private var publisherCancellable: AnyCancellable?
     
-    // MARK: - Debug-only Testing Infrastructure
+    // MARK: - DEBUG test recording (opt-in)
     //
-    // The following properties support `stateChangeStream(last:timeout:)`, an internal method
-    // used exclusively by this package's own unit tests. They are excluded from non-DEBUG builds
-    // to keep release binaries free of test-only code. `internal` access control prevents
-    // external callers from reaching this API even in DEBUG builds.
-    //
-    // See the "Internal Testing Extension" section at the bottom of this file for usage details.
+    // In DEBUG builds only, the container can append each `performStateChange` to `debugStateHistory` after
+    // `turnOnRecordingStateHistory()` is called. Recording stays off by default so debug apps do not retain
+    // every transition unless tests (or diagnostics) explicitly opt in. Release builds omit this code.
     #if DEBUG
     @ObservationIgnored
-    private var _yieldState: ((State) -> Void)?
-    
-    @ObservationIgnored
-    private var _finishStream: (() -> Void)?
-    
-    @ObservationIgnored
-    private var numberOfWatchedStates: Int = 0
-    
-    @ObservationIgnored
-    private var stateChanges: Int = 0
-    
-    @ObservationIgnored
-    private var streamTimeoutTask: Task<Void, Never>?
+    private var debugStateHistory: [State] = []
+    private var isRecordingStateHistory: Bool = false
     #endif
     
     @ObservationIgnored
@@ -233,9 +219,6 @@ public final class AsyncStateContainer<State> {
     deinit {
         stateTask?.cancel()
         // AnyCancellable auto-cancels on deallocation — no explicit cancel needed.
-        #if DEBUG
-        streamTimeoutTask?.cancel()
-        #endif
     }
 }
 
@@ -544,6 +527,33 @@ public extension AsyncStateContainer {
     
     // MARK: - Core Legacy Publisher Observation (private — unsafe)
 
+    /// Consumes a publisher by spawning a ``Task`` that runs `for await newState in publisher.values`.
+    ///
+    /// ## Subscription timing
+    /// The `Publisher.values` bridge does not receive until that `Task` runs and the async iterator
+    /// attaches to Combine. Emissions that occur **before** then are not replayed. In particular, a
+    /// `PassthroughSubject` has **no buffer**: calling `send` on the very next line after
+    /// ``observeLegacyAsync(_:)`` / ``observeLegacyAsyncUnsafe(_:)`` returns (same actor, no `await`
+    /// in between) can **drop** the value with no error. The same gap applies to the **first**
+    /// publisher-driven value after ``observeLegacy(_:firstState:)`` /
+    /// ``observeLegacyUnsafe(_:firstState:)`` — `firstState` is applied synchronously, but the
+    /// publisher subscription still starts inside the `Task`, so an immediate `send` can still be lost.
+    ///
+    /// **Mitigations:** give the subscription `Task` time to attach (e.g. `Task.yield()` or any `await`
+    /// that runs after `observeLegacy…` returns), schedule sends on the next run loop, use **cold** finite
+    /// chains (e.g. `Just(a).append(Just(b))`) so values are produced only after subscription, use a
+    /// replaying publisher / `CurrentValueSubject`, or structure flows so the first emission is not
+    /// required until after an `await`. Package tests favor cold chains, `CurrentValueSubject`, or
+    /// `waitUntilRecordedStateChanges` over fixed `Task.sleep` where possible.
+    ///
+    /// **Not** used by ``observeLegacyBlocking(_:)`` or ``observeLegacyBlockingUnsafe(_:)`` — those install
+    /// `sink` synchronously and forward through an `AsyncStream`, so Combine is subscribed before the call
+    /// returns and values are not subject to the same `publisher.values` iterator delay.
+    ///
+    /// Reproducers live in package tests `StateContainerTests` (Sendable) and `NonSendableStateTests`;
+    /// see `observeLegacyAsyncDropsPassthroughIfSendBeforeSubscription`,
+    /// `observeLegacyFirstStateDropsPassthroughIfSendBeforeSubscription`, and
+    /// `observeLegacyAsyncReceivesColdPublisherChain` (no timing gap with `Just.append`).
     private func _observeLegacyPublisherUnsafe(_ publisher: some Publisher<State, Never>, firstState: State?) {
         cancelRunningObservations()
         
@@ -627,6 +637,9 @@ public extension AsyncStateContainer {
     /// | ``observeLegacyAsyncUnsafe(_:)`` | No | Async (hops) | `.values` bridge risk for non-Sendable classes |
     /// | ``observeLegacyBlockingUnsafe(_:)`` | No | Auto-captured, sync | Blocks thread + `@unchecked Sendable` risk |
     ///
+    /// - Note: Consumption runs in a `Task` via `publisher.values`, so a synchronous `PassthroughSubject.send`
+    ///   immediately after this call (no `await` in between) can run before subscription exists and drop the value.
+    ///
     /// - Parameters:
     ///   - publisher: A Combine `Publisher` that emits `State` values and never fails.
     ///   - firstState: The initial state to apply synchronously before consuming the publisher.
@@ -651,6 +664,9 @@ public extension AsyncStateContainer {
     /// When `State: Sendable`, prefer ``observeLegacyAsync(_:)`` for compile-time safety.
     /// Prefer ``observeLegacyUnsafe(_:firstState:)`` when you know the first state upfront,
     /// as it avoids the hop entirely.
+    ///
+    /// - Note: Consumption runs in a `Task` via `publisher.values`, so a synchronous `PassthroughSubject.send`
+    ///   immediately after this call (no `await` in between) can run before subscription exists and drop the value.
     ///
     /// - Parameter publisher: A Combine `Publisher` that emits `State` values and never fails.
     func observeLegacyAsyncUnsafe(_ publisher: some Publisher<State, Never>) {
@@ -685,6 +701,11 @@ public extension AsyncStateContainer {
     /// | ``observeLegacyUnsafe(_:firstState:)`` | No | Explicit, sync | `.values` bridge risk |
     /// | ``observeLegacyAsyncUnsafe(_:)`` | No | Async (hops) | `.values` bridge risk |
     /// | ``observeLegacyBlockingUnsafe(_:)`` | No | Auto-captured, sync | Blocks thread + `@unchecked Sendable` risk |
+    ///
+    /// - Note: Unlike ``observeLegacyAsyncUnsafe(_:)``, this path subscribes with `sink` before returning,
+    ///   then bridges later values through an `AsyncStream` (buffered). It does **not** use `publisher.values`,
+    ///   so a `PassthroughSubject` does not have the same “send before subscription exists” gap as the async
+    ///   legacy APIs.
     ///
     /// - Parameter publisher: A Combine `Publisher` that emits `State` values and never fails.
     func observeLegacyBlockingUnsafe(_ publisher: some Publisher<State, Never>) {
@@ -785,6 +806,9 @@ public extension AsyncStateContainer where State: Sendable {
     /// For non-`Sendable` states, use ``observeLegacyUnsafe(_:firstState:)`` (same behavior,
     /// but without compile-time safety for reference types).
     ///
+    /// - Note: Consumption runs in a `Task` via `publisher.values`, so a synchronous `PassthroughSubject.send`
+    ///   immediately after this call (no `await` in between) can run before subscription exists and drop the value.
+    ///
     /// - Parameters:
     ///   - publisher: A Combine `Publisher` that emits `State` values and never fails.
     ///   - firstState: The initial state to apply synchronously before consuming the publisher.
@@ -807,6 +831,9 @@ public extension AsyncStateContainer where State: Sendable {
     /// ``observeLegacyBlocking(_:)`` uses a lock instead.
     ///
     /// For non-`Sendable` states, use ``observeLegacyAsyncUnsafe(_:)``.
+    ///
+    /// - Note: Consumption runs in a `Task` via `publisher.values`, so a synchronous `PassthroughSubject.send`
+    ///   immediately after this call (no `await` in between) can run before subscription exists and drop the value.
     ///
     /// - Parameter publisher: A Combine `Publisher` that emits `State` values and never fails.
     func observeLegacyAsync(_ publisher: some Publisher<State, Never>) {
@@ -847,6 +874,11 @@ public extension AsyncStateContainer where State: Sendable {
     /// before appended publishers emit their values. This is a Combine framework issue, not a
     /// VSM issue, and will affect any `sink` subscriber in the same way. See
     /// `CombinePublisherRaceConditionTests` for an isolated reproduction.
+    ///
+    /// - Note: Unlike ``observeLegacyAsync(_:)``, this path subscribes with `sink` before returning, then
+    ///   bridges later values through an `AsyncStream` (buffered). It does **not** use `publisher.values`, so
+    ///   a `PassthroughSubject` does not have the same “send before subscription exists” gap as
+    ///   ``observeLegacy(_:firstState:)`` / ``observeLegacyAsync(_:)``.
     ///
     /// - Parameter publisher: A Combine `Publisher` that emits `State` values and never fails.
     func observeLegacyBlocking(_ publisher: some Publisher<State, Never>) {
@@ -985,9 +1017,6 @@ private extension AsyncStateContainer {
         publisherCancellable?.cancel()
         publisherCancellable = nil
 
-        #if DEBUG
-        stateChanges = 0
-        #endif
     }
 
 
@@ -1000,14 +1029,8 @@ private extension AsyncStateContainer {
         self.state = newState
         
         #if DEBUG
-        guard let yield = _yieldState else { return }
-        yield(newState)
-        stateChanges += 1
-
-        if numberOfWatchedStates == stateChanges {
-            _finishStream?()
-            _yieldState = nil
-            _finishStream = nil
+        if isRecordingStateHistory {
+            debugStateHistory.append(newState)
         }
         #endif
     }
@@ -1015,68 +1038,34 @@ private extension AsyncStateContainer {
 
 // MARK: - Internal Testing Extension
 #if DEBUG
-internal extension AsyncStateContainer where State: Sendable {
-    /// Creates an `AsyncStream` that collects a specified number of state changes for unit testing.
+internal extension AsyncStateContainer {
+    /// Waits until `debugStateHistory.count >= requiredCount` or `timeout` elapses, then returns a **copy**
+    /// of the full debug log (whatever was recorded, even if the count threshold was not met).
     ///
-    /// - Warning: **This method is exclusively for VSM's internal unit tests.**
+    /// `timeout` is required so every test chooses an explicit wait bound (e.g. `.seconds(5)`).
     ///
-    /// This method is marked `internal` intentionally and should **only** be accessed by the unit tests
-    /// within the VSM framework itself. It was created to enable testing of `AsyncStateContainer` to verify
-    /// that state changes occur in the expected order.
+    /// Implementation is a simple yield loop (not event-driven); that is intentional—low complexity for
+    /// tests that finish in milliseconds, not a performance target.
     ///
-    /// **This method is unsupported for any code outside of VSM's test suite.** Do not use this method
-    /// in your own application code or tests. VSM does not guarantee the stability or continued availability
-    /// of this API.
-    ///
-    /// - Parameters:
-    ///   - numberOfChanges: The number of state changes to collect before the stream finishes.
-    ///   - timeout: An optional timeout duration. If specified, the stream will automatically
-    ///              finish after this duration elapses, even if the expected number of state
-    ///              changes has not been reached. This prevents unit tests from hanging indefinitely.
-    ///
-    /// - Returns: An `AsyncStream<State>` that emits each state change as it occurs.
-    ///
-    /// ## Stream Lifecycle
-    ///
-    /// The returned stream will finish when **any** of the following conditions is met:
-    /// - The specified number of state changes (`numberOfChanges`) has been observed
-    /// - The optional `timeout` duration elapses
-    /// - The `AsyncStateContainer` instance is deallocated from memory
-    ///
-    /// ## Single Stream Limitation
-    ///
-    /// **Only one `AsyncStream` can be active at a time.** If you call this method while a
-    /// previous stream is still active, the previous stream will immediately finish and only
-    /// the newly created stream will receive subsequent state changes. This prevents potential
-    /// deadlocks where a caller might otherwise wait indefinitely on a stream that will never
-    /// receive updates.
-    ///
-    /// - Important: Call this method **before** triggering the action that causes state changes
-    ///   to ensure all transitions are captured.
-    func stateChangeStream(last numberOfChanges: Int, timeout: Duration? = nil) -> AsyncStream<State> {
-        streamTimeoutTask?.cancel()
-        streamTimeoutTask = nil
+    /// - Warning: **For VSM's internal unit tests only.** Requires a **DEBUG** build of **VSM** and a prior
+    ///   call to `turnOnRecordingStateHistory()` on this container; otherwise the wait returns an empty log.
+    func waitUntilRecordedStateChanges(
+        atLeast requiredCount: Int,
+        timeout: Duration
+    ) async -> [State] {
+        guard isRecordingStateHistory else { return [] }
         
-        _finishStream?()
-        
-        numberOfWatchedStates = numberOfChanges
-        let stateChangeStream = AsyncStream<State>.makeStream(of: State.self, bufferingPolicy: .bufferingNewest(numberOfChanges))
-        
-        _yieldState = { stateChangeStream.continuation.yield($0) }
-        _finishStream = { stateChangeStream.continuation.finish() }
-        
-        if let timeout {
-            streamTimeoutTask = Task { @MainActor [weak self] in
-                try? await Task.sleep(for: timeout)
-                guard !Task.isCancelled else { return }
-                self?._finishStream?()
-                self?._yieldState = nil
-                self?._finishStream = nil
-                self?.streamTimeoutTask = nil
-            }
+        let deadline = ContinuousClock.now + timeout
+        while debugStateHistory.count < requiredCount {
+            if ContinuousClock.now >= deadline { break }
+            await Task.yield()
         }
-        
-        return stateChangeStream.stream
+        return debugStateHistory
+    }
+    
+    /// Enables appending to `debugStateHistory` on each state change. Call from tests before driving the container.
+    func turnOnRecordingStateHistory() {
+        isRecordingStateHistory = true
     }
 }
 #endif

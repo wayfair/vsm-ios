@@ -1,6 +1,6 @@
 //
 //  NonSendableStateTests.swift
-//  AsyncVSMTests
+//  VSMTests
 //
 //  Created by Bill Dunay on 10/9/25.
 //
@@ -32,9 +32,12 @@ enum NonSendableState: Equatable {
 @Suite("Non-Sendable State Tests")
 struct NonSendableStateTests {
 
+    /// Turns on `debugStateHistory` recording (`#if DEBUG` only) for tests that use `waitUntilRecordedStateChanges`.
     @MainActor
     private func makeContainer(initialState: NonSendableState = .idle) -> AsyncStateContainer<NonSendableState> {
-        AsyncStateContainer(state: initialState, logger: .disabled)
+        let container = AsyncStateContainer(state: initialState, logger: .disabled)
+        container.turnOnRecordingStateHistory()
+        return container
     }
 
     @Test("Observe synchronous non-Sendable state")
@@ -107,8 +110,9 @@ struct NonSendableStateTests {
         }
         container.observe(loadState)
 
-        try await Task.sleep(for: .milliseconds(100))
+        let history = await container.waitUntilRecordedStateChanges(atLeast: 1, timeout: .seconds(5))
         #expect(container.state == .loaded(.init(value: 42)))
+        #expect(history == [.loaded(.init(value: 42))])
     }
 
     @Test("Observe StateSequence with non-Sendable state")
@@ -122,8 +126,9 @@ struct NonSendableStateTests {
         ]
         container.observe(sequence)
 
-        try await Task.sleep(for: .milliseconds(100))
+        let history = await container.waitUntilRecordedStateChanges(atLeast: 2, timeout: .seconds(5))
         #expect(container.state == .loaded(.init(value: 7)))
+        #expect(history == [.loading, .loaded(.init(value: 7))])
     }
 
     @Test("StateSequenceBuilder with non-Sendable state produced on background thread")
@@ -143,8 +148,9 @@ struct NonSendableStateTests {
         }
         container.observe(sequence)
 
-        try await Task.sleep(for: .milliseconds(100))
+        let history = await container.waitUntilRecordedStateChanges(atLeast: 2, timeout: .seconds(5))
         #expect(container.state == .loaded(.init(value: 5)))
+        #expect(history == [.loading, .loaded(.init(value: 5))])
     }
 
     @Test("StateSequence with non-Sendable state model capturing self (real-world pattern)")
@@ -175,9 +181,10 @@ struct NonSendableStateTests {
         let model = LoadedModel()
         container.observe(model.reload())
 
-        try await Task.sleep(for: .milliseconds(100))
+        let history = await container.waitUntilRecordedStateChanges(atLeast: 2, timeout: .seconds(5))
         #expect(container.state == .loaded(.init(value: 42)))
         #expect(model.fetchCount == 1)
+        #expect(history == [.loading, .loaded(.init(value: 42))])
     }
 
     @Test("Observe AsyncStream with non-Sendable state (iOS 18+)")
@@ -193,8 +200,9 @@ struct NonSendableStateTests {
         }
         container.observe(stream)
 
-        try await Task.sleep(for: .milliseconds(100))
+        let history = await container.waitUntilRecordedStateChanges(atLeast: 2, timeout: .seconds(5))
         #expect(container.state == .loaded(.init(value: 3)))
+        #expect(history == [.loading, .loaded(.init(value: 3))])
     }
 
     @Test("Refresh (pull-to-refresh) with non-Sendable state produced on background thread")
@@ -263,8 +271,9 @@ struct NonSendableStateTests {
 
         #expect(container.state == .loading)
 
-        try await Task.sleep(for: .milliseconds(100))
+        let history = await container.waitUntilRecordedStateChanges(atLeast: 2, timeout: .seconds(5))
         #expect(container.state == .loaded(.init(value: 99)))
+        #expect(history == [.loading, .loaded(.init(value: 99))])
     }
 
     @Test("observeLegacyAsyncUnsafe proves the hop — pure async publisher does NOT apply first state synchronously")
@@ -283,8 +292,9 @@ struct NonSendableStateTests {
 
         #expect(container.state == .idle, "Pure async path should NOT apply state synchronously")
 
-        try await Task.sleep(for: .milliseconds(100))
+        let history = await container.waitUntilRecordedStateChanges(atLeast: 2, timeout: .seconds(5))
         #expect(container.state == .loaded(.init(value: 77)))
+        #expect(history == [.loading, .loaded(.init(value: 77))])
     }
 
     @Test("observeLegacyUnsafe(_:firstState:) vs observeLegacyAsyncUnsafe — firstState is immediate, hop is not")
@@ -307,8 +317,9 @@ struct NonSendableStateTests {
         #expect(stateAfterFirstState == .loading, "firstState: applies synchronously")
         #expect(stateAfterHop == .idle, "Task-based path has a hop — state unchanged")
 
-        try await Task.sleep(for: .milliseconds(100))
+        let historyB = await containerB.waitUntilRecordedStateChanges(atLeast: 1, timeout: .seconds(5))
         #expect(containerB.state == .loading)
+        #expect(historyB == [.loading])
     }
 
     // MARK: - observeLegacyAsyncUnsafe (hop, no Sendable)
@@ -317,23 +328,17 @@ struct NonSendableStateTests {
     @MainActor
     func observeLegacyAsyncUnsafeDeliversAll() async throws {
         let container = makeContainer()
-        let subject = PassthroughSubject<NonSendableState, Never>()
+        let publisher = Just(NonSendableState.loading)
+            .append(Just(NonSendableState.loaded(.init(value: 42))))
+            .eraseToAnyPublisher()
 
-        container.observeLegacyAsyncUnsafe(subject)
+        container.observeLegacyAsyncUnsafe(publisher)
 
         #expect(container.state == .idle)
 
-        try await Task.sleep(for: .milliseconds(50))
-
-        subject.send(.loading)
-        try await Task.sleep(for: .milliseconds(50))
-        #expect(container.state == .loading)
-
-        subject.send(.loaded(.init(value: 42)))
-        try await Task.sleep(for: .milliseconds(50))
+        let history = await container.waitUntilRecordedStateChanges(atLeast: 2, timeout: .seconds(5))
         #expect(container.state == .loaded(.init(value: 42)))
-
-        subject.send(completion: .finished)
+        #expect(history == [.loading, .loaded(.init(value: 42))])
     }
 
     @Test("observeLegacyAsyncUnsafe proves hop — first state not applied synchronously")
@@ -346,28 +351,32 @@ struct NonSendableStateTests {
 
         #expect(container.state == .idle)
 
-        try await Task.sleep(for: .milliseconds(100))
+        let history = await container.waitUntilRecordedStateChanges(atLeast: 1, timeout: .seconds(5))
         #expect(container.state == .loading)
+        #expect(history == [.loading])
     }
 
     @Test("observeLegacyAsyncUnsafe cancels on new observation")
     @MainActor
     func observeLegacyAsyncUnsafeCancelsOnNewObservation() async throws {
         let container = makeContainer()
-        let subject = PassthroughSubject<NonSendableState, Never>()
+        // Replays when the async iterator subscribes — avoids the PassthroughSubject timing gap.
+        let subject = CurrentValueSubject<NonSendableState, Never>(.loading)
 
-        container.observeLegacyAsyncUnsafe(subject)
-        try await Task.sleep(for: .milliseconds(50))
+        container.observeLegacyAsyncUnsafe(subject.eraseToAnyPublisher())
 
-        subject.send(.loading)
-        try await Task.sleep(for: .milliseconds(50))
+        #expect(container.state == .idle)
+
+        var history = await container.waitUntilRecordedStateChanges(atLeast: 1, timeout: .seconds(5))
         #expect(container.state == .loading)
+        #expect(history == [.loading])
 
         container.observe(.idle)
         #expect(container.state == .idle)
 
         subject.send(.loaded(.init(value: 99)))
-        try await Task.sleep(for: .milliseconds(50))
+        history = await container.waitUntilRecordedStateChanges(atLeast: 3, timeout: .milliseconds(200))
+        #expect(history == [.loading, .idle])
         #expect(container.state == .idle)
     }
 
@@ -377,22 +386,20 @@ struct NonSendableStateTests {
     @MainActor
     func observeLegacyUnsafeFirstStateMultipleEmissions() async throws {
         let container = makeContainer()
-        let subject = PassthroughSubject<NonSendableState, Never>()
+        let publisher = Just(NonSendableState.loaded(.init(value: 1)))
+            .append(Just(NonSendableState.loaded(.init(value: 2))))
+            .eraseToAnyPublisher()
 
-        container.observeLegacyUnsafe(subject, firstState: .loading)
+        container.observeLegacyUnsafe(publisher, firstState: .loading)
         #expect(container.state == .loading)
 
-        try await Task.sleep(for: .milliseconds(50))
-
-        subject.send(.loaded(.init(value: 1)))
-        try await Task.sleep(for: .milliseconds(50))
-        #expect(container.state == .loaded(.init(value: 1)))
-
-        subject.send(.loaded(.init(value: 2)))
-        try await Task.sleep(for: .milliseconds(50))
+        let history = await container.waitUntilRecordedStateChanges(atLeast: 3, timeout: .seconds(5))
         #expect(container.state == .loaded(.init(value: 2)))
-
-        subject.send(completion: .finished)
+        #expect(history == [
+            .loading,
+            .loaded(.init(value: 1)),
+            .loaded(.init(value: 2)),
+        ])
     }
 
     @Test("observeLegacyUnsafe(_:firstState:) cancels on new observation")
@@ -404,13 +411,12 @@ struct NonSendableStateTests {
         container.observeLegacyUnsafe(subject, firstState: .loading)
         #expect(container.state == .loading)
 
-        try await Task.sleep(for: .milliseconds(50))
-
         container.observe(.idle)
         #expect(container.state == .idle)
 
         subject.send(.loaded(.init(value: 99)))
-        try await Task.sleep(for: .milliseconds(50))
+        let history = await container.waitUntilRecordedStateChanges(atLeast: 3, timeout: .milliseconds(200))
+        #expect(history == [.loading, .idle])
         #expect(container.state == .idle)
     }
 
@@ -427,8 +433,9 @@ struct NonSendableStateTests {
         #expect(container.state == .loading)
 
         subject.send(.loaded(.init(value: 55)))
-        try await Task.sleep(for: .milliseconds(100))
+        let history = await container.waitUntilRecordedStateChanges(atLeast: 2, timeout: .seconds(5))
         #expect(container.state == .loaded(.init(value: 55)))
+        #expect(history == [.loading, .loaded(.init(value: 55))])
     }
 
     @Test("observeLegacyBlockingUnsafe delivers multiple emissions")
@@ -440,15 +447,19 @@ struct NonSendableStateTests {
         container.observeLegacyBlockingUnsafe(subject.eraseToAnyPublisher())
         #expect(container.state == .loading)
 
-        try await Task.sleep(for: .milliseconds(50))
-
         subject.send(.loaded(.init(value: 1)))
-        try await Task.sleep(for: .milliseconds(50))
+        var history = await container.waitUntilRecordedStateChanges(atLeast: 2, timeout: .seconds(5))
         #expect(container.state == .loaded(.init(value: 1)))
+        #expect(history == [.loading, .loaded(.init(value: 1))])
 
         subject.send(.loaded(.init(value: 2)))
-        try await Task.sleep(for: .milliseconds(50))
+        history = await container.waitUntilRecordedStateChanges(atLeast: 3, timeout: .seconds(5))
         #expect(container.state == .loaded(.init(value: 2)))
+        #expect(history == [
+            .loading,
+            .loaded(.init(value: 1)),
+            .loaded(.init(value: 2)),
+        ])
 
         subject.send(completion: .finished)
     }
@@ -466,7 +477,8 @@ struct NonSendableStateTests {
         #expect(container.state == .idle)
 
         subject.send(.loaded(.init(value: 99)))
-        try await Task.sleep(for: .milliseconds(50))
+        let history = await container.waitUntilRecordedStateChanges(atLeast: 3, timeout: .milliseconds(200))
+        #expect(history == [.loading, .idle])
         #expect(container.state == .idle)
     }
 
