@@ -9,6 +9,9 @@
 import Foundation
 import Observation
 import os.signpost
+#if canImport(Combine) && DEBUG
+import Combine
+#endif
 /// A container that manages state changes on the main thread while allowing state production on any thread.
 ///
 /// `AsyncStateContainer` provides thread-safe state management by guaranteeing that all state changes occur
@@ -464,14 +467,21 @@ public extension AsyncStateContainer {
         }
     }
 
-    /// Observes and updates the state from a generic `AsyncSequence` that never throws.
+    /// Observes and updates the state from a generic `AsyncSequence` whose iteration **never fails**.
+    ///
+    /// The `AsyncSequence` associated type **`Failure` must be `Never`**—this API does not accept throwing
+    /// sequences (for example Combine’s `AsyncThrowingPublisher` or any stream that reports errors as
+    /// `Failure`). Fold failures into `State` (e.g. an `.error` case) before observing, or use VSM 1.x
+    /// for publisher-centric flows.
     ///
     /// This method uses `iterator.next(isolation: #isolation)` to keep the iterator in the
     /// caller's isolation domain, avoiding Sendable requirements on `State`.
     ///
-    /// - Parameter sequence: Any `AsyncSequence` that emits `State` values with `Failure` of `Never`.
+    /// - Parameter sequence: Any `AsyncSequence` that emits `State` values and cannot fail (`Failure == Never`).
+    ///   The sequence is **`sending`**: it is transferred for **exclusive** consumption by this container’s observation
+    ///   `Task`, consistent with `observe(_ nextState: sending State)` and `observe(_ stateSequence: sending StateSequence<State>)`.
     @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, macCatalyst 18.0, *)
-    func observe(_ sequence: some AsyncSequence<State, Never>) {
+    func observe(_ sequence: sending some AsyncSequence<State, Never>) {
         if loggingEnabled {
             os_log(.debug, log: logger, "observe(AsyncSequence) called")
         }
@@ -519,6 +529,33 @@ public extension AsyncStateContainer {
             }
         }
     }
+
+    // MARK: - Combine (DEBUG-only compile-time unavailable)
+
+    #if canImport(Combine) && DEBUG
+    /// Combine is not supported for observation in VSM 2.0. These overloads are compiled **only in DEBUG** builds to
+    /// surface a **compile-time** diagnostic when a **non-throwing** `Publisher` (`Failure == Never`) or its
+    /// `AsyncPublisher` (via `publisher.values`) is passed to `observe`. They are more specific than
+    /// `observe(_ sequence: sending some AsyncSequence<State, Never>)`, so those call sites select them and fail to build with
+    /// the message below **when building with `-Onone` / debug configuration**.
+    ///
+    /// In **Release**, these overloads are omitted—the same expression may type-check against `observe(AsyncSequence)`
+    /// instead. Rely on docs and code review for shipping builds; keep Combine off the container in all configurations.
+    ///
+    /// There is **no** `observe` overload for throwing streams: the only sequence API is
+    /// `observe(_ sequence: sending some AsyncSequence<State, Never>)`, which **excludes** failure as a sequence associated type.
+    /// Combine’s `AsyncThrowingPublisher` and `Publisher` where `Failure: Error` therefore do not match that method and
+    /// are not given a separate `unavailable` trap—fold errors into `State` first, or use VSM 1.x.
+    ///
+    /// This does **not** catch every erased type (for example `any Publisher<State, Never>` may not match); prefer unerased
+    /// call sites or VSM 1.x for Combine-first features. See documentation on Combine vs VSM 2.0.
+
+    @available(*, unavailable, message: "VSM 2.0 does not observe Combine publishers. Use VSM 1.x, or StateSequence, AsyncStream, or async closures. See documentation.")
+    func observe(_ publisher: some Publisher<State, Never>) {}
+
+    @available(*, unavailable, message: "Do not bridge Combine via publisher.values (AsyncPublisher). Use VSM 1.x or async-native actions. See documentation.")
+    func observe(_ sequence: AsyncPublisher<some Publisher<State, Never>>) {}
+    #endif
     
 }
 

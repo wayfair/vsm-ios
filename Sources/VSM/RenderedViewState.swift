@@ -444,8 +444,10 @@ extension RenderedViewState.RenderedContainer {
     /// `observe(_ stateSequence:)` with a `StateSequence` built via `@StateSequenceBuilder`.
     ///
     /// - Parameter sequence: Any `AsyncSequence` that emits `State` values with `Failure` type of `Never`.
+    ///   Marked `sending` to match ``AsyncStateContainer/observe(_:)``: the sequence is transferred for exclusive
+    ///   consumption by the container’s observation task.
     @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, macCatalyst 18.0, *)
-    public func observe(_ sequence: some AsyncSequence<State, Never>) {
+    public func observe(_ sequence: sending some AsyncSequence<State, Never>) {
         container.observe(sequence)
     }
 }
