@@ -799,6 +799,52 @@ struct StateContainerTests {
         binding.wrappedValue = "world"
         #expect(container.state.name == "world")
     }
+
+    @Test("bind curried overload `(State) -> (Value) -> State` with Sendable state")
+    @MainActor
+    func bindCurriedOverloadWithSendableState() {
+        struct FormState: Sendable, Equatable {
+            var name: String
+        }
+
+        let container = AsyncStateContainer(state: FormState(name: "hello"), logger: .disabled)
+
+        let binding: Binding<String> = container.bind(\.name, to: { state in { newName in
+            var copy = state
+            copy.name = newName
+            return copy
+        } })
+
+        #expect(binding.wrappedValue == "hello")
+        binding.wrappedValue = "curried"
+        #expect(container.state.name == "curried")
+    }
+
+    @Test("observe uses @Sendable overload when closure is @Sendable and State is Sendable")
+    @MainActor
+    func observeSendableOverloadWhenApplicable() async throws {
+        let container = makeContainer()
+        guard case let .initialize(initStateModel) = container.state else {
+            throw StateContainerTestError.missingStartState
+        }
+        let closure: @Sendable () async -> MockState = { await initStateModel.loadAsync() }
+        container.observe(closure)
+        let changes = await container.waitUntilRecordedStateChanges(atLeast: 1, timeout: .seconds(5))
+        #expect(changes == [.loaded(.init(count: 10))])
+    }
+
+    @Test("refresh uses @Sendable overload when closure is @Sendable and State is Sendable")
+    @MainActor
+    func refreshSendableOverloadWhenApplicable() async throws {
+        let container = makeContainer()
+        guard case let .initialize(initStateModel) = container.state else {
+            throw StateContainerTestError.missingStartState
+        }
+        let closure: @Sendable () async -> MockState = { await initStateModel.loadAsyncOnCurrentExecutionContext(count: 1) }
+        await container.refresh(state: closure)
+        let changes = await container.waitUntilRecordedStateChanges(atLeast: 1, timeout: .seconds(5))
+        #expect(changes == [.loaded(.init(count: 1))])
+    }
 }
 
 // MARK: - Mock Types for Testing State transitions

@@ -257,6 +257,34 @@ struct NonSendableStateTests {
         #expect(container.state.model.name == "world")
     }
 
+    @Test("bind curried overload `(State) -> (Value) -> State` with non-Sendable state")
+    @MainActor
+    func bindCurriedOverloadWithNonSendableState() {
+        struct FormState: Equatable {
+            final class Model: Equatable {
+                var name: String
+                init(name: String) { self.name = name }
+                static func == (lhs: Model, rhs: Model) -> Bool { lhs.name == rhs.name }
+            }
+            var model: Model
+        }
+
+        let container = AsyncStateContainer(
+            state: FormState(model: .init(name: "hello")),
+            logger: .disabled
+        )
+
+        let binding: Binding<FormState.Model> = container.bind(\.model, to: { state in { newModel in
+            var copy = state
+            copy.model = newModel
+            return copy
+        } })
+
+        #expect(binding.wrappedValue.name == "hello")
+        binding.wrappedValue = FormState.Model(name: "curried")
+        #expect(container.state.model.name == "curried")
+    }
+
     // MARK: - observeLegacyUnsafe(_:firstState:) (no Sendable required)
 
     @Test("observeLegacyUnsafe(_:firstState:) applies firstState synchronously — no hop")
