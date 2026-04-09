@@ -97,7 +97,7 @@ There are many reasons why the VSM architecture is a strong choice for building 
 - State & model definitions are a simple and clear description of the feature requirements (for ease of maintenance)
 - Implementation code is easy to read
 - Supports both SwiftUI (via `@ViewState`) and UIKit (via `@RenderedViewState`)
-- Backward compatible with Combine for gradual migration
+- Combine-based observation is available in **VSM 1.x**; **VSM 2.0** is async/`StateSequence`/`AsyncStream`-first (see <doc:DataDefinition>)
 - Passively encourages "Shifting Left" via Behavior-driven Development principles
 
 ### Cons
@@ -105,7 +105,7 @@ There are many reasons why the VSM architecture is a strong choice for building 
 - Inferring states, models, data, and actions from feature requirements can be challenging
 - Like most other architectures, hanging execution paths within actions are possible
 - Requires understanding of Swift's modern concurrency model (async/await, Sendable, actors)
-- State models and closures must be Sendable to ensure thread safety
+- Non-`Sendable` state is supported; you must respect isolation and **`sending`** at call sites—add **`Sendable`** only when your design calls for it (Swift 6.2+ favors precise use, not blanket conformance)
 
 While VSM protects the developer at every step, like all architectures and patterns, discipline in adhering to the VSM best practices will ensure the best experience.
 

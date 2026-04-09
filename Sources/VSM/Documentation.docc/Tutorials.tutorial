@@ -27,7 +27,7 @@
         @SampleCode(destination: "https://github.com/wayfair/vsm-ios/tree/main/Demos") {
             Download and explore sample code to get to know VSM
             
-            - [Shopping App: A simple app that uses VSM](https://github.com/wayfair/vsm-ios/tree/main/Demos/Shopping)
+            - [Shopping App: A simple app that uses VSM](https://github.com/wayfair/vsm-ios/tree/main/Demos/Shopping/Swift%206)
         }
     }
 }

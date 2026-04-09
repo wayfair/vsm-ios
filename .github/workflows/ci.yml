@@ -102,7 +102,7 @@ jobs:
   #       run: |
   #         set -o pipefail
   #         xcodebuild test \
-  #           -project ./Demos/Shopping/Shopping.xcodeproj \
+  #           -project ./Demos/Shopping/Swift 6/Shopping.xcodeproj \
   #           -scheme Shopping \
   #           -destination "platform=iOS Simulator,OS=26.1,name=iPhone 17" \
   #           | xcbeautify
@@ -125,7 +125,7 @@ jobs:
   #       run: |
   #         set -o pipefail
   #         xcodebuild test \
-  #           -project ./Demos/Shopping/Shopping.xcodeproj \
+  #           -project ./Demos/Shopping/Swift 6/Shopping.xcodeproj \
   #           -scheme "Shopping - UIKit" \
   #           -destination "platform=iOS Simulator,OS=26.1,name=iPhone 17" \
   #           | xcbeautify

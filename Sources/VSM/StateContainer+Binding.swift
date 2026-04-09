@@ -7,7 +7,6 @@
 
 #if canImport(SwiftUI)
 
-import Combine
 import SwiftUI
 
 // MARK: - Synchronous Observed Binding Extensions

@@ -19,15 +19,15 @@ In VSM, the **View** renders the **State**. Each state may provide a **Model**. 
 ## Learning Resources
 
 - The [VSM Documentation](https://wayfair.github.io/vsm-ios/documentation/vsm/) contains a complete framework reference, guides, and other learning resources
-- Open the [Demo App](Demos/Shopping) to see many different working examples of how to build features using the VSM pattern
+- Open the [Shopping demo](Demos/Shopping/Swift%206/Shopping.xcodeproj) (`Demos/Shopping/Swift 6`) for working examples with VSM 2.0 (`StateSequence`, `AsyncStream`, async/await)
 
 ## Code Introduction
 
-The following are code excerpts of a feature that shows a blog entry from a data repository.
+The following are code excerpts of a feature that shows a blog entry from a data repository. **VSM 2.0** uses Swift concurrency on the state container (`StateSequence`, `AsyncStream`, or `async` closures)—not Combine. **VSM 1.x** remains the choice if you need publisher-based observation APIs. Conforming types to **`Sendable`** is optional; add it only when your types and boundaries warrant it (Swift 6.3+ encourages surgical use).
 
 ### State Definition
 
-The state is usually defined as an enum or a struct and represents the states that the view can have. It also declares the data and actions available to the view for each model. Actions return one or more new states.
+The state is usually defined as an enum or a struct and represents the states that the view can have. It also declares the data and actions available to the view for each model. Actions produce the next state asynchronously.
 
 ```swift
 enum BlogEntryViewState {
@@ -37,18 +37,18 @@ enum BlogEntryViewState {
 }
 
 protocol LoaderModeling {
-    func load() -> AnyPublisher<BlogArticleViewState, Never>
+    func load() async -> BlogEntryViewState
 }
 
 protocol ErrorModeling {
     var message: String { get }
-    func retry() -> AnyPublisher<BlogArticleViewState, Never>
+    func retry() async -> BlogEntryViewState
 }
 
 protocol BlogModeling {
     var title: String { get }
     var text: String { get }
-    func refresh() -> AnyPublisher<BlogArticleViewState, Never>
+    func refresh() async -> BlogEntryViewState
 }
 ```
 
@@ -58,14 +58,14 @@ The discrete models provide the data for a given view state and implement the bu
 
 ```swift
 struct LoaderModel: LoaderModeling {
-    func load() -> AnyPublisher<BlogArticleViewState, Never> {
+    func load() async -> BlogEntryViewState {
         ...
     }
 }
 
 struct ErrorModel: ErrorModeling {
     var message: String
-    func retry() -> AnyPublisher<BlogArticleViewState, Never> {
+    func retry() async -> BlogEntryViewState {
         ...
     }
 }
@@ -73,7 +73,7 @@ struct ErrorModel: ErrorModeling {
 struct BlogModel: BlogModeling {
     var title: String
     var body: String
-    func refresh() -> AnyPublisher<BlogArticleViewState, Never> {
+    func refresh() async -> BlogEntryViewState {
         ...
     }
 }
@@ -92,14 +92,14 @@ struct BlogEntryView: View {
         case .initialized(loaderModel: let loaderModel):            
             ...
             .onAppear { 
-                $state.observe(loaderModel.load())
+                $state.observe { await loaderModel.load() }
             }
         case .loading(errorModel: let errorModel):
             ...
         case .loaded(blogModel: let blogModel)
             ...
             Button("Reload") {
-                $state.observe(blogModel.refresh())
+                $state.observe { await blogModel.refresh() }
             }
         }
     }

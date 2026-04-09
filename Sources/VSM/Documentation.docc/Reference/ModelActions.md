@@ -8,6 +8,8 @@ Actions are responsible for progressing the "State Journey" of a feature and nee
 
 All action types follow the same **never-throw** design: errors must be caught within the action and converted into an appropriate error view state. The framework does not accept actions that throw.
 
+For **`Sendable` vs non-`Sendable`** state types and which ``AsyncStateContainer`` / `$state` APIs apply in each case, see <doc:DataDefinition> (**Thread Safety and Concurrency** → **Sendable state vs non-Sendable state**).
+
 ## Asynchronous State Sequence
 
 ```swift
@@ -238,19 +240,8 @@ List { ... }
     }
 ```
 
-## Combine Publisher (Migration Only)
+## Combine-based models
 
-```swift
-func loadUser() -> AnyPublisher<UserViewState, Never>
-```
+VSM **2.0** does not ship Combine observation APIs on ``AsyncStateContainer``. If your feature is built around **Combine publishers** for view-state delivery, stay on **VSM 1.x**, which provides that integration. Move to VSM 2.0 when you adopt ``StateSequence``, `AsyncStream`, or async closures for actions.
 
-The `observe(_ publisher:)` overload exists solely to ease migration from the previous Combine-based VSM framework. If you are writing new code, prefer ``StateSequence``, `AsyncStream`, or the async closure patterns above.
-
-```swift
-func loadUser() -> AnyPublisher<UserViewState, Never> {
-    UserRepository().loadUser()
-        .map { userData in .loaded(userData) }
-        .catch { error in Just(.loadingError(error)) }
-        .eraseToAnyPublisher()
-}
-```
+The framework also **does not endorse** ad-hoc publisher bridging in application code (for example turning a `Publisher` into an `AsyncStream` and calling `observe` in a loop): that recreates timing, isolation, and race issues without a supported contract here. For the full rationale—why migration-style Combine APIs were explored and removed, and a table of concrete gaps—see <doc:DataDefinition> (**Combine vs VSM 2.0**).

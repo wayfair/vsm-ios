@@ -350,7 +350,7 @@ $state.observe(someState.someAction())
 
 The only way to update the current view state is to use the property wrapper's `observe(_:)` function.
 
-When `observe(_:)` is called, it cancels any existing Swift Concurrency tasks and active Combine subscriptions, then ignores view state updates from any previously called actions. This prevents future view state corruption from previous actions and frees up device resources.
+When `observe(_:)` is called, it cancels any existing Swift Concurrency tasks driving observation, then ignores view state updates from any previously called actions. This prevents future view state corruption from previous actions and frees up device resources.
 
 Actions that do not need to update the current state do not need to be called with the `observe(_:)` function. However, if you attempt to call an action that should update the current state without using `observe(_:)`, the compiler will give you the following warning:
 

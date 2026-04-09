@@ -6,7 +6,6 @@
 //
 
 #if canImport(UIKit)
-import Combine
 import Foundation
 import OSLog
 
@@ -449,28 +448,6 @@ extension RenderedViewState.RenderedContainer {
     public func observe(_ sequence: some AsyncSequence<State, Never>) {
         container.observe(sequence)
     }
-    
-    /// **(Legacy — unsafe)** Observes a publisher, applying `firstState` synchronously.
-    /// Works with any `State` type. See ``AsyncStateContainer/observeLegacyUnsafe(_:firstState:)``
-    /// for safety details regarding non-Sendable mutable reference types.
-    public func observeLegacyUnsafe(_ publisher: some Publisher<State, Never>, firstState: State) {
-        container.observeLegacyUnsafe(publisher, firstState: firstState)
-    }
-    
-    /// **(Legacy — unsafe)** Observes a publisher, consuming all emissions asynchronously (hops).
-    /// Works with any `State` type. See ``AsyncStateContainer/observeLegacyAsyncUnsafe(_:)``
-    /// for safety details regarding non-Sendable mutable reference types.
-    public func observeLegacyAsyncUnsafe(_ publisher: some Publisher<State, Never>) {
-        container.observeLegacyAsyncUnsafe(publisher)
-    }
-    
-    /// **(Legacy — unsafe, blocking)** Observes a publisher using a lock to capture the first
-    /// emission synchronously. Works with any `State` type. Briefly blocks the calling thread.
-    /// Uses `@unchecked Sendable` internally. Intended for deletion once callers adopt `Sendable`.
-    /// See ``AsyncStateContainer/observeLegacyBlockingUnsafe(_:)`` for full details.
-    public func observeLegacyBlockingUnsafe(_ publisher: some Publisher<State, Never>) {
-        container.observeLegacyBlockingUnsafe(publisher)
-    }
 }
 
 // MARK: - Sendable-Only Pass-throughs
@@ -491,24 +468,6 @@ extension RenderedViewState.RenderedContainer where State: Sendable {
     /// `@Sendable` overload of `refresh(state:)`.
     public func refresh(state nextStateClosure: @escaping @Sendable () async -> State) async {
         await container.refresh(state: nextStateClosure)
-    }
-    
-    /// **(Legacy — safe)** Observes a publisher, applying `firstState` synchronously.
-    /// Requires `State: Sendable`. No lock, no hop.
-    public func observeLegacy(_ publisher: some Publisher<State, Never>, firstState: State) {
-        container.observeLegacy(publisher, firstState: firstState)
-    }
-    
-    /// **(Legacy — safe)** Observes a publisher, consuming all emissions asynchronously (hops).
-    /// Requires `State: Sendable`.
-    public func observeLegacyAsync(_ publisher: some Publisher<State, Never>) {
-        container.observeLegacyAsync(publisher)
-    }
-    
-    /// **(Legacy)** Observes a publisher using a lock to capture the first emission synchronously.
-    /// Requires `State: Sendable`. Briefly blocks the calling thread.
-    public func observeLegacyBlocking(_ publisher: some Publisher<State, Never>) {
-        container.observeLegacyBlocking(publisher)
     }
 }
 #endif

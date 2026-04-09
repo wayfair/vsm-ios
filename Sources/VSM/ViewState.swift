@@ -58,7 +58,8 @@ public struct ViewState<State>: DynamicProperty {
     // @State gives us "init once" semantics: SwiftUI stores the container in its
     // view graph on first appearance and restores it on every subsequent re-render
     // of the same view identity, regardless of how many times the parent rebuilds
-    // the struct. AsyncStateContainer conforms to Sendable via @MainActor isolation.
+    // the struct. The container is `@MainActor`-isolated for SwiftUI; `AsyncStateContainer`
+    // conforms to `Sendable` only when `State: Sendable`.
     @SwiftUI.State private var _container: AsyncStateContainer<State>
 
     public var container: AsyncStateContainer<State> { _container }

@@ -166,7 +166,7 @@ You may have noticed that we don't dispatch to the main queue anywhere in this c
 
 > Tip: In VSM, you never have to worry about syncing your view states with the main thread.
 
-You may also have noticed that we don't use `[weak self]` in any of our closures. This is because we are exclusively using structs instead of classes. When a struct is captured in a `@Sendable` closure (as required by `StateSequence`), Swift copies it by value, which prevents strong reference cycles entirely.
+You may also have noticed that we don't use `[weak self]` in any of our closures. This is because we are exclusively using structs instead of classes. ``StateSequence`` stores plain producing closures; when you call ``AsyncStateContainer/observe(_:)``, transfers use Swift 6 **`sending`** (and **`@Sendable`** overloads when `State: Sendable`). Capturing structs by value avoids strong reference cycles with `self`.
 
 > Tip: Avoid using classes for your models. This removes the need for capturing `[weak self]` within closures.
 
