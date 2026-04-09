@@ -26,7 +26,7 @@ struct StateContainerTests {
     /// Turns on `debugStateHistory` recording (`#if DEBUG` only) so `waitUntilRecordedStateChanges` can observe transitions.
     @MainActor
     private func makeContainer(initialState: MockState = .initialize()) -> AsyncStateContainer<MockState> {
-        let container = AsyncStateContainer(state: initialState, logger: .default, loggingEnabled: true)
+        let container = AsyncStateContainer(state: initialState, logger: .disabled)
         container.turnOnRecordingStateHistory()
         return container
     }
