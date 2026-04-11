@@ -104,7 +104,7 @@ For example, if we have a feature that loads the user info that is required by t
 
 ```swift
 struct LoadUserView: View {
-    @ViewState var state: LoadUserViewState
+    @LegacyViewState var state: LoadUserViewState
     let dependencies: Dependencies
     ...
     var body: some View {
@@ -126,7 +126,7 @@ struct LoadUserView: View {
 
 ```swift
 final class LoadUserViewController: UIViewController {
-    @RenderedViewState var state: LoadUserViewState
+    @LegacyRenderedViewState var state: LoadUserViewState
     let dependencies: Dependencies
     ...
     func render() {

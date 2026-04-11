@@ -21,7 +21,7 @@ import Combine
 ///
 /// ```swift
 /// class MyViewController: UIViewController {
-///     @RenderedViewState var state: MyViewState
+///     @LegacyRenderedViewState var state: MyViewState
 ///
 ///     init(state: MyViewState) {
 ///         _state = .init(wrappedValue: state, render: Self.render)
@@ -41,7 +41,7 @@ import Combine
 ///
 /// ```swift
 /// class MyViewController: UIViewController {
-///     @RenderedViewState(render: MyViewController.render)
+///     @LegacyRenderedViewState(render: MyViewController.render)
 ///     var state: MyViewState = MyViewState()
 ///
 ///     func render() {
@@ -89,7 +89,7 @@ public struct LegacyRenderedViewState<State> {
     ///
     /// ```swift
     /// class MyViewController: UIViewController {
-    ///     @RenderedViewState var state: MyViewState
+    ///     @LegacyRenderedViewState var state: MyViewState
     ///
     ///     init(state: MyViewState) {
     ///         _state = .init(wrappedValue: state, render: Self.render)
@@ -133,7 +133,7 @@ public struct LegacyRenderedViewState<State> {
     ///
     /// ```swift
     /// class MyViewController: UIViewController {
-    ///     @RenderedViewState var state: MyViewState
+    ///     @LegacyRenderedViewState var state: MyViewState
     ///
     ///     init(state: MyViewState) {
     ///         _state = .init(wrappedValue: state, render: Self.render)

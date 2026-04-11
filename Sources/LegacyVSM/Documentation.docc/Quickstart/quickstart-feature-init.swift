@@ -1,5 +1,5 @@
 struct BlogEntryView: View {
-    @ViewState var state: BlogEntryViewState
+    @LegacyViewState var state: BlogEntryViewState
     
     init(repository: BlogEntryProviding, entryId: Int) {
         

@@ -15,10 +15,10 @@ In the examples found in this article, we will be using Storyboards. The code-fi
 The basic structure of a UIKit VSM view is as follows:
 
 ```swift
-import VSM
+import LegacyVSM
 
 class UserProfileViewController: UIViewController {
-    @RenderedViewState var state: LoadUserProfileViewState
+    @LegacyRenderedViewState var state: LoadUserProfileViewState
 
     required init?(state: LoadUserProfileViewState, coder: NSCoder) {
         _state = .init(wrappedValue: state, render: Self.render)
@@ -33,9 +33,9 @@ class UserProfileViewController: UIViewController {
 }
 ```
 
-To turn any UIView or UIViewController into a "VSM View", define a property that holds our current state and decorate it with the `@RenderedViewState` property wrapper. `@RenderViewState` is designed for UIKit and will not work in SwiftUI. (See <doc:ViewDefinition-SwiftUI> for more information.)
+To turn any UIView or UIViewController into a "VSM View", define a property that holds our current state and decorate it with the `@LegacyRenderedViewState` property wrapper. `@RenderViewState` is designed for UIKit and will not work in SwiftUI. (See <doc:ViewDefinition-SwiftUI> for more information.)
 
-**The `@RenderedViewState` property wrapper updates the view every time the state changes**. `@RenderedViewState` requires a `render` _function type_ parameter to call when the state changes. You must define this function in your UIView or UIViewController.
+**The `@LegacyRenderedViewState` property wrapper updates the view every time the state changes**. `@LegacyRenderedViewState` requires a `render` _function type_ parameter to call when the state changes. You must define this function in your UIView or UIViewController.
 
 To kick off this automatic rendering, you must choose an appropriate UIView or UIViewController lifecycle event (`viewDidLoad`, `viewWillAppear`, etc.) and apply one of these two approaches:
 
@@ -438,7 +438,7 @@ Example
 
 ```swift
 class MyViewController: UIViewController {
-    @RenderedViewState var state: MyViewState
+    @LegacyRenderedViewState var state: MyViewState
     private var stateSubscriptions: Set<AnyCancellable> = []
     ...
     override func viewDidLoad() {

@@ -13,10 +13,10 @@ The purpose of the "View" in VSM is to render the current view state and provide
 The basic structure of a SwiftUI VSM view is as follows:
 
 ```swift
-import VSM
+import LegacyVSM
 
 struct LoadUserProfileView: View {
-    @ViewState var state: LoadUserProfileViewState
+    @LegacyViewState var state: LoadUserProfileViewState
 
     var body: some View {
         // View definitions go here
@@ -24,9 +24,9 @@ struct LoadUserProfileView: View {
 }
 ```
 
-To turn any view into a "VSM View", define a property that holds our current state and decorate it with the ``ViewState`` (`@ViewState`) property wrapper.
+To turn any view into a "VSM View", define a property that holds our current state and decorate it with the ``ViewState`` (`@LegacyViewState`) property wrapper.
 
-**The `@ViewState` property wrapper updates the view every time the state changes**. It works in the same way as other SwiftUI property wrappers (i.e., `@StateObject`, `@State`, `@ObservedObject`, and `@Binding`).
+**The `@LegacyViewState` property wrapper updates the view every time the state changes**. It works in the same way as other SwiftUI property wrappers (i.e., `@StateObject`, `@State`, `@ObservedObject`, and `@Binding`).
 
 As with other SwiftUI property wrappers, when the wrapped value (state) changes, the view's `body` property is reevaluated and the result is drawn on the screen.
 
@@ -117,7 +117,7 @@ To render this editing form, we need a property that keeps track of what the use
 
 ```swift
 struct EditUserProfileView: View {
-    @ViewState var state: EditUserProfileViewState
+    @LegacyViewState var state: EditUserProfileViewState
     @State var username: String = ""
     
     init(userData: UserData) {
@@ -313,7 +313,7 @@ The following example displays a progress view that shows the loading state of s
 
 ```swift
 struct MyView: View {
-    @ViewState var state: MyViewState
+    @LegacyViewState var state: MyViewState
     @State var progress: Double = 0
     
     var body: some View {

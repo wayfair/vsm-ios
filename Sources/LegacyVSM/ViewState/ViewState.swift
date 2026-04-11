@@ -22,7 +22,7 @@ import SwiftUI
 ///
 /// ```swift
 /// struct MyView: View {
-///     @ViewState var state: MyViewState
+///     @LegacyViewState var state: MyViewState
 ///
 ///     var body: some View {
 ///         Button(state.someValue) {
@@ -65,7 +65,7 @@ public struct LegacyViewState<State>: DynamicProperty {
     ///
     /// ```swift
     /// struct MyView: View {
-    ///     @ViewState var state: MyViewState
+    ///     @LegacyViewState var state: MyViewState
     ///
     ///     init() {
     ///         let myViewState = MyViewState()

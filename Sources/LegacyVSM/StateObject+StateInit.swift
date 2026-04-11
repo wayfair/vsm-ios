@@ -13,7 +13,7 @@ import SwiftUI
 @available(tvOS 14.0, *)
 @available(watchOS 7.0, *)
 @available(visionOS 1.0, *)
-@available(*, deprecated, message: "Use the @ViewState property wrapper instead.")
+@available(*, deprecated, message: "Use the @LegacyViewState property wrapper instead.")
 public extension StateObject {
     
     /// VSM convenience initializer for creating a `StateObject<StateContainer<State>>` directly from a `StateContainer.State` value.
