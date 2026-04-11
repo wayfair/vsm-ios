@@ -55,7 +55,7 @@ import Combine
 @available(iOS 14.0, *)
 @available(visionOS 1.0, *)
 @propertyWrapper
-public struct RenderedViewState<State> {
+public struct LegacyRenderedViewState<State> {
     
     let renderedContainer: RenderedContainer
     
@@ -175,7 +175,7 @@ public struct RenderedViewState<State> {
     public static subscript<ParentClass: AnyObject>(
         _enclosingInstance instance: ParentClass,
         wrapped wrappedKeyPath: KeyPath<ParentClass, State>,
-        storage storageKeyPath: KeyPath<ParentClass, RenderedViewState<State>>
+        storage storageKeyPath: KeyPath<ParentClass, LegacyRenderedViewState<State>>
     ) -> State {
         get {
             let wrapper = instance[keyPath: storageKeyPath]
@@ -189,7 +189,7 @@ public struct RenderedViewState<State> {
 
 @available(iOS 14.0, *)
 @available(visionOS 1.0, *)
-public extension RenderedViewState {
+public extension LegacyRenderedViewState {
     /// Provides functions for observing and rendering state changes in UIKit views and view controllers
     struct RenderedContainer {
         /// The wrapped state container for managing changes in state
@@ -239,7 +239,7 @@ public extension RenderedViewState {
 // Forwards protocol member calls to underlying state container
 @available(iOS 14.0, *)
 @available(visionOS 1.0, *)
-extension RenderedViewState.RenderedContainer: StateObserving & StatePublishing {
+extension LegacyRenderedViewState.RenderedContainer: StateObserving & StatePublishing {
     
     // MARK: StatePublishing
     // For more information about these members, view the protocol definition

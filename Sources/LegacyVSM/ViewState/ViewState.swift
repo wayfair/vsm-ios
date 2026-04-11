@@ -37,7 +37,7 @@ import SwiftUI
 @available(watchOS 7.0, *)
 @available(visionOS 1.0, *)
 @propertyWrapper
-public struct ViewState<State>: DynamicProperty {
+public struct LegacyViewState<State>: DynamicProperty {
     
     @StateObject var container: StateContainer<State>
     

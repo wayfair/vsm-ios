@@ -8,6 +8,6 @@
 #if DEBUG
 
 @available(iOS 14.0, *)
-extension RenderedViewState: _StateContainerStaticDebugging where State == Any { }
+extension LegacyRenderedViewState: _StateContainerStaticDebugging where State == Any { }
 
 #endif

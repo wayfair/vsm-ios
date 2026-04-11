@@ -12,6 +12,6 @@
 @available(tvOS 14.0, *)
 @available(watchOS 7.0, *)
 @available(visionOS 1.0, *)
-extension ViewState: _StateContainerStaticDebugging where State == Any { }
+extension LegacyViewState: _StateContainerStaticDebugging where State == Any { }
 
 #endif

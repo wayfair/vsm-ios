@@ -8,7 +8,7 @@
 import Combine
 import SwiftUI
 import XCTest
-import VSM
+import LegacyVSM
 
 @available(*, deprecated, message: "This test class will be removed when ViewStateRendering is removed from the framework")
 class ViewStateRenderingTests_Bind: XCTestCase {

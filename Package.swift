@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.3
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -15,22 +15,31 @@ let package = Package(
     ],
     products: [
         .library(
-            name: "VSM",
-            targets: ["VSM"]),
+            name: "LegacyVSM",
+            targets: ["LegacyVSM"]
+        ),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
+        .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.4.6"),
         .package(url: "https://github.com/albertbori/TestableCombinePublishers.git", from: "2.0.1")
     ],
     targets: [
         .target(
-            name: "VSM",
-            dependencies: []),
+            name: "LegacyVSM",
+            dependencies: [],
+            swiftSettings: [
+                .swiftLanguageMode(.v5)
+            ]
+        ),
         .testTarget(
-            name: "VSMTests",
+            name: "LegacyVSMTests",
             dependencies: [
-                "VSM",
+                "LegacyVSM",
                 "TestableCombinePublishers"
-            ]),
+            ],
+            swiftSettings: [
+                .swiftLanguageMode(.v5)
+            ]
+        ),
     ]
 )

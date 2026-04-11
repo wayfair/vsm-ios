@@ -6,7 +6,7 @@
 //
 
 import Combine
-@testable import VSM
+@testable import LegacyVSM
 import XCTest
 
 extension XCTestCase {

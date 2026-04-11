@@ -5,7 +5,7 @@
 //  Created by Albert Bori on 2/28/23.
 //
 
-@testable import VSM
+@testable import LegacyVSM
 import XCTest
 
 @available(iOS 14.0, *)
@@ -45,7 +45,7 @@ final class RenderedViewStateTests: XCTestCase {
 
 @available(iOS 14.0, *)
 private class MockWillSetRenderer<State> {
-    @RenderedViewState var state: State
+    @LegacyRenderedViewState var state: State
     var renderImpl: ((State, State) -> Void)?
 
     init(initialState: State, renderImpl: ((State, State) -> Void)? = nil) {
@@ -65,7 +65,7 @@ private class MockWillSetRenderer<State> {
 
 @available(iOS 14.0, *)
 private class MockDidSetRenderer<State> {
-    @RenderedViewState var state: State
+    @LegacyRenderedViewState var state: State
     var renderImpl: ((State) -> Void)?
 
     init(initialState: State, renderImpl: ((State) -> Void)? = nil) {

@@ -6,7 +6,7 @@
 //
 
 import Combine
-@testable import VSM
+@testable import LegacyVSM
 import XCTest
 
 /// Tests the `StatContainer`'s implementation of `StateObserving` and acts as a base class for other `StateObserving` types to test their desired outcomes

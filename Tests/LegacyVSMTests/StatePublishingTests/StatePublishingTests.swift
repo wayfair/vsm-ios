@@ -6,7 +6,7 @@
 //
 
 import Combine
-@testable import VSM
+@testable import LegacyVSM
 import XCTest
 
 /// Tests the `StatContainer`'s implementation of `StatePublishing` and acts as a base class for other `StatePublishing` types to test their desired outcomes

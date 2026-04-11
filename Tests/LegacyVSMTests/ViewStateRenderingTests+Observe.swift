@@ -8,7 +8,7 @@
 import Combine
 import SwiftUI
 import XCTest
-import VSM
+import LegacyVSM
 
 /// Tests all forwarding Observe overloads on the `ViewStateRendering` protocol extension
 @available(*, deprecated, message: "This test class will be removed when ViewStateRendering is removed from the framework")

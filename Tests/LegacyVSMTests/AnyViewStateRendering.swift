@@ -6,7 +6,7 @@
 //
 
 import SwiftUI
-import VSM
+import LegacyVSM
 
 /// A concrete test subject for testing various ViewStateRendering extensions
 @available(*, deprecated, message: "This type will be removed when ViewStateRendering is removed from the framework")

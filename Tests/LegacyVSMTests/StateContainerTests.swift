@@ -1,7 +1,7 @@
 import Combine
 import TestableCombinePublishers
 import XCTest
-import VSM
+import LegacyVSM
 
 class StateContainerTests: XCTestCase {
         

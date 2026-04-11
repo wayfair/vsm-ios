@@ -6,7 +6,7 @@
 //
 
 import Combine
-import VSM
+import LegacyVSM
 
 /// A pre-defined mock for testing a State that also functions as a Model for binding and progression
 struct MockBindableState: MutatingCopyable {

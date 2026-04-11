@@ -5,7 +5,7 @@
 //  Created by Albert Bori on 12/6/23.
 //
 
-@testable import VSM
+@testable import LegacyVSM
 import XCTest
 
 final class MutatingCopyableTests: XCTestCase {
