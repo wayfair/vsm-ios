@@ -18,6 +18,10 @@ let package = Package(
             name: "LegacyVSM",
             targets: ["LegacyVSM"]
         ),
+        .library(
+            name: "VSM",
+            targets: ["VSM"]
+        ),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.4.6"),
@@ -41,5 +45,20 @@ let package = Package(
                 .swiftLanguageMode(.v5)
             ]
         ),
+        .target(
+            name: "VSM",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
+        .testTarget(
+            name: "VSMTests",
+            dependencies: [
+                "VSM",
+            ],
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        )
     ]
 )
