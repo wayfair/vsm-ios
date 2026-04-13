@@ -356,14 +356,6 @@ extension RenderedViewState.RenderedContainer {
         container.observe(nextStateClosure)
     }
     
-    /// Refreshes the state using an async closure, suspending until complete.
-    ///
-    /// Designed for pull-to-refresh in UIKit. Suspends until the state has been
-    /// produced and applied, so the refresh indicator remains visible until completion.
-    public func refresh(state nextStateClosure: sending @escaping () async -> State) async {
-        await container.refresh(state: nextStateClosure)
-    }
-    
     /// Observes and updates the state through a sequence of state values.
     ///
     /// This method consumes a `StateSequence` that produces multiple state values over time.
@@ -465,11 +457,6 @@ extension RenderedViewState.RenderedContainer where State: Sendable {
     /// `@Sendable` overload — preferred by the compiler when `State: Sendable`.
     public func observe(_ nextStateClosure: @escaping @Sendable () async -> State) {
         container.observe(nextStateClosure)
-    }
-    
-    /// `@Sendable` overload of `refresh(state:)`.
-    public func refresh(state nextStateClosure: @escaping @Sendable () async -> State) async {
-        await container.refresh(state: nextStateClosure)
     }
 }
 #endif

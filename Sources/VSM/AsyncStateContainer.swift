@@ -63,7 +63,7 @@ import Combine
 ///
 /// ```swift
 /// enum ExampleViewState {
-///     case initialized(InitializedModel)  // Has a load() action
+///     case initialized(InitializedModel)   // Has a load() action
 ///     case loading                         // No actions - just shows progress
 ///     case loaded(LoadedModel)             // Has refresh(), delete() actions
 ///     case loadedEmpty(LoadedEmptyModel)   // Has refresh() action
