@@ -9,12 +9,54 @@ import Foundation
 import OSLog
 import SwiftUI
 
-/// **(SwiftUI Only)** Manages the view state for a SwiftUI View in VSM. Automatically updates the view when the state changes.
+/// Property wrapper you apply to the `state` property on a VSM view: a SwiftUI `View`, or a UIKit
+/// `UIView` / `UIViewController` when you adopt UIKit’s observation tracking (iOS 18 and later; see
+/// <doc:ViewDefinition-UIKit>).
 ///
-/// This property wrapper encapsulates a view's state property with an underlying `StateContainer` to provide the current view state.
-/// A subset of `StateContainer` members are available through the `$` prefix, such as `observe(...)` and `bind(...)`.
+/// In VSM, *state* is the value that describes what your feature is doing right now—which screen or phase
+/// you are in (loading, success, error, and so on)—and, when you use enums with associated models, which
+/// actions are available. That `state` value is the **single source of truth** for what the UI should
+/// represent. SwiftUI reads it from `body`; in UIKit you align subviews and controls from
+/// `updateProperties()` (or equivalent) when observation notifies you that `state` changed.
 ///
-/// ## Usage
+/// ### SwiftUI
+///
+/// `@ViewState` is a `DynamicProperty` that wraps an ``AsyncStateContainer`` stored in the SwiftUI view graph
+/// (via SwiftUI’s `@State` so the container’s identity survives parent rebuilds). The container is
+/// `@Observable`, so when its ``AsyncStateContainer/state`` changes, SwiftUI is notified and the view
+/// refreshes—without you manually publishing or forwarding updates. See also <doc:ViewDefinition-SwiftUI>.
+///
+/// ### UIKit (iOS 18+)
+///
+/// The same property wrapper works on `UIView` and `UIViewController`. UIKit’s property observation tracks
+/// `@ViewState` and calls `updateProperties()` when ``AsyncStateContainer/state`` changes. Setup,
+/// `updateProperties()` patterns, and related details are covered in <doc:ViewDefinition-UIKit> (*Building the
+/// View in VSM - UIKit*). On iOS 17, use ``RenderedViewState`` instead; it is deprecated on newer OS
+/// versions in favor of `@ViewState`—see ``RenderedViewState`` for migration from `render()` to
+/// `updateProperties()`.
+///
+/// > Important: On **iOS 18**, you must add the Boolean key `UIObservationTrackingEnabled` to your app’s
+/// **Info.plist** (value `YES`) so UIKit automatically calls `updateProperties()` when `@ViewState` changes.
+/// See **Enabling Observation Tracking on iOS 18** in <doc:ViewDefinition-UIKit> for the full plist entry and
+/// behavior by OS version. On **iOS 26** and later, observation tracking is enabled by default and this key
+/// is not required.
+///
+/// > Warning: **UIKit on iOS 17:** You cannot use `@ViewState` on `UIView` or `UIViewController` when your
+/// UIKit integration depends on **iOS 17**. That OS does not provide the property-observation path that
+/// triggers `updateProperties()` when an `@Observable` container (the backing ``AsyncStateContainer``) changes,
+/// so the view would not refresh when state updates. Use ``RenderedViewState`` with an explicit `render()`
+/// callback for UIKit on iOS 17 instead; see the **Legacy Approach (iOS 17)** section in
+/// <doc:ViewDefinition-UIKit>. This does **not** apply to SwiftUI — `@ViewState` remains the right choice
+/// for SwiftUI views on iOS 17 and later.
+///
+/// The wrapped value is only the current `State`. In both SwiftUI and UIKit, use the **projected value**
+/// (`$state`) to reach the container’s APIs that drive transitions, such as `observe(_:)`
+/// and the `bind` methods that produce SwiftUI `Binding` values tied to state.
+///
+/// The `State` type does not need to conform to `Sendable`; see ``AsyncStateContainer`` and
+/// <doc:DataDefinition> for concurrency and optional `Sendable`.
+///
+/// ## Usage (SwiftUI)
 ///
 /// Decorate your view state property with this property wrapper.
 ///
@@ -22,12 +64,38 @@ import SwiftUI
 ///
 /// ```swift
 /// struct MyView: View {
-///     @ViewState var state: MyViewState
+///     @ViewState var state: MyViewState = .initialized(.init())
 ///
 ///     var body: some View {
 ///         Button(state.someValue) {
 ///             $state.observe(state.someAction())
 ///         }
+///     }
+/// }
+/// ```
+///
+/// ## Usage (UIKit)
+///
+/// On `UIView` or `UIViewController`, decorate your `state` property with `@ViewState`, assign it in an
+/// initializer with `_state = .init(wrappedValue:)`, override `updateProperties()` to align subviews with
+/// `state`, and call `$state.observe(_:)` when handling actions. See <doc:ViewDefinition-UIKit> for full
+/// patterns (iOS version requirements and **Info.plist** are summarized in the callouts above).
+///
+/// Example:
+///
+/// ```swift
+/// import UIKit
+///
+/// final class MyViewController: UIViewController {
+///     @ViewState var state: MyViewState = .initialized(.init())
+///
+///     override func updateProperties() {
+///         super.updateProperties()
+///         // Map `state` onto your subviews
+///     }
+///
+///     func handleTap() {
+///         $state.observe(state.someAction())
 ///     }
 /// }
 /// ```
@@ -71,18 +139,14 @@ public struct ViewState<State>: DynamicProperty {
     
     public var projectedValue: AsyncStateContainer<State> { container }
     
-    /// **(SwiftUI only)** Instantiates the view state with an initial value.
+    /// Instantiates the view state with an initial value for SwiftUI views or UIKit views and view
+    /// controllers (see <doc:ViewDefinition-UIKit> for UIKit initialization on iOS 18+).
     ///
     /// Example:
     ///
     /// ```swift
     /// struct MyView: View {
-    ///     @ViewState var state: MyViewState
-    ///
-    ///     init() {
-    ///         let myViewState = MyViewState()
-    ///         _state = .init(wrappedValue: myViewState)
-    ///     }
+    ///     @ViewState var state: MyViewState = .initialized(.init())
     ///
     ///     var body: some View {
     ///         Button(state.someValue) {

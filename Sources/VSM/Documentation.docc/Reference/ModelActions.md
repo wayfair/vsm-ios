@@ -240,8 +240,12 @@ List { ... }
     }
 ```
 
-## Combine-based models
+## Combine and modern VSM
 
-VSM **2.0** does not ship Combine observation APIs on ``AsyncStateContainer``. If your feature is built around **Combine publishers** for view-state delivery, stay on **VSM 1.x**, which provides that integration. Move to VSM 2.0 when you adopt ``StateSequence``, `AsyncStream`, or async closures for actions.
+**VSM 2.0 / modern VSM does not provide a supported `observe` overload for Combine**—not for `Publisher`, and not for `AsyncPublisher` from `publisher.values`. New Apple APIs and platform direction favor Swift concurrency over Combine; Combine’s threading and bridging behavior is also a frequent source of subtle races and hazardous side effects, which is why this module does not integrate publisher observation in 2.0.
+
+If your feature is built around **Combine publishers** for view-state delivery, stay on **VSM 1.x**, which provides that integration. Move to VSM 2.0 when you adopt ``StateSequence``, `AsyncStream`, generic `AsyncSequence` (where available), or async closures for actions.
+
+> Note: In **DEBUG** builds only, the library may compile **unavailable** `observe` overloads that mention `Publisher` so some mistaken call sites fail at compile time. That is a diagnostic aid, not a supported API.
 
 The framework also **does not endorse** ad-hoc publisher bridging in application code (for example turning a `Publisher` into an `AsyncStream` and calling `observe` in a loop): that recreates timing, isolation, and race issues without a supported contract here. For the full rationale—why migration-style Combine APIs were explored and removed, and a table of concrete gaps—see <doc:DataDefinition> (**Combine vs VSM 2.0**).

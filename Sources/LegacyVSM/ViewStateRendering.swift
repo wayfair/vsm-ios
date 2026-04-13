@@ -4,7 +4,7 @@ import Combine
 ///
 /// Conforming a SwiftUI `View`, `UIView`, or `UIViewController` to ``ViewStateRendering`` aids in adoption of the VSM pattern.
 /// This will provide the view with its own ``StateContainer`` by way of the ``container`` property.
-/// Conformance also grants access to convenient State and Actions helpers, such as ``state``, ``bind(_:to:)-p7pn``, and ``observe(_:)-7vht3``.
+/// Conformance also grants access to convenient state and action helpers, such as ``state``, `bind(_:to:)`, and ``observe(_:)-(()->ViewState)``.
 ///
 /// SwiftUI Example
 /// ```swift
@@ -74,7 +74,7 @@ public protocol ViewStateRendering {
     ///
     /// This type is usually an enum with associated `Model` values for complex views.
     /// For simpler views, this can be a `struct` or any value type.
-    /// `class`es (including `ObservableObject`s are supported, but not recommended.
+    /// `class`es (including `ObservableObject`s) are supported, but not recommended.
     associatedtype ViewState
     
     /// Contains the current `ViewState` value for rendering in the `View`.
@@ -134,7 +134,7 @@ import SwiftUI
 public extension ViewStateRendering where Self: View {
     
     /// Creates a unidirectional, auto-observing `Binding<Value>` for the `ViewState` using a `KeyPath` and a basic closure.
-    /// **Not intended for use when`ViewState` is an enum.**
+    /// **Not intended for use when `ViewState` is an enum.**
     /// - Parameters:
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
     ///   - observedSetter: Converts the new `Value` to a new `ViewState`, which is automatically observed
@@ -144,7 +144,7 @@ public extension ViewStateRendering where Self: View {
     }
     
     /// Creates a unidirectional, auto-observing `Binding<Value>` for the `ViewState` using a `KeyPath` and a *method signature*
-    /// **This doesn't work when`ViewState` is an enum**
+    /// **This doesn't work when `ViewState` is an enum**
     /// Example usage: `bind(\.someModelProperty, to: ViewState.someModelMethod)`
     /// - Parameters:
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
@@ -161,7 +161,7 @@ public extension ViewStateRendering where Self: View {
 public extension ViewStateRendering where Self: View {
     
     /// Creates a unidirectional, auto-observing `Binding<Value>` for the `ViewState` using a `KeyPath` and a basic closure.
-    /// **Not intended for use when`ViewState` is an enum.**
+    /// **Not intended for use when `ViewState` is an enum.**
     /// - Parameters:
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
     ///   - observedSetter: Converts the new `Value` to a new `ViewState`, which is automatically observed
@@ -171,7 +171,7 @@ public extension ViewStateRendering where Self: View {
     }
     
     /// Creates a unidirectional, auto-observing `Binding<Value>` for the `ViewState` using a `KeyPath` and a *method signature*
-    /// **Not intended for use when`ViewState` is an enum.**
+    /// **Not intended for use when `ViewState` is an enum.**
     /// Example usage: `bind(\.someModelProperty, to: ViewState.someModelMethod)`
     /// - Parameters:
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
@@ -188,7 +188,7 @@ public extension ViewStateRendering where Self: View {
 public extension ViewStateRendering where Self: View {
     
     /// Creates a unidirectional, auto-observing `Binding<Value>` for the `ViewState` using a `KeyPath` and a basic closure.
-    /// **Not intended for use when`ViewState` is an enum.**
+    /// **Not intended for use when `ViewState` is an enum.**
     /// - Parameters:
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
     ///   - observedSetter: Converts the new `Value` to a new `ViewState`, which is automatically observed
@@ -198,7 +198,7 @@ public extension ViewStateRendering where Self: View {
     }
     
     /// Creates a unidirectional, auto-observing `Binding<Value>` for the `ViewState` using a `KeyPath` and a *method signature*
-    /// **Not intended for use when`ViewState` is an enum.**
+    /// **Not intended for use when `ViewState` is an enum.**
     /// Example usage: `bind(\.someModelProperty, to: ViewState.someModelMethod)`
     /// - Parameters:
     ///   - stateKeyPath: `KeyPath` for a `Value` of the `ViewState`
@@ -222,6 +222,8 @@ public extension ViewStateRendering {
     /// - Parameters:
     ///   - stateChangePublisherAction: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
+    ///   - file: The source file used to automatically group debounced actions by call site
+    ///   - line: The source line used to automatically group debounced actions by call site
     func observe(
         _ stateChangePublisherAction: @escaping @autoclosure () -> AnyPublisher<ViewState, Never>,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
@@ -252,6 +254,8 @@ public extension ViewStateRendering {
     /// - Parameters:
     ///   - stateChangeAsyncAction: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
+    ///   - file: The source file used to automatically group debounced actions by call site
+    ///   - line: The source line used to automatically group debounced actions by call site
     func observeAsync(
         _ stateChangeAsyncAction: @escaping () async -> ViewState,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
@@ -282,6 +286,8 @@ public extension ViewStateRendering {
     /// - Parameters:
     ///   - stateSequence: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
+    ///   - file: The source file used to automatically group debounced actions by call site
+    ///   - line: The source line used to automatically group debounced actions by call site
     func observeAsync<SomeAsyncSequence: AsyncSequence>(
         _ stateSequence: @escaping () async -> SomeAsyncSequence,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
@@ -312,6 +318,8 @@ public extension ViewStateRendering {
     /// - Parameters:
     ///   - nextState: The action to be debounced before invoking
     ///   - dueTime: The amount of time required to pass before invoking the most recent action
+    ///   - file: The source file used to automatically group debounced actions by call site
+    ///   - line: The source line used to automatically group debounced actions by call site
     func observe(
         _ nextState: @escaping @autoclosure () -> ViewState,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,

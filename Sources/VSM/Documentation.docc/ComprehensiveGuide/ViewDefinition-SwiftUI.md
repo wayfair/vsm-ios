@@ -218,7 +218,7 @@ Actions that do not need to update the current state do not need to be called wi
 
 This is a helpful reminder in case you forget to wrap an action call with `observe(_:)`.
 
-> Note: The `observe(_:)` function has many overloads that provide support for several action shapes, including synchronous state values, async closures, `StateSequence`, and `AsyncStream`. For more information, see <doc:ModelActions>.
+> Note: The `observe(_:)` function has many overloads that provide support for several action shapes, including synchronous state values, async closures, `StateSequence`, `AsyncStream`, and (where the platform supports it) generic `AsyncSequence` with failure type `Never`. For more information, see <doc:ModelActions>.
 
 ### Implementing Actions with StateSequence
 

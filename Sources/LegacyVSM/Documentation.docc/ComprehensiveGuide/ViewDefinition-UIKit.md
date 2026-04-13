@@ -33,7 +33,7 @@ class UserProfileViewController: UIViewController {
 }
 ```
 
-To turn any UIView or UIViewController into a "VSM View", define a property that holds our current state and decorate it with the `@LegacyRenderedViewState` property wrapper. `@RenderViewState` is designed for UIKit and will not work in SwiftUI. (See <doc:ViewDefinition-SwiftUI> for more information.)
+To turn any UIView or UIViewController into a "VSM View", define a property that holds our current state and decorate it with the `@LegacyRenderedViewState` property wrapper. `@LegacyRenderedViewState` is designed for UIKit and will not work in SwiftUI. (See <doc:ViewDefinition-SwiftUI> for more information.)
 
 **The `@LegacyRenderedViewState` property wrapper updates the view every time the state changes**. `@LegacyRenderedViewState` requires a `render` _function type_ parameter to call when the state changes. You must define this function in your UIView or UIViewController.
 
@@ -220,7 +220,7 @@ As in our first example, you can see that the various views are connected to the
 
 Now that we have our view states rendering correctly, we need to wire up the various actions in our views so that they are appropriately and safely invoked by the environment or the user.
 
-VSM's ``ViewState`` property wrapper provides a critically important function called ``StateObserving/observe(_:)-31ocs`` through its projected value (`$`). This function updates the current state with all view states emitted by an action, as they are emitted in real-time.
+VSM's ``LegacyRenderedViewState`` property wrapper provides a critically important function called `observe(_:)` through its projected value (`$`). This function updates the current state with all view states emitted by an action, as they are emitted in real-time.
 
 It is called like so:
 
@@ -228,7 +228,7 @@ It is called like so:
 $state.observe(someState.someAction())
 ```
 
-The only way to update the current view state is to use the `RenderedViewState`'s `observe(_:)` function.
+The only way to update the current view state is to use `LegacyRenderedViewState`'s `observe(_:)` function.
 
 When `observe(_:)` is called, it cancels any existing Combine publisher subscriptions or Swift Concurrency tasks and ignores view state updates from any previously called actions. This prevents future view state corruption from previous actions and frees up device resources.
 
@@ -325,7 +325,7 @@ func setUpViews() {
 
 You can see that based on the type-system constraints, _these actions can never be called from the wrong state_, and the feature code indicates this very clearly.
 
-> Note: There is a special observe overload ``StateObserving/observe(_:debounced:file:line:)-8vbf2`` which includes a `debounced` property. This allows us to avoid calling an action too many times when tied to user input that may be triggered rapidly, like typing in a text field. It will only call the action a maximum of once per second (or whatever time delay is given).
+> Note: There is a special `observe(_:debounced:file:line:)` overload which includes a `debounced` property. This allows us to avoid calling an action too many times when tied to user input that may be triggered rapidly, like typing in a text field. It will only call the action a maximum of once per second (or whatever time delay is given).
 
 ## View Construction
 
@@ -432,7 +432,7 @@ In the above example, the `state` view property still contains the previous view
 
 ### Will-Set / Did-Set Publishers
 
-The ``RenderedViewState/RenderedContainer/willSetPublisher`` and ``RenderedViewState/RenderedContainer/didSetPublisher`` publishers provide another tool for supporting view-centric logic. These publishers can be used to observe and respond to changes in view state as desired. These publishers are guaranteed to send the new value on the main thread.
+The ``StatePublishing/willSetPublisher`` and ``StatePublishing/didSetPublisher`` publishers provide another tool for supporting view-centric logic. These publishers can be used to observe and respond to changes in view state as desired. These publishers are guaranteed to send the new value on the main thread.
 
 Example
 

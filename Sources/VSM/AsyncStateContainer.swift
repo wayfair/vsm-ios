@@ -44,6 +44,12 @@ import Combine
 /// - Only works with sequences whose `Failure` type is `Never`
 /// - Supports non-throwing `AsyncStream<State>` and `StateSequence<State>`
 ///
+/// ## Modern VSM: Combine and `Sendable`
+///
+/// VSM 2.0 is async-native: there is **no supported** API on this type to observe Combine `Publisher` values (including via `publisher.values` / `AsyncPublisher`). Use VSM 1.x for publisher-driven view state, or model actions with ``StateSequence``, `AsyncStream`, generic `AsyncSequence` (where available), or async closures. See <doc:DataDefinition> (**Combine vs VSM 2.0**).
+///
+/// The `State` generic is **not** required to conform to `Sendable`. Core observation APIs use `sending` so transfers are checked at call sites; add `State: Sendable` when your design benefits from it or when Swift’s concurrency diagnostics indicate you should (for example data races or stricter `@Sendable` overloads). See <doc:DataDefinition> (**Thread Safety and Concurrency**).
+///
 /// ## State Models and Actions
 ///
 /// In VSM, state models contain the actions available in a given state. For example, when your view

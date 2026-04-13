@@ -199,7 +199,7 @@ public protocol AsyncStateProviding {
 /// ## Synchronous Timing Guarantee
 ///
 /// When you place plain `State` values before any `Next { ... }` expression, those states are
-/// classified as synchronous and applied inline by ``AsyncStateContainer/observe(_:)-2ybjv``
+/// classified as synchronous and applied inline by `AsyncStateContainer.observe(_:)`
 /// before a `Task` is created. This means:
 ///
 /// ```swift

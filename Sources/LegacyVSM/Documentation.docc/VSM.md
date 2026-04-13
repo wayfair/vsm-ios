@@ -1,4 +1,4 @@
-# ``VSM``
+# LegacyVSM
 
 An iOS framework for the VSM Architecture
 
@@ -8,7 +8,11 @@ VSM is a reactive, unidirectional, type-safe, behavior-driven, clean architectur
 
 ![VSM Overview Diagram](vsm-diagram.png)
 
-This package provides helpful types for implementing VSM, such as the ``ViewState`` property wrapper (or the ``RenderedViewState`` property wrapper for UIKit views) which manages and renders the current `State`.
+This package provides helpful types for implementing VSM, such as the ``LegacyViewState`` property wrapper (or the ``LegacyRenderedViewState`` property wrapper for UIKit views) which manages and renders the current `State`.
+
+> Important: LegacyVSM exists to support a gradual move from Combine-based stateful workflows to Swift structured concurrency, which is the model used by VSM 2.0.
+>
+> If you are upgrading to version 2.0 of VSM, you are on a migration path: treat LegacyVSM as a bridge while you move existing VSM state machines off Combine and onto structured concurrency (async/await, tasks, and actors) in line with the modern VSM APIs.
 
 ## Topics
 
@@ -37,8 +41,8 @@ This package provides helpful types for implementing VSM, such as the ``ViewStat
 
 ### Primary Types
 
-- ``ViewState``
-- ``RenderedViewState``
+- ``LegacyViewState``
+- ``LegacyRenderedViewState``
 
 ### Supporting Types
 

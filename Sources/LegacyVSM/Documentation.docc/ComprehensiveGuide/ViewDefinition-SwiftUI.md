@@ -24,7 +24,7 @@ struct LoadUserProfileView: View {
 }
 ```
 
-To turn any view into a "VSM View", define a property that holds our current state and decorate it with the ``ViewState`` (`@LegacyViewState`) property wrapper.
+To turn any view into a "VSM View", define a property that holds our current state and decorate it with the ``LegacyViewState`` (`@LegacyViewState`) property wrapper.
 
 **The `@LegacyViewState` property wrapper updates the view every time the state changes**. It works in the same way as other SwiftUI property wrappers (i.e., `@StateObject`, `@State`, `@ObservedObject`, and `@Binding`).
 
@@ -200,7 +200,7 @@ extension EditUserProfileViewState {
 
 Now that we have our view states rendering correctly, we need to wire up the various actions in our views so that they are appropriately and safely invoked by the environment or the user.
 
-VSM's ``ViewState`` property wrapper provides a critically important function called ``StateObserving/observe(_:)-31ocs`` through its projected value (`$`). This function updates the current state with all view states emitted by an action, as they are emitted in real-time.
+VSM's ``LegacyViewState`` property wrapper provides a critically important function called ``StateObserving/observe(_:)-(State)`` through its projected value (`$`). This function updates the current state with all view states emitted by an action, as they are emitted in real-time.
 
 It is called like so:
 
@@ -208,7 +208,7 @@ It is called like so:
 $state.observe(someState.someAction())
 ```
 
-The only way to update the current view state is to use the `ViewState`'s `observe(_:)` function.
+The only way to update the current view state is to use `LegacyViewState`'s `observe(_:)` function.
 
 When `observe(_:)` is called, it cancels any existing Combine publisher subscriptions or Swift Concurrency tasks and ignores view state updates from any previously called actions. This prevents future view state corruption from previous actions and frees up device resources.
 
@@ -307,7 +307,7 @@ You will most often see these types of data expressed as properties on a SwiftUI
 
 ### Comparing State Changes
 
-VSM provides additional tools for assisting in some of this view-centric logic for SwiftUI views. One such tool is ``RenderedViewState/RenderedContainer/willSetPublisher``. This publisher enables SwiftUI view properties to be modified in a performant way when the state changes. It also enables engineers to compare the current and future view states.
+VSM provides additional tools for assisting in some of this view-centric logic for SwiftUI views. One such tool is ``StatePublishing/willSetPublisher``. This publisher enables SwiftUI view properties to be modified in a performant way when the state changes. It also enables engineers to compare the current and future view states.
 
 The following example displays a progress view that shows the loading state of some imaginary data operation. It begins loading when the view first appears and then animates the progress bar as the bytes are loaded. The view utilizes an `@State` property for animating the progress view and keeps the value up to date by observing the view state's `willSetPublisher`.
 
@@ -377,7 +377,7 @@ var body: some View {
 }
 ```
 
-We use the `ViewState`'s projected value (`$`) because it gives us access to the state ``StatePublishing/publisher`` property which can be observed by `onReceive`.
+We use `LegacyViewState`'s projected value (`$`) because it gives us access to the state ``StatePublishing/publisher`` property which can be observed by `onReceive`.
 
 #### Custom Two-Way Bindings
 
@@ -401,7 +401,7 @@ var body: some View {
 }
 ```
 
-Notice how our call to ``StateObserving/observe(_:debounced:file:line:)-8vbf2`` includes a `debounced` parameter. This prevents excessive calls to the `save(username:)` function if the user is typing quickly. It will only call the action a maximum of once per second (or whatever time delay is given).
+Notice how our call to ``StateObserving/observe(_:debounced:file:line:)-(()->State,_,_,_)`` includes a `debounced` parameter. This prevents excessive calls to the `save(username:)` function if the user is typing quickly. It will only call the action a maximum of once per second (or whatever time delay is given).
 
 ## View Construction
 

@@ -6,7 +6,7 @@ An in-depth guide to the VSM architecture, framework, and patterns
 
 This guide gives a detailed overview of the VSM architecture for iOS and takes the reader through the familiar journey of interpreting requirements for a new feature, developing a technical design, implementing the feature, and validating that the feature behaves according to the requirements.
 
-This guide assumes that the reader is familiar with [SwiftUI](https://developer.apple.com/xcode/swiftui/) (or [UIKit](https://developer.apple.com/documentation/uikit)), [Combine](https://developer.apple.com/documentation/combine), and [Swift Concurrency](https://docs.swift.org/swift-book/LanguageGuide/Concurrency.html).
+This guide assumes that the reader is familiar with [SwiftUI](https://developer.apple.com/xcode/swiftui/) (or [UIKit](https://developer.apple.com/documentation/uikit)) and [Swift Concurrency](https://docs.swift.org/swift-book/LanguageGuide/Concurrency.html) (async/await, actors, and strict concurrency checking). Familiarity with [Combine](https://developer.apple.com/documentation/combine) is optional and mainly useful when comparing VSM 2.0 to **VSM 1.x** or legacy publisher-driven code.
 
 ## Table of Contents
 

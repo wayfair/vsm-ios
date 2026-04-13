@@ -34,12 +34,12 @@ public protocol StateObserving<State> {
     
     // MARK: - Debounce
     
-    /// Renders the states emitted by the publisher on the view.
+    /// Renders states emitted by a publisher on the view.
     /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
-    ///   - statePublisher: The action to be debounced before invoking
-    ///   - dueTime: The amount of time required to pass before invoking the most recent action
-    ///   - identifier: (optional) The identifier for grouping actions for debouncing
+    ///   - statePublisher: A closure that provides the publisher whose emitted states should be observed.
+    ///   - dueTime: The amount of time that must pass before invoking the most recent observation request.
+    ///   - identifier: The identifier used to group observation requests for debouncing.
     func observe(
         _ statePublisher: @escaping @autoclosure () -> some Publisher<State, Never>,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
@@ -49,21 +49,21 @@ public protocol StateObserving<State> {
     /// Renders the next state on the view.
     /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
-    ///   - nextState: The action to be debounced before invoking
-    ///   - dueTime: The amount of time required to pass before invoking the most recent action
-    ///   - identifier: (optional) The identifier for grouping actions for debouncing
+    ///   - nextState: A closure that provides the next state to render.
+    ///   - dueTime: The amount of time that must pass before invoking the most recent observation request.
+    ///   - identifier: The identifier used to group observation requests for debouncing.
     func observe(
         _ nextState: @escaping @autoclosure () -> State,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     )
     
-    /// Renders an asynchronous sequence of states returned on the view.
+    /// Renders states from an asynchronous sequence on the view.
     /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
-    ///   - stateSequence: The action to be debounced before invoking
-    ///   - dueTime: The amount of time required to pass before invoking the most recent action
-    ///   - identifier: (optional) The identifier for grouping actions for debouncing
+    ///   - stateSequence: The asynchronous sequence of states to observe.
+    ///   - dueTime: The amount of time that must pass before invoking the most recent observation request.
+    ///   - identifier: The identifier used to group observation requests for debouncing.
     func observe<SomeAsyncSequence: AsyncSequence>(
         _ stateSequence: SomeAsyncSequence,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
@@ -73,21 +73,22 @@ public protocol StateObserving<State> {
     /// Asynchronously renders the next state on the view.
     /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
-    ///   - nextState: The action to be debounced before invoking
-    ///   - dueTime: The amount of time required to pass before invoking the most recent action
-    ///   - identifier: (optional) The identifier for grouping actions for debouncing
+    ///   - nextState: An asynchronous closure that returns the next state to render.
+    ///   - dueTime: The amount of time that must pass before invoking the most recent observation request.
+    ///   - identifier: The identifier used to group observation requests for debouncing.
     func observeAsync(
         _ nextState: @escaping () async -> State,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
         identifier: AnyHashable
     )
     
-    /// Calls an async closure that returns an asynchronous sequence of states. Those states are rendered by the view in the order received.
+    /// Calls an asynchronous closure that returns an asynchronous sequence of states.
+    /// Those states are rendered by the view in the order they are received.
     /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
-    ///   - stateSequence: The action to be debounced before invoking
-    ///   - dueTime: The amount of time required to pass before invoking the most recent action
-    ///   - identifier: (optional) The identifier for grouping actions for debouncing
+    ///   - stateSequence: An asynchronous closure that returns a sequence of states to observe.
+    ///   - dueTime: The amount of time that must pass before invoking the most recent observation request.
+    ///   - identifier: The identifier used to group observation requests for debouncing.
     func observeAsync<SomeAsyncSequence: AsyncSequence>(
         _ stateSequence: @escaping () async -> SomeAsyncSequence,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
@@ -97,11 +98,13 @@ public protocol StateObserving<State> {
 
 public extension StateObserving {
     
-    /// Renders the states emitted by the publisher on the view.
+    /// Renders states emitted by a publisher on the view.
     /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
-    ///   - statePublisher: The action to be debounced before invoking
-    ///   - dueTime: The amount of time required to pass before invoking the most recent action
+    ///   - statePublisher: A closure that provides the publisher whose emitted states should be observed.
+    ///   - dueTime: The amount of time that must pass before invoking the most recent observation request.
+    ///   - file: The file used to generate a stable automatic debounce identifier. Defaults to `#file`.
+    ///   - line: The line used to generate a stable automatic debounce identifier. Defaults to `#line`.
     func observe(
         _ statePublisher: @escaping @autoclosure () -> some Publisher<State, Never>,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
@@ -114,8 +117,10 @@ public extension StateObserving {
     /// Renders the next state on the view.
     /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
-    ///   - nextState: The action to be debounced before invoking
-    ///   - dueTime: The amount of time required to pass before invoking the most recent action
+    ///   - nextState: A closure that provides the next state to render.
+    ///   - dueTime: The amount of time that must pass before invoking the most recent observation request.
+    ///   - file: The file used to generate a stable automatic debounce identifier. Defaults to `#file`.
+    ///   - line: The line used to generate a stable automatic debounce identifier. Defaults to `#line`.
     func observe(
         _ nextState: @escaping @autoclosure () -> State,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
@@ -125,11 +130,13 @@ public extension StateObserving {
         observe(nextState(), debounced: dueTime, identifier: HashedIdentifier(file, line))
     }
     
-    /// Renders the sequence of asynchronous states returned on the view.
+    /// Renders states from an asynchronous sequence on the view.
     /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
-    ///   - stateSequence: The action to be debounced before invoking
-    ///   - dueTime: The amount of time required to pass before invoking the most recent action
+    ///   - stateSequence: The asynchronous sequence of states to observe.
+    ///   - dueTime: The amount of time that must pass before invoking the most recent observation request.
+    ///   - file: The file used to generate a stable automatic debounce identifier. Defaults to `#file`.
+    ///   - line: The line used to generate a stable automatic debounce identifier. Defaults to `#line`.
     func observe<SomeAsyncSequence: AsyncSequence>(
         _ stateSequence: SomeAsyncSequence,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
@@ -142,8 +149,10 @@ public extension StateObserving {
     /// Asynchronously renders the next state on the view.
     /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
-    ///   - nextState: The action to be debounced before invoking
-    ///   - dueTime: The amount of time required to pass before invoking the most recent action
+    ///   - nextState: An asynchronous closure that returns the next state to render.
+    ///   - dueTime: The amount of time that must pass before invoking the most recent observation request.
+    ///   - file: The file used to generate a stable automatic debounce identifier. Defaults to `#file`.
+    ///   - line: The line used to generate a stable automatic debounce identifier. Defaults to `#line`.
     func observeAsync(
         _ nextState: @escaping () async -> State,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,
@@ -153,11 +162,14 @@ public extension StateObserving {
         observeAsync(nextState, debounced: dueTime, identifier: HashedIdentifier(file, line))
     }
     
-    /// Calls an async closure that returns an asynchronous sequence of states. Those states are rendered by the view in the order received.
+    /// Calls an asynchronous closure that returns an asynchronous sequence of states.
+    /// Those states are rendered by the view in the order they are received.
     /// Calls to this function are debounced to prevent excessive execution from noisy events.
     /// - Parameters:
-    ///   - stateSequence: The action to be debounced before invoking
-    ///   - dueTime: The amount of time required to pass before invoking the most recent action
+    ///   - stateSequence: An asynchronous closure that returns a sequence of states to observe.
+    ///   - dueTime: The amount of time that must pass before invoking the most recent observation request.
+    ///   - file: The file used to generate a stable automatic debounce identifier. Defaults to `#file`.
+    ///   - line: The line used to generate a stable automatic debounce identifier. Defaults to `#line`.
     func observeAsync<SomeAsyncSequence: AsyncSequence>(
         _ stateSequence: @escaping () async -> SomeAsyncSequence,
         debounced dueTime: DispatchQueue.SchedulerTimeType.Stride,

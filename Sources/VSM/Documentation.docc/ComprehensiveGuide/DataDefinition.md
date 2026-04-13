@@ -8,7 +8,7 @@ VSM is a reactive architecture. Views observe and render a stream of view states
 
 **Data sources** are types that manage data and business logic (API clients, database managers, or business logic state machines). When data sources are shared between VSM views, they help reduce the volume of code required to keep data in sync between views and communicate changes in data state.
 
-VSM 2.0 is built on Swift's native async/await concurrency model, with `@MainActor` isolation on the container so **state updates** run on the main thread. The **`State`** generic is **unconstrained**: core APIs use Swift 6 **`sending`** so the compiler checks value transfers at the call site. Conforming **`State`** to **`Sendable`** is **optional**—add it only when it matches your design (for example every stored part is already `Sendable`, or you want ``AsyncStateContainer`` and `@Sendable` `observe` / `refresh` overloads). Many features need **no** `Sendable` on view state if reference types live behind **`actor`** isolation or are only ever handed across boundaries with valid **`sending`** proofs. In Swift 6.2 and later, treat **`Sendable`** as a **precise, surgical** tool, not a default checkbox on every type.
+VSM 2.0 is built on Swift's native async/await concurrency model, with `@MainActor` isolation on the container so **state updates** run on the main thread. The **`State`** generic is **unconstrained**: core APIs use Swift 6 **`sending`** so the compiler checks value transfers at the call site. **`State` is not required to conform to `Sendable`**. Conforming **`State`** to **`Sendable`** is **optional**—add it only when it matches your design (for example every stored part is already `Sendable`, or you want ``AsyncStateContainer`` and `@Sendable` `observe` / `refresh` overloads). When your types or call sites break isolation or concurrency rules, **Swift’s diagnostics** (data races, `Sendable` / `sending` errors, and related warnings) tell you whether you need `Sendable`, actors, or different boundaries—rather than requiring blanket conformance up front. Many features need **no** `Sendable` on view state if reference types live behind **`actor`** isolation or are only ever handed across boundaries with valid **`sending`** proofs. In Swift 6.2 and later, treat **`Sendable`** as a **precise, surgical** tool, not a default checkbox on every type.
 
 This guide covers:
 
@@ -26,7 +26,7 @@ VSM 2.0 represents a major architectural shift from Combine to Swift's async/awa
 - **Concurrency model**: Unconstrained `State` with **`sending`** on core APIs; add **`Sendable`** only when you need it (see [Thread Safety and Concurrency](#thread-safety-and-concurrency))
 - **@MainActor Isolation**: State updates automatically happen on the main thread
 - **@ViewState Property Wrapper**: New SwiftUI property wrapper for observing state changes
-- **No in-library Combine (2.0)**: Combine-based observation remains the responsibility of **VSM 1.x**; use 2.0 when you model actions with async/await, ``StateSequence``, or `AsyncStream`
+- **No in-library Combine (2.0)**: There is **no supported** `observe` overload for Combine publishers on ``AsyncStateContainer``. New Apple APIs favor Swift concurrency; Combine’s threading and bridging are a common source of subtle races, so publisher observation stays in **VSM 1.x**. Use 2.0 when you model actions with async/await, ``StateSequence``, `AsyncStream`, or generic `AsyncSequence` (where available)
 
 ## Defining View State
 
@@ -707,7 +707,7 @@ VSM 2.0 leverages Swift 6's concurrency features for safe, predictable state man
 
 ### `Sendable` state vs non-`Sendable` state
 
-``AsyncStateContainer`` is **`AsyncStateContainer<State>`** with **no** `Sendable` bound on `State`.
+``AsyncStateContainer`` is **`AsyncStateContainer<State>`** with **no** `Sendable` bound on `State`. You do **not** need to mark `State` as `Sendable` to use VSM 2.0; add conformance when your design calls for it or when the **compiler** reports concurrency issues that `Sendable` (or actors / different isolation) resolves.
 
 **What you always get (any `State`):**
 
@@ -900,7 +900,7 @@ With `observe`, your state transitions to `.loading` as your action emits it, up
 
 ## Combine vs VSM 2.0
 
-**VSM 2.0** does not expose Combine-based observation on the state container. If you need first-class **publisher-driven** view state, use **VSM 1.x** for that stack. Adopt **VSM 2.0** when you are ready to express actions with async/await, ``StateSequence``, or `AsyncStream`.
+**VSM 2.0** does not expose **supported** Combine-based observation on the state container: there is no shipping `observe` overload for `Publisher` or `AsyncPublisher` from `publisher.values`. Apple’s platform direction and new APIs emphasize Swift concurrency over Combine; Combine’s threading model and bridges to async code are also prone to timing and isolation bugs that show up as dropped events, races, or surprising ordering. If you need first-class **publisher-driven** view state, use **VSM 1.x** for that stack. Adopt **VSM 2.0** when you are ready to express actions with async/await, ``StateSequence``, `AsyncStream`, or generic `AsyncSequence` (where available).
 
 ### Why VSM 2.0 does not ship Combine (or a supported bridge)
 

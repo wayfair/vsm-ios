@@ -152,7 +152,7 @@ Since these are structs, the create/copy/destroy operations are generally very i
 
 The Load User Profile models are now complete and ready for testing. To learn more about testing, visit <doc:UnitTesting>.
 
-You may have noticed that we don't subscribe or receive on the main queue anywhere in this code. (ie, `.receive(on: DispatchQueue.main)` or `.subscribe(on: DispatchQueue.main`). This is because the state container's ``StateContainer/observe(_:)-1uta3`` function does this for us.
+You may have noticed that we don't subscribe or receive on the main queue anywhere in this code. (ie, `.receive(on: DispatchQueue.main)` or `.subscribe(on: DispatchQueue.main`). This is because the state container's ``StateContainer/observe(_:)-(Publisher<State,Never>)`` function does this for us.
 
 > Tip: In VSM, you never have to worry about syncing your view states with the main thread.
 

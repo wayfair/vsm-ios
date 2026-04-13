@@ -11,6 +11,8 @@ import OSLog
 
 /// **(UIKit Only)** Manages the view state for a UIView or UIViewController in VSM. Automatically calls `render()` when the view state changes.
 ///
+/// The `State` type does not need to conform to `Sendable`; see ``AsyncStateContainer`` and <doc:DataDefinition> for concurrency and optional `Sendable`.
+///
 /// This property wrapper encapsulates a view's state property with an underlying `StateContainer` to provide the current view state .
 /// A subset of `StateContainer` members are available through the `$` prefix, such as `observe(...)` and `bind(...)`.
 ///
@@ -436,7 +438,7 @@ extension RenderedViewState.RenderedContainer {
     /// `observe(_ stateSequence:)` with a `StateSequence` built via `@StateSequenceBuilder`.
     ///
     /// - Parameter sequence: Any `AsyncSequence` that emits `State` values with `Failure` type of `Never`.
-    ///   Marked `sending` to match ``AsyncStateContainer/observe(_:)``: the sequence is transferred for exclusive
+    ///   Marked `sending` to match `AsyncStateContainer.observe(_:)`: the sequence is transferred for exclusive
     ///   consumption by the container’s observation task.
     @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, macCatalyst 18.0, *)
     public func observe(_ sequence: sending some AsyncSequence<State, Never>) {

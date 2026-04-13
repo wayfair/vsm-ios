@@ -9,7 +9,7 @@ import Foundation
 
 /// Emits multiple `State`s as an `AsyncSequence`
 ///
-/// Usable with ``StateObserving/observeAsync(_:)-44uer`` (found in ``StateContainer``)
+/// Usable with ``StateObserving/observeAsync(_:)-(()->SomeAsyncSequence)`` (found in ``StateContainer``)
 ///
 /// Example Usage
 ///

@@ -84,7 +84,7 @@ There are many reasons why the VSM architecture is a strong choice for building 
 
 - Fewer lines of code than most other architectures
 - High type-safety
-- Built on Swift's modern concurrency model (async/await, actors, Sendable)
+- Built on Swift's modern concurrency model (async/await, actors, and optional `Sendable` where design or the compiler requires it)
 - Thread-safe by default through @MainActor isolation
 - No manual synchronization required
 - Unidirectional data flow prevents unintentional state and data bugs
@@ -97,15 +97,15 @@ There are many reasons why the VSM architecture is a strong choice for building 
 - State & model definitions are a simple and clear description of the feature requirements (for ease of maintenance)
 - Implementation code is easy to read
 - Supports both SwiftUI (via `@ViewState`) and UIKit (via `@RenderedViewState`)
-- Combine-based observation is available in **VSM 1.x**; **VSM 2.0** is async/`StateSequence`/`AsyncStream`-first (see <doc:DataDefinition>)
+- Combine-based observation is available in **VSM 1.x** only; **VSM 2.0** has **no supported** publisher `observe` APIs and is async/`StateSequence`/`AsyncStream`/`AsyncSequence`-first (see <doc:DataDefinition>)
 - Passively encourages "Shifting Left" via Behavior-driven Development principles
 
 ### Cons
 
 - Inferring states, models, data, and actions from feature requirements can be challenging
 - Like most other architectures, hanging execution paths within actions are possible
-- Requires understanding of Swift's modern concurrency model (async/await, Sendable, actors)
-- Non-`Sendable` state is supported; you must respect isolation and **`sending`** at call sites—add **`Sendable`** only when your design calls for it (Swift 6.2+ favors precise use, not blanket conformance)
+- Requires understanding of Swift's modern concurrency model (async/await, isolation, and **`sending`** at call sites); **`Sendable`** on `State` is **optional**, and the compiler surfaces when you need it for data safety or stricter overloads
+- Non-`Sendable` state is fully supported; respect isolation and **`sending`**—add **`Sendable`** only when your design or diagnostics call for it (Swift 6.2+ favors precise use, not blanket conformance)
 
 While VSM protects the developer at every step, like all architectures and patterns, discipline in adhering to the VSM best practices will ensure the best experience.
 

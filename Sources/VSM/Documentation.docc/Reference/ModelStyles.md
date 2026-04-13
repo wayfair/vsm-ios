@@ -4,7 +4,7 @@ A compendium of styles for building Models in VSM
 
 ## Overview
 
-There are several acceptable coding styles for building models in VSM. The best overall style is generally considered to be "Plain Structs". However, there may be cases where your particular feature would benefit from a slightly different style. In this article, we'll demonstrate some common styles and discuss their tradeoffs.
+There are several acceptable coding styles for building models in VSM. The best overall style is generally considered to be "Plain Structs". However, there may be cases where your particular feature would benefit from a slightly different style. In this article, we'll demonstrate some common styles and discuss their tradeoffs. Examples sometimes mark models `Sendable` where it suits the narrative; **view state does not require `Sendable`** in VSM 2.0—see <doc:DataDefinition> (**Thread Safety and Concurrency**).
 
 ## Plain Structs
 
