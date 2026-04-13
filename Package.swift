@@ -11,7 +11,7 @@ let package = Package(
         .macCatalyst(.v13),
         .watchOS(.v6),
         .tvOS(.v13),
-        .visionOS(.v1)
+        .visionOS(.v2)
     ],
     products: [
         .library(
