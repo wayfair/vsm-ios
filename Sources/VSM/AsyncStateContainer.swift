@@ -559,10 +559,10 @@ public extension AsyncStateContainer {
     /// This does **not** catch every erased type (for example `any Publisher<State, Never>` may not match); prefer unerased
     /// call sites or VSM 1.x for Combine-first features. See documentation on Combine vs VSM 2.0.
 
-    @available(*, unavailable, message: "VSM 2.0 does not observe Combine publishers. Use VSM 1.x, or StateSequence, AsyncStream, or async closures. See documentation.")
+    @available(*, unavailable, message: "VSM 2.0 does not observe Combine publishers. Drive state with StateSequence, AsyncStream, or another AsyncSequence—or use VSM 1.x. See documentation.")
     func observe(_ publisher: some Publisher<State, Never>) {}
 
-    @available(*, unavailable, message: "Do not bridge Combine via publisher.values (AsyncPublisher). Use VSM 1.x or async-native actions. See documentation.")
+    @available(*, unavailable, message: "Do not use Publisher.values to bridge Combine into observe: AsyncPublisher is AsyncSequence but not a concurrency-checked, thread-safe migration path. Replace with StateSequence, AsyncStream, or another explicit AsyncSequence—or use VSM 1.x. See documentation.")
     func observe(_ sequence: AsyncPublisher<some Publisher<State, Never>>) {}
     #endif
     
