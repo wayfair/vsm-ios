@@ -14,6 +14,8 @@ This package provides helpful types for implementing VSM, such as the ``LegacyVi
 >
 > If you are upgrading to version 2.0 of VSM, you are on a migration path: treat LegacyVSM as a bridge while you move existing VSM state machines off Combine and onto structured concurrency (async/await, tasks, and actors) in line with the modern VSM APIs.
 
+For a step-by-step migration guide, see [Migrating from VSM 1.x (LegacyVSM) to VSM 2.0](https://wayfair.github.io/vsm-ios/documentation/vsm/migrationfromlegacyvsm) in the hosted **VSM** documentation.
+
 ## Topics
 
 ### VSM Guides

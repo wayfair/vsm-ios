@@ -16,6 +16,7 @@ This package provides helpful types for implementing VSM, such as the ``ViewStat
 
 - <doc:QuickstartGuide>
 - <doc:ComprehensiveGuide>
+- <doc:MigrationFromLegacyVSM>
 
 ### VSM Reference Articles
 

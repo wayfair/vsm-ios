@@ -12,14 +12,15 @@ VSM is a reactive architecture that is unidirectional, highly type-safe, behavio
 
 VSM stands for both "View State Model" and "Viewable State Machine". The first definition describes how a feature in VSM is structured, the second definition illustrates how information flows.
 
-![VSM Architecture Diagram](Sources/VSM/Documentation.docc/Resources/vsm-diagram.png))
+![VSM Architecture Diagram](Sources/VSM/Documentation.docc/Resources/vsm-diagram.png)
 
 In VSM, the **View** renders the **State**. Each state may provide a **Model**. Each model contains the data and actions available in a given state. Each action in a model returns one or more new states. Any state changes will update the view.
 
 ## Learning Resources
 
 - The [VSM Documentation](https://wayfair.github.io/vsm-ios/documentation/vsm/) contains a complete framework reference, guides, and other learning resources
-- Open the [Demo App](Demos/Shopping) to see many different working examples of how to build features using the VSM pattern
+- [Migrating from VSM 1.x (LegacyVSM) to VSM 2.0](https://wayfair.github.io/vsm-ios/documentation/vsm/migrationfromlegacyvsm) describes upgrading dependencies, the LegacyVSM bridge, and moving feature-by-feature to Swift concurrency
+- Open the [Shopping (Swift 6) demo](Demos/Shopping%20(Swift%206)) (VSM 2.0) or [LegacyShopping demo](Demos/LegacyShopping) (VSM 1.x / LegacyVSM) to see working examples side by side
 
 ## Code Introduction
 

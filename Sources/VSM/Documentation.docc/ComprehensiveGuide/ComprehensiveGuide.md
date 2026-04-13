@@ -10,6 +10,7 @@ This guide assumes that the reader is familiar with [SwiftUI](https://developer.
 
 ## Table of Contents
 
+1. <doc:MigrationFromLegacyVSM>
 1. <doc:VSMOverview>
 1. <doc:StateDefinition>
 1. <doc:ViewDefinition-SwiftUI> or <doc:ViewDefinition-UIKit>
