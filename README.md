@@ -14,17 +14,18 @@ VSM stands for both “View State Model” and “Viewable State Machine”. The
 
 ![VSM Architecture Diagram](Sources/VSM/Documentation.docc/Resources/vsm-diagram.png)
 
-In VSM, the **View** renders the **State**. Each state may provide a **Model**. Each model contains the data and actions available in a given state. Each action in a model returns one or more new states. State changes update the view. **VSM** heavly leverages **Swift 6** and **structured concurrency** so model actions express multi-step flows with
+In VSM, the **View** renders the **State**. Each state may provide a **Model**. Each model contains the data and actions available in a given state. Each action in a model returns one or more new states. State changes update the view. **VSM** heavly leverages **Swift 6** and **structured concurrency** so model actions express multi-step flows with:
+
 * `StateSequence` and `@StateSequenceBuilder`
 * `AsyncStream` or other `AsyncSequence` types
 * `await` an asychronous function to return a state.
 
 ## Learning resources
 
-- The [VSM documentation](https://wayfair.github.io/vsm-ios/documentation/vsm/) contains a complete framework reference, guides, and other learning resources.
-- [Migrating from VSM 1.x (LegacyVSM) to VSM 2.0](https://wayfair.github.io/vsm-ios/documentation/vsm/migrationfromlegacyvsm) covers upgrading the dependency, the `LegacyVSM` bridge, `import`/`@ViewState` naming, moving from publishers to `StateSequence`/async, and UIKit notes (including `RenderedViewState` on older iOS versions).
-- For **LegacyVSM**-only DocC content, open the documentation catalog under `Sources/LegacyVSM/Documentation.docc` in Xcode or browse that folder in the repo (hosted Pages focus on the modern module).
-- Open the [Shopping (Swift 6) demo](Demos/Shopping%20(Swift%206)) (VSM 2.0) or [LegacyShopping demo](Demos/LegacyShopping) (VSM 1.x / LegacyVSM) to compare the same UI with the old and new styles.
+* The [VSM documentation](https://wayfair.github.io/vsm-ios/documentation/vsm/) contains a complete framework reference, guides, and other learning resources.
+* [Migrating from VSM 1.x (LegacyVSM) to VSM 2.0](https://wayfair.github.io/vsm-ios/documentation/vsm/migrationfromlegacyvsm) covers upgrading the dependency, the `LegacyVSM` bridge, `import`/`@ViewState` naming, moving from publishers to `StateSequence`/async, and UIKit notes (including `RenderedViewState` on older iOS versions).
+* For **LegacyVSM**-only DocC content, open the documentation catalog under `Sources/LegacyVSM/Documentation.docc` in Xcode or browse that folder in the repo (hosted Pages focus on the modern module).
+* Open the [Shopping (Swift 6) demo](Demos/Shopping%20(Swift%206)) (VSM 2.0) or [LegacyShopping demo](Demos/LegacyShopping) (VSM 1.x / LegacyVSM) to compare the same UI with the old and new styles.
 
 ## Package layout: VSM 2.0 vs LegacyVSM
 
@@ -152,9 +153,9 @@ If your app was built on a single `import VSM` module with Combine and `@ViewSta
 
 Follow **[Migrating from VSM 1.x (LegacyVSM) to VSM 2.0](https://wayfair.github.io/vsm-ios/documentation/vsm/migrationfromlegacyvsm)** for:
 
-- Bumping the package and adding the `LegacyVSM` product where needed  
-- Replacing `import VSM` → `import LegacyVSM` and `@ViewState` → `@LegacyViewState` in files you have not migrated yet  
-- Moving feature-by-feature to `import VSM`, `StateSequence`, and async `observe` overloads  
+* Bumping the package and adding the `LegacyVSM` product where needed  
+* Replacing `import VSM` → `import LegacyVSM` and `@ViewState` → `@LegacyViewState` in files you have not migrated yet  
+* Moving feature-by-feature to `import VSM`, `StateSequence`, and async `observe` overloads  
 
 ## Project information
 
