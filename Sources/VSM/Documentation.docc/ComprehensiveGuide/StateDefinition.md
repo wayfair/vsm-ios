@@ -27,19 +27,19 @@ The following example defines the view state for a VSM feature that allows users
 
 ```swift
 enum UserProfileViewState {
-    case loaded(LoadedModeling)
-    case saving(SavingModeling)
+    case loaded(LoadedModel)
+    case saving(SavingModel)
 }
 
-protocol LoadedModeling {
+struct LoadedModel {
     let username: String
-    func save(username: String) -> AnyPublisher<UserProfileViewState, Never>
+    func save(username: String) -> StateSequence<UserProfileViewState>
 }
 
-protocol SavingModeling {
+struct SavingModel {
     let originalUsername: String
     let newUsername: String
-    func cancel() -> AnyPublisher<UserProfileViewState, Never>
+    func cancel() -> UserProfileViewState
 }
 ```
 
@@ -113,7 +113,7 @@ With the above diagram, it becomes much easier to infer which states, data, and 
 
 States usually match up 1:1 with variations in the view. So, we can safely assume that we will need the following states: loading, loading-error, editing, saving, and saving-error.
 
-> Note: We will need to add an extra state called "initialized" to kick off the `load()` action when the view appears. `load()` will immediately return the `loading` state. This protects the `load()` action from accidentally being called from the wrong state.
+> Note: We will need to add an extra state called "initialized" to kick off the `load()` action when the view appears. For initial load flows, implement `load()` with `@StateSequenceBuilder` so the first `loading` state is applied synchronously—place the plain state value before any `Next` expression. This protects the `load()` action from accidentally being called from the wrong state.
 >
 > For example, in SwiftUI, a view’s `onAppear` handler (`viewDidAppear` in UIKit) can be called multiple times during a view’s lifetime. The "initialized" state will prevent the `load()` function from being called multiple times even if `onAppear` is called numerous times even before the data finishes loading.
 >
@@ -146,26 +146,28 @@ enum UserProfileViewState {
 
 #### Defining the Models
 
-Now that we have our states, we can define the models for each state with their associated data and actions. As you can see from the above chart, the "initialized" state will need a `load()` action. So, we will define our model with a simple protocol like so:
+> Note: If you're upgrading from VSM 1.0, you may notice that the examples below use concrete struct types instead of protocol abstractions. This is the recommended approach for VSM 2.0. Protocol abstractions for models add unnecessary complexity without providing meaningful benefits for testing or code organization. Testing VSM features focuses on verifying state transitions, not on mocking individual models.
+
+Now that we have our states, we can define the models for each state with their associated data and actions. As you can see from the above chart, the "initialized" state will need a `load()` action. So, we will define our model with a simple struct like so:
 
 ```swift
-protocol LoaderModeling {
-    func load() -> AnyPublisher<UserProfileViewState, Never>
+struct LoaderModel {
+    func load() -> StateSequence<UserProfileViewState>
 }
 ```
 
-We want the `load()` function to emit two states. First, the "loading" state while the user data loads, then the "editing" state when the loading is complete. To allow this, we use a Combine Publisher that can send multiple `UserProfileViewState` values to the view.
+We want the `load()` function to emit two states. First, the "loading" state while the user data loads, then the "editing" state when the loading is complete. To allow this, we use a `StateSequence` that can send multiple `UserProfileViewState` values to the view.
 
-The Publisher returned from `load()` uses the `Never` error type. The compiler then requires the engineer to implement proper error handling by converting any `Error` type into a `UserProfileViewState` type. For example, the code above infers that `load()` will return the `loadingError` state if it encounters any errors.
+The `StateSequence` type requires the engineer to implement proper error handling by converting any `Error` type into a `UserProfileViewState` type using a `do-catch` block. For example, the code above infers that `load()` will return the `loadingError` state if it encounters any errors.
 
 To learn more about VSM's supported action types, see <doc:ModelActions>.
 
 Next, we'll define the model for the "editing" state. As per the diagram, this state will need the loaded user data and the "save" action.
 
 ```swift
-protocol EditingModeling {
+struct EditingModel {
     var data: UserData
-    func save(username: String) -> AnyPublisher<UserProfileViewState, Never>
+    func save(username: String) -> StateSequence<UserProfileViewState>
 }
 ```
 
@@ -174,16 +176,16 @@ The unique thing about this model from the previous example is that the `save(us
 Finally, we'll use the same approach to build error models for the `loadingError` and `savingError` states. These models will need to provide an error message String and a `retry()` action for the user to press in case of an error. For the `savingError`, an additional user data property is needed for the view to display along with the error. The `savingError` model will also have a `cancel()` action that will allow the user to go back to editing.
 
 ```swift
-protocol LoadingErrorModeling {
+struct LoadingErrorModel {
     let message: String
-    func retry() -> AnyPublisher<UserProfileViewState, Never>
+    func retry() -> StateSequence<UserProfileViewState>
 }
 
-protocol SavingErrorModeling {
+struct SavingErrorModel {
     let data: UserData
     let message: String
-    func retry() -> AnyPublisher<UserProfileViewState, Never>
-    func cancel() -> AnyPublisher<UserProfileViewState, Never>
+    func retry() -> StateSequence<UserProfileViewState>
+    func cancel() -> UserProfileViewState
 }
 ```
 
@@ -209,33 +211,33 @@ If we put all of this together, the resulting VSM feature definition is as follo
 
 ```swift
 enum UserProfileViewState {
-    case initialized(LoaderModeling)
+    case initialized(LoaderModel)
     case loading
-    case loadingError(LoadingErrorModeling)
-    case editing(EditingModeling)
+    case loadingError(LoadingErrorModel)
+    case editing(EditingModel)
     case saving(UserData)
-    case savingError(SavingErrorModeling)
+    case savingError(SavingErrorModel)
 }
 
-protocol LoaderModeling {
-    func load() -> AnyPublisher<UserProfileViewState, Never>
+struct LoaderModel {
+    func load() -> StateSequence<UserProfileViewState>
 }
 
-protocol LoadingErrorModeling {
+struct LoadingErrorModel {
     let message: String
-    func retry() -> AnyPublisher<UserProfileViewState, Never>
+    func retry() -> StateSequence<UserProfileViewState>
 }
 
-protocol EditingModeling {
+struct EditingModel {
     var data: UserData
-    func save(username: String) -> AnyPublisher<UserProfileViewState, Never>
+    func save(username: String) -> StateSequence<UserProfileViewState>
 }
 
-protocol SavingErrorModeling {
+struct SavingErrorModel {
     let data: UserData
     let message: String
-    func retry() -> AnyPublisher<UserProfileViewState, Never>
-    func cancel() -> AnyPublisher<UserProfileViewState, Never>
+    func retry() -> StateSequence<UserProfileViewState>
+    func cancel() -> UserProfileViewState
 }
 ```
 
@@ -259,19 +261,19 @@ As described above, the parent VSM component will have the following view state 
 
 ```swift
 enum LoadUserProfileViewState {
-    case initialized(LoaderModeling)
+    case initialized(LoaderModel)
     case loading
-    case loadingError(LoadingErrorModeling)
+    case loadingError(LoadingErrorModel)
     case loaded(UserData)
 }
 
-protocol LoaderModeling {
-    func load() -> AnyPublisher<LoadUserProfileViewState, Never>
+struct LoaderModel {
+    func load() -> StateSequence<LoadUserProfileViewState>
 }
 
-protocol LoadingErrorModeling {
+struct LoadingErrorModel {
     let message: String
-    func retry() -> AnyPublisher<LoadUserProfileViewState, Never>
+    func retry() -> StateSequence<LoadUserProfileViewState>
 }
 ```
 
@@ -289,14 +291,14 @@ struct EditUserProfileViewState {
     }
 }
 
-protocol EditingModeling {
-    func save(username: String) -> AnyPublisher<EditUserProfileViewState, Never>
+struct EditingModel {
+    func save(username: String) -> StateSequence<EditUserProfileViewState>
 }
 
-protocol SavingErrorModeling {
+struct SavingErrorModel {
     let message: String
-    func retry() -> AnyPublisher<EditUserProfileViewState, Never>
-    func cancel() -> AnyPublisher<EditUserProfileViewState, Never>
+    func retry() -> StateSequence<EditUserProfileViewState>
+    func cancel() -> EditUserProfileViewState
 }
 ```
 

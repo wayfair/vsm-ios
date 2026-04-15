@@ -44,19 +44,19 @@ The resulting view state for the loading behavior of the flow chart (the left se
 
 ```swift
 enum LoadUserProfileViewState {
-    case initialized(LoaderModeling)
+    case initialized(LoaderModel)
     case loading
-    case loadingError(LoadingErrorModeling)
+    case loadingError(LoadingErrorModel)
     case loaded(UserData)
 }
 
-protocol LoaderModeling {
-    func load() -> AnyPublisher<LoadUserProfileViewState, Never>
+struct LoaderModel {
+    func load() -> StateSequence<LoadUserProfileViewState>
 }
 
-protocol LoadingErrorModeling {
+struct LoadingErrorModel {
     let message: String
-    func retry() -> AnyPublisher<LoadUserProfileViewState, Never>
+    func retry() -> StateSequence<LoadUserProfileViewState>
 }
 ```
 
@@ -98,18 +98,18 @@ struct EditUserProfileViewState {
     enum EditingState {
         case editing(EditingModel)
         case saving
-        case savingError(ErrorModel)
+        case savingError(SavingErrorModel)
     }
 }
 
-protocol EditingModeling {
-    func save(username: String) -> AnyPublisher<EditUserProfileViewState, Never>
+struct EditingModel {
+    func save(username: String) -> StateSequence<EditUserProfileViewState>
 }
 
-protocol SavingErrorModeling {
+struct SavingErrorModel {
     let message: String
-    func retry() -> AnyPublisher<EditUserProfileViewState, Never>
-    func cancel() -> AnyPublisher<EditUserProfileViewState, Never>
+    func retry() -> StateSequence<EditUserProfileViewState>
+    func cancel() -> EditUserProfileViewState
 }
 ```
 
@@ -187,11 +187,11 @@ extension EditUserProfileViewState {
 >
 > ```swift
 > extension EditUserProfileViewState {
->     func save(username: String) -> AnyPublisher<EditUserProfileViewState, Never> {
+>     func save(username: String) -> StateSequence<EditUserProfileViewState>? {
 >         if case .editing(let editingModel) = editingState {
 >             return editingModel.save(username: username)
 >         }
->         return Empty().eraseToAnyPublisher()
+>         return nil
 >     }
 > }
 > ```
@@ -200,7 +200,7 @@ extension EditUserProfileViewState {
 
 Now that we have our view states rendering correctly, we need to wire up the various actions in our views so that they are appropriately and safely invoked by the environment or the user.
 
-VSM's ``ViewState`` property wrapper provides a critically important function called ``StateObserving/observe(_:)-31ocs`` through its projected value (`$`). This function updates the current state with all view states emitted by an action, as they are emitted in real-time.
+VSM's ``ViewState`` property wrapper provides a critically important function called `observe(_:)` through its projected value (`$`). This function updates the current state with all view states emitted by an action, as they are emitted in real-time.
 
 It is called like so:
 
@@ -210,19 +210,50 @@ $state.observe(someState.someAction())
 
 The only way to update the current view state is to use the `ViewState`'s `observe(_:)` function.
 
-When `observe(_:)` is called, it cancels any existing Combine publisher subscriptions or Swift Concurrency tasks and ignores view state updates from any previously called actions. This prevents future view state corruption from previous actions and frees up device resources.
+When `observe(_:)` is called, it cancels any existing Swift Concurrency tasks driving observation, then ignores view state updates from any previously called actions. This prevents future view state corruption from previous actions and frees up device resources.
 
 Actions that do not need to update the current state do not need to be called with the `observe(_:)` function. However, if you attempt to call an action that should update the current state without using `observe(_:)`, the compiler will give you the following warning:
 
-**_Result of call to function returning 'AnyPublisher<LoadUserProfileViewState, Never>' is unused_**
+**_Result of call to function returning `StateSequence<LoadUserProfileViewState>` is unused_**
 
 This is a helpful reminder in case you forget to wrap an action call with `observe(_:)`.
 
-> Note: The `observe(_:)` function has many overloads that provide support for several action shapes, including synchronous actions, Swift Concurrency actions, and Combine Publisher actions. For more information, see <doc:ModelActions>.
+> Note: The `observe(_:)` function has many overloads that provide support for several action shapes, including synchronous state values, async closures, `StateSequence`, `AsyncStream`, and (where the platform supports it) generic `AsyncSequence` with failure type `Never`. For more information, see <doc:ModelActions>.
+
+### Implementing Actions with StateSequence
+
+When implementing actions in your models, use `StateSequence` to emit multiple states over time. For initial view loading actions, prefer `@StateSequenceBuilder` so the loading state is applied synchronously in the first frame, followed by async work that produces the final state:
+
+```swift
+struct LoaderModel {
+    private let repository: UserRepository
+
+    @StateSequenceBuilder
+    func load() -> StateSequence<LoadUserProfileViewState> {
+        LoadUserProfileViewState.loading
+        Next { await self.fetchUserData() }
+    }
+
+    @concurrent
+    private func fetchUserData() async -> LoadUserProfileViewState {
+        do {
+            let userData = try await repository.getUserProfile()
+            return .loaded(userData)
+        } catch {
+            return .loadingError(LoadingErrorModel(
+                message: "Failed to load profile: \(error.localizedDescription)",
+                retry: { await self.fetchUserData() }
+            ))
+        }
+    }
+}
+```
+
+Notice how errors are handled within the async function using `do-catch` blocks, converting any `Error` into an appropriate error state. This ensures all state transitions are type-safe and explicit.
 
 ### Loading View Actions
 
-There are two actions that we want to call in the `LoadUserProfileView`. The `load()` action in the `initialized` view state and the `retry()` action for the `loadingError` view state. We want `load()` to be called only once in the view's lifetime, so we'll attach it to the `onAppear` event handler on one of the subviews. The `retry()` action will be nestled in the view that uses the unwrapped `errorModel`.
+There are two actions that we want to call in the `LoadUserProfileView`: the `load()` action in the `initialized` view state and the `retry()` action for the `loadingError` view state. We want `load()` to be called only once in the view's lifetime, so we'll attach it to the `onAppear` event handler on one of the subviews and implement `load()` with `@StateSequenceBuilder`. The `retry()` action will be nestled in the view that uses the unwrapped `errorModel`.
 
 ```swift
 var body: some View {
@@ -307,15 +338,15 @@ You will most often see these types of data expressed as properties on a SwiftUI
 
 ### Comparing State Changes
 
-VSM provides additional tools for assisting in some of this view-centric logic for SwiftUI views. One such tool is ``RenderedViewState/RenderedContainer/willSetPublisher``. This publisher enables SwiftUI view properties to be modified in a performant way when the state changes. It also enables engineers to compare the current and future view states.
+SwiftUI's `.onChange(of:)` modifier enables view properties to be updated when the view state changes. By making your view state conform to `Equatable`, you can use this modifier to react to state transitions and update view-specific properties accordingly.
 
-The following example displays a progress view that shows the loading state of some imaginary data operation. It begins loading when the view first appears and then animates the progress bar as the bytes are loaded. The view utilizes an `@State` property for animating the progress view and keeps the value up to date by observing the view state's `willSetPublisher`.
+The following example displays a progress view that shows the loading state of some imaginary data operation. It begins loading when the view first appears and then animates the progress bar as the bytes are loaded. The view utilizes an `@State` property for animating the progress view and keeps the value up to date by observing state changes.
 
 ```swift
 struct MyView: View {
     @ViewState var state: MyViewState
     @State var progress: Double = 0
-    
+
     var body: some View {
         ProgressView("Loading...", value: progress)
             .onAppear {
@@ -323,13 +354,11 @@ struct MyView: View {
                     $state.observe(loaderModel.load())
                 }
             }
-            .onReceive($state.willSetPublisher) { newState in
-                switch (state, newState) {
-                case (.loading(let oldLoadingModel), .loading(let newLoadingModel)):
-                    guard oldLoadingModel.loadedBytes < newLoadingModel.loadedBytes else { return }
-                    print(">>> Animating progress from \(oldLoadingModel.loadedBytes) to \(newLoadingModel.loadedBytes) bytes")
+            .onChange(of: state) { oldState, newState in
+                switch newState {
+                case .loading(let loadingModel):
                     withAnimation() {
-                        progress = newLoadingModel.loadedBytes / newLoadingModel.totalBytes
+                        progress = loadingModel.loadedBytes / loadingModel.totalBytes
                     }
                 default:
                     break
@@ -338,6 +367,9 @@ struct MyView: View {
     }
 }
 ```
+
+> Note: Because this example uses `.onChange(of:)` rather than Combine's `onReceive(_:)`, the closure will only be called while the view is part of the active view hierarchy. If a state change occurs after the user has navigated away from this view, the `.onChange(of:)` closure will not fire for that update. This is generally desirable behavior — view-specific side effects like animations should only run while the view is on screen — but it is worth keeping in mind if your closure performs work that must happen regardless of the view's visibility.
+> Tip: Make your view state conform to `Equatable` to enable the `.onChange(of:)` modifier. For simple view states, you can add `Equatable` conformance automatically. For complex states with closures or non-equatable types, you may need to implement custom equality or use alternative approaches like comparing specific properties.
 
 ### Logic Coordination for the Editing View
 
@@ -362,7 +394,7 @@ var body: some View {
 
 This approach assumes that the repository does not need to always update the view's `data.username` property. Only if the `onAppear` event is called.
 
-However, if the view's `username` property did need to be kept in sync with the data source, or some other window's editor, etc., then adding an `onReceive` event handler would solve that, but have the potential to overwrite the user's unsaved changes.
+However, if the view's `username` property did need to be kept in sync with the data source, or some other window's editor, etc., then using the `.onChange(of:)` modifier would solve that, but have the potential to overwrite the user's unsaved changes.
 
 ```swift
 @State var username: String = ""
@@ -371,37 +403,90 @@ var body: some View {
     ZStack {
         ...
     }
-    .onReceive($state.publisher) { newState in 
-        username = newState.data.username
+    .onChange(of: state.data.username) { oldValue, newValue in
+        username = newValue
     }
 }
 ```
 
-We use the `ViewState`'s projected value (`$`) because it gives us access to the state ``StatePublishing/publisher`` property which can be observed by `onReceive`.
+The `.onChange(of:)` modifier observes changes to specific properties of your view state and executes the provided closure when those properties change.
 
-#### Custom Two-Way Bindings
+#### Auto-Saving with Debounced Input
 
-If we wanted to ditch the `Save` button in favor of having the view input call `save(username:)` as the user is typing, SwiftUI's `Binding<T>` type behaves much like a property on an object by providing a two-way getter and a setter for a wrapped value. We can utilize this to trick the `TextField` view into thinking it has read/write access to the view state's `username` property.
+If we want to ditch the `Save` button in favor of auto-saving as the user types, we need to be careful not to call `save(username:)` on every keystroke. Spamming `$state.observe()` with a new async action on every character change would cause excessive state updates and redundant network work.
 
-A custom `Binding<T>` can be created as a view state extension property, as a `@Binding` property on the view, or right within the view's code, like so:
+The recommended approach uses three complementary techniques:
+
+1. **Focused local state**: Store the text field value in a `@State` property rather than driving it directly from the view state. This lets the text field update freely without touching VSM on every keystroke.
+2. **`@FocusState`**: Start the editing session only when the user actually focuses the field, keeping the view state simple.
+3. **Debounced `onChange`**: Debounce at the view layer (the Shopping demo app ships an example `View` extension backed by Swift Async Algorithms' `debounce`) so work fires only after the user pauses typing, not on every character.
 
 ```swift
-var body: some View {
-    let usernameBinding = Binding(
-        get: { state.data.username },
-        set: { newValue in
-            if case .editing(let editingModel) = state.editingState {
-                $state.observe(editingModel.save(username: newValue),
-                    debounced: .seconds(1))
-            }
+struct ProfileView: View {
+    @ViewState var state: ProfileViewState
+
+    @State private var username: String = ""
+    @FocusState private var isTextFieldFocused: Bool
+
+    var body: some View {
+        switch state {
+        case .loaded, .editing:
+            loadedView()
+                .onAppear {
+                    // Populate local state from the loaded model on first appearance
+                    guard case .loaded(let loadedModel) = state else { return }
+                    username = loadedModel.fetchedUsername
+                }
+                .onChange(of: isTextFieldFocused) { _, focused in
+                    // Transition to the editing state only when the user focuses the field
+                    if focused {
+                        guard case .loaded(let loadedModel) = state else { return }
+                        $state.observe(loadedModel.startEditing())
+                    }
+                }
+        // ...
         }
-    )
-    TextField("Username", text: usernameBinding)
-        .textFieldStyle(.roundedBorder)
+    }
+
+    func loadedView() -> some View {
+        TextField("User Name", text: $username)
+            .focused($isTextFieldFocused)
+            // Fire save only after the user pauses typing for 0.5 seconds
+            .onChange(of: username, debounce: .seconds(0.5)) { _, newValue in
+                if case .editing(let editingModel) = state {
+                    $state.observe(editingModel.save(username: newValue))
+                }
+            }
+    }
 }
 ```
 
-Notice how our call to ``StateObserving/observe(_:debounced:file:line:)-8vbf2`` includes a `debounced` parameter. This prevents excessive calls to the `save(username:)` function if the user is typing quickly. It will only call the action a maximum of once per second (or whatever time delay is given).
+The model's `save(username:)` action can also do its part to prevent redundant work by short-circuiting early when the value hasn't actually changed:
+
+```swift
+struct ProfileEditingModel: MutatingCopyable {
+    var username: String
+    var editingState: ProfileEditingState
+
+    func save(username: String) -> StateSequence<ProfileViewState> {
+        // No-op if the user typed something but ended up back at the original value
+        guard username != self.username else {
+            return StateSequence({ .editing(self) })
+        }
+        guard !username.isEmpty else {
+            return StateSequence({
+                .editing(self.copy(mutating: { $0.editingState = .error(Errors.emptyUsername) }))
+            })
+        }
+        return StateSequence(
+            { .editing(self.copy(mutating: { $0.editingState = .saving })) },
+            { /* perform network save... */ }
+        )
+    }
+}
+```
+
+This combination means `$state.observe()` is only ever called when the user has paused typing _and_ the value has actually changed — the view modifier handles the debounce, and the model handles the equality check.
 
 ## View Construction
 
@@ -423,7 +508,7 @@ The initializers for the `LoadUserProfileView` are as follows:
 ```swift
 // Parent View Code
 let loaderModel = LoadUserProfileViewState.LoaderModel(userId: userId)
-let state = .initialized(loaderModel)
+let state = LoadUserProfileViewState.initialized(loaderModel)
 LoadUserProfileView(state: state)
 ```
 
@@ -433,13 +518,22 @@ LoadUserProfileView(state: state)
 // LoadUserProfileView Code
 init(userId: Int) {
     let loaderModel = LoadUserProfileViewState.LoaderModel(userId: userId)
-    let state = .initialized(loaderModel)
-    _state = .init(wrappedValue: state)
+    let state = LoadUserProfileViewState.initialized(loaderModel)
+    _state = .init(wrappedValue: state, observedViewType: Self.self)
 }
 
 // Parent View Code
 LoadUserProfileView(userId: someUserId)
 ```
+
+> Note: The `observedViewType` parameter helps with debugging by providing better log categorization. You can also enable logging during development by setting `loggingEnabled: true` in the initializer.
+>
+> Alternatively, if you assign a value directly to your `@ViewState` wrapped property, you can set `loggingEnabled` directly on the property wrapper:
+>
+> ```swift
+> @ViewState(loggingEnabled: true)
+> var state: MyExampleViewState = .initialized(MyExampleModel())
+> ```
 
 ### Editing View Initializers
 
@@ -461,7 +555,7 @@ EditUserProfileView(state: state)
 init(userData: UserData) {
     let editingModel = EditUserProfileViewState.EditingModel(userData: userData)
     let state = EditUserProfileViewState(data: userData, editingState: .editing(editingModel))
-    _state = .init(wrappedValue: state)
+    _state = .init(wrappedValue: state, observedViewType: Self.self)
 }
 
 // Parent View Code

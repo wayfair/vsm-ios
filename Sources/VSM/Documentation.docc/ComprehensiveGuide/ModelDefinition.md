@@ -8,7 +8,7 @@ One of the unique things about the VSM architecture is its philosophy on how mod
 
 > Tip: Building VSM models requires an understanding of [finite state machines](https://en.wikipedia.org/wiki/Finite-state_machine) and simple [recursion](https://www.vadimbulavin.com/recursion-in-swift/).
 
-There are multiple styles for building models in VSM. You can read more about each pattern in <doc:ModelStyles>. In this article, we will be focusing on the <doc:ModelStyles#Protocols-with-Structs> pattern where each model implements its functionality by creating structs that implement the protocol requirements. We recommend that you use the Protocol with Structs model style by default.
+There are multiple styles for building models in VSM. You can read more about each pattern in <doc:ModelStyles>. In this article, we will be focusing on the <doc:ModelStyles#Plain-Structs> pattern where each model is implemented as a plain struct with `async` methods. This is the recommended default style.
 
 We will continue from <doc:StateDefinition> by implementing the business logic for the models associated with `LoadUserProfileViewState` and the `EditUserProfileViewState`.
 
@@ -22,108 +22,118 @@ First, we'll take a look at the shape of the `LoadUserProfileViewState` and its 
 
 ```swift
 enum LoadUserProfileViewState {
-    case initialized(LoaderModeling)
+    case initialized(LoaderModel)
     case loading
-    case loadingError(LoadingErrorModeling)
+    case loadingError(LoadingErrorModel)
     case loaded(UserData)
 }
 
-protocol LoaderModeling {
-    func load() -> AnyPublisher<LoadUserProfileViewState, Never>
+struct LoaderModel {
+    let userId: Int
+    func load() -> StateSequence<LoadUserProfileViewState>
 }
 
-protocol LoadingErrorModeling {
+struct LoadingErrorModel {
     let message: String
-    func retry() -> AnyPublisher<LoadUserProfileViewState, Never>
+    let userId: Int
+    func retry() -> StateSequence<LoadUserProfileViewState>
 }
 ```
 
-After we have a good idea of how the states and data should flow, we can begin implementing the model by creating a struct that implements the corresponding model protocol. Our entire implementation for this model will live in this struct.
+After we have a good idea of how the states and data should flow, we can begin implementing the model by creating a struct that conforms to the above shape. Our entire implementation for this model will live in this struct.
 
 ```swift
-struct LoaderModel: LoaderModeling {
+struct LoaderModel {
+    let userId: Int
     ...
 }
 ```
 
-To implement the model in a readable way, we'll define the `load()` function to orchestrate the load work by returning the appropriate view states as the data loads. The `load()` function immediately returns a new "loading" state to the view and calls the `fetch()` function which performs the data request. The struct initializer will require a `userId` property for the user data request.
+To implement the model in a readable way, we'll define the `load()` function to orchestrate the load work by returning the appropriate view states as the data loads. The `load()` function returns a `StateSequence` that applies `.loading` synchronously first, then calls `fetchUser()` which performs the data request asynchronously. We use the ``StateSequenceBuilder`` DSL to declare this sequence — plain state values listed before any `Next` expression are applied synchronously, ensuring the loading indicator is visible on the very first frame.
 
 ```swift
-struct LoaderModel: LoaderModeling {
+struct LoaderModel {
     let userId: Int
 
-    func load() -> AnyPublisher<LoadUserProfileViewState, Never> {
-        Just(.loading)
-            .merge(with: fetch())
-            .eraseToAnyPublisher()
+    @StateSequenceBuilder
+    func load() -> StateSequence<LoadUserProfileViewState> {
+        LoadUserProfileViewState.loading
+        Next { await fetchUser() }
     }
 }
 ```
 
-The `fetch()` function instantiates a `UserDataRepository` dependency which loads the user data (from a web service, cache, or database) and returns it by way of `AnyPublisher<UserData, Error>`. (We will cover proper dependency injection in <doc:DataDefinition>.)
+The `fetchUser()` function loads the user data (from a web service, cache, or database) and returns the appropriate view state. (We will cover proper dependency injection in <doc:DataDefinition>.)
 
-Upon completion of the request, the code maps the user data type to the "loaded" view state.
+Upon completion of the request, the function returns the `.loaded` view state containing the user data. Errors are caught inside the function and converted to an appropriate error state — the framework never accepts throwing actions.
 
 ```swift
-struct LoaderModel: LoaderModeling {
-    ...
-    private func fetch() -> AnyPublisher<LoadUserProfileViewState, Never> {
-        UserDataRepository().loadUserData(userId: userId)
-            .map { userData in
-                LoadUserProfileViewState.loaded(userData)
-            }
-            .catch { error in
-                handleLoadingError(error)
-            }
-            .eraseToAnyPublisher()
+struct LoaderModel {
+    let userId: Int
+
+    @StateSequenceBuilder
+    func load() -> StateSequence<LoadUserProfileViewState> {
+        LoadUserProfileViewState.loading
+        Next { await fetchUser() }
+    }
+
+    @concurrent
+    private func fetchUser() async -> LoadUserProfileViewState {
+        do {
+            let userData = try await UserDataRepository().load(userId: userId)
+            return .loaded(userData)
+        } catch {
+            return handleLoadingError(error)
+        }
     }
 }
 ```
 
-Since the publisher returned by the `UserDataRepository` can emit errors, we are required by the compiler to convert the error into a view state within the `catch()` closure.
+> Tip: The `@concurrent` attribute moves `fetchUser()` off the main thread. Apply it to helper functions that have a real chance of blocking the main thread — such as network requests or large database reads. Do not apply it automatically; there is a small cost to hopping threads.
 
-To improve readability, we'll forward the error handling code to a `handleLoadingError()` function. This error handler will be responsible for categorizing the type of error to the most appropriate view state. It can also perform any logging necessary.
+To improve readability, we'll forward the error handling code to a `handleLoadingError()` function. This error handler categorizes the error into the most appropriate view state and can perform any logging necessary.
 
 ```swift
-struct LoaderModel: LoaderModeling {
+struct LoaderModel {
+    let userId: Int
+
     ...
-    private func handleLoadingError(_ error: Error) -> Just<LoadUserProfileViewState> {
-        NSLog("Error loading user data: \(error)")
-        let errorModel = ErrorModel(userId: userId, error: error)
-        return Just(LoadUserProfileViewState.loadingError(errorModel))
+
+    private func handleLoadingError(_ error: Error) -> LoadUserProfileViewState {
+        Logger().error("Error loading user data: \(error)")
+        let errorModel = LoadingErrorModel(userId: userId, error: error)
+        return .loadingError(errorModel)
     }
 }
 ```
 
-In this function, we log the error and then create an error model for the `loadingError` view state. Then, we return a publisher that emits the loading error view state. That will cause the view to update and show the error view state which renders an error message and a retry button.
+In this function, we log the error and create a `LoadingErrorModel` for the `.loadingError` view state. That causes the view to show the error state, which renders an error message and a retry button.
 
 Our final Load Profile model looks like this:
 
 ```swift
-struct LoaderModel: LoaderModeling {
+struct LoaderModel {
     let userId: Int
 
-    func load() -> AnyPublisher<LoadUserProfileViewState, Never> {
-        Just(.loading)
-            .merge(with: fetch())
-            .eraseToAnyPublisher()
+    @StateSequenceBuilder
+    func load() -> StateSequence<LoadUserProfileViewState> {
+        LoadUserProfileViewState.loading
+        Next { await fetchUser() }
     }
 
-    private func fetch() -> AnyPublisher<LoadUserProfileViewState, Never> {
-        UserDataRepository().loadUserData(userId: userId)
-            .map { userData in
-                LoadUserProfileViewState.loaded(userData)
-            }
-            .catch { error in
-                handleLoadingError(error)
-            }
-            .eraseToAnyPublisher()
+    @concurrent
+    private func fetchUser() async -> LoadUserProfileViewState {
+        do {
+            let userData = try await UserDataRepository().load(userId: userId)
+            return .loaded(userData)
+        } catch {
+            return handleLoadingError(error)
+        }
     }
 
-    private func handleLoadingError(_ error: Error) -> Just<LoadUserProfileViewState> {
-        NSLog("Error loading user data: \(error)")
-        let errorModel = LoadingErrorModel(userId: userId, error: error)
-        return Just(LoadUserProfileViewState.loadingError(errorModel))
+    private func handleLoadingError(_ error: Error) -> LoadUserProfileViewState {
+        Logger().error("Error loading user data: \(error)")
+        return .loadingError(LoadingErrorModel(userId: userId, error: error))
     }
 }
 ```
@@ -131,32 +141,32 @@ struct LoaderModel: LoaderModeling {
 Now you may be asking, "where do we define the error message and retry behavior for the error state?". We will implement the error state's behavior in a separate model, like so:
 
 ```swift
-struct LoadingErrorModel: LoadingErrorModeling {
+struct LoadingErrorModel {
     let userId: Int
-    var message: String
+    let message: String
 
     init(userId: Int, error: Error) {
         self.userId = userId
         message = error.localizedDescription
     }
 
-    func retry() -> AnyPublisher<LoadUserProfileViewState, Never> {
+    func retry() -> StateSequence<LoadUserProfileViewState> {
         LoaderModel(userId: userId).load()
     }
 }
 ```
 
-This is where a tiny bit of recursion comes in. We want the retry action to call the `load()` function on our loader model again. Because we're in a separate model, we built a copy of the loader model and called its load function directly.
+This is where a tiny bit of recursion comes in. We want the retry action to call the `load()` function on our loader model again. Because we're in a separate model, we build a new `LoaderModel` and call its `load()` function directly.
 
 Since these are structs, the create/copy/destroy operations are generally very inexpensive, as long as the models and associated value types stay relatively small.
 
 The Load User Profile models are now complete and ready for testing. To learn more about testing, visit <doc:UnitTesting>.
 
-You may have noticed that we don't subscribe or receive on the main queue anywhere in this code. (ie, `.receive(on: DispatchQueue.main)` or `.subscribe(on: DispatchQueue.main`). This is because the state container's ``StateContainer/observe(_:)-1uta3`` function does this for us.
+You may have noticed that we don't dispatch to the main queue anywhere in this code. This is because `AsyncStateContainer` is `@MainActor`-isolated, which guarantees that all state changes occur on the main thread automatically.
 
 > Tip: In VSM, you never have to worry about syncing your view states with the main thread.
 
-You may also have noticed that we don't use `[weak self]` in any of our closures. This is mainly because we don't reference `self` anywhere. Even if we did, there are virtually no scenarios where you need to weakly reference `self` because we are exclusively using structs instead of classes. Structs are copied in memory from scope to scope which prevents strong reference cycles.
+You may also have noticed that we don't use `[weak self]` in any of our closures. This is because we are exclusively using structs instead of classes. ``StateSequence`` stores plain producing closures; when you call `observe(_:)` on ``AsyncStateContainer``, transfers use Swift 6 **`sending`** (and **`@Sendable`** overloads when `State: Sendable`). Capturing structs by value avoids strong reference cycles with `self`.
 
 > Tip: Avoid using classes for your models. This removes the need for capturing `[weak self]` within closures.
 
@@ -172,86 +182,81 @@ struct EditUserProfileViewState {
     enum EditingState {
         case editing(EditingModel)
         case saving
-        case savingError(ErrorModel)
+        case savingError(SavingErrorModel)
     }
 }
 
-protocol EditingModeling {
-    func save(username: String) -> AnyPublisher<EditUserProfileViewState, Never>
+struct EditingModel {
+    func save(username: String) -> StateSequence<EditUserProfileViewState>
 }
 
-protocol SavingErrorModeling {
+struct SavingErrorModel {
     let message: String
-    func retry() -> AnyPublisher<EditUserProfileViewState, Never>
-    func cancel() -> AnyPublisher<EditUserProfileViewState, Never>
+    func retry() -> StateSequence<EditUserProfileViewState>
+    func cancel() -> EditUserProfileViewState
 }
 ```
 
 After we have a good idea of how the states and data should flow, we can begin implementing the editing model of the `EditUserProfileViewState` by creating the corresponding model struct.
 
 ```swift
-struct EditingModel: EditingModeling {
+struct EditingModel {
     let userData: UserData
 
-    init(userData: UserData) {
-        self.userData = userData
-    }
-
-    func save(username: String) -> AnyPublisher<EditUserProfileViewState, Never> {
-        return Just(
-            EditUserProfileViewState(
-                data: userData,
-                editingState: .saving
-            )
+    @StateSequenceBuilder
+    func save(username: String) -> StateSequence<EditUserProfileViewState> {
+        EditUserProfileViewState(
+            data: userData,
+            editingState: .saving
         )
-        .merge(with: performSave(username: username))
-        .eraseToAnyPublisher()
+        Next { await performSave(username: username) }
     }
 }
 ```
 
-Our repository needs a `UserData` object because the save function also handles the `retry()` and `cancel()` actions in the event of an error. So, the initializer will ask for the user data so that we can forward it to the `performSave()` function.
+Similar to the load action from the Load Profile model, we apply a new `.saving` state synchronously while the save operation is processing. Using `@StateSequenceBuilder`, the plain state value placed before the `Next` expression is applied synchronously by the container.
 
-Similar to the load action from the Load Profile model, we'll immediately return a new "saving" state to the view while the save operation is processing. Notice how we have to recreate the view state struct to do so.
-
-Next, we'll implement the `performSave()` function by using the `UserDataRepository` to save the username to the data store. (We will cover proper dependency injection in <doc:DataDefinition>.)
+Next, we'll implement the `performSave()` function by using the `UserDataRepository` to save the username to the data source. (We will cover proper dependency injection in <doc:DataDefinition>.)
 
 ```swift
-struct EditingModel: EditingModeling {
+struct EditingModel {
+    let userData: UserData
+
     ...
-    private func performSave(username: String) -> AnyPublisher<EditUserProfileViewState, Never> {
-        UserDataRepository().save(username: username)
-            .map { savedUserData in
-                EditUserProfileViewState(
-                    data: savedUserData,
-                    editingState: .editing(EditingModel(userData: savedUserData))
-                )
-            }
-            .catch { error in
-                handleSavingError(error, username: username)
-            }
-            .eraseToAnyPublisher()
+
+    @concurrent
+    private func performSave(username: String) async -> EditUserProfileViewState {
+        do {
+            let savedUserData = try await UserDataRepository().save(username: username)
+            return EditUserProfileViewState(
+                data: savedUserData,
+                editingState: .editing(EditingModel(userData: savedUserData))
+            )
+        } catch {
+            return handleSavingError(error, username: username)
+        }
     }
 }
 ```
 
-Similar to the Load Profile model's load function, this function instantiates a repository, saves the username, and then converts the published `UserData` result to the appropriate "success" view state. We also handle the error in a similar way as the Load Profile model.
+Similar to the Load Profile model, this function instantiates a repository, saves the username, and then returns the appropriate "success" view state. We handle the error in a similar way as the Load Profile model.
 
 ```swift
-struct EditingModel: EditingModeling {
+struct EditingModel {
+    let userData: UserData
+
     ...
-    private func handleSavingError(_ error: Error, username: String) -> Just<EditUserProfileViewState> {
-        NSLog("Error saving username: \(error)")
+
+    private func handleSavingError(_ error: Error, username: String) -> EditUserProfileViewState {
+        Logger().error("Error saving username: \(error)")
         let errorModel = SavingErrorModel(
             error: error,
             username: username,
             userData: userData
         )
-        return Just(
-            EditUserProfileViewState(
-                data: userData,
-                editingState: .savingError(errorModel)
-            )
+        return EditUserProfileViewState(
+            data: userData,
+            editingState: .savingError(errorModel)
         )
     }
 }
@@ -260,50 +265,41 @@ struct EditingModel: EditingModeling {
 The final editing view model becomes this:
 
 ```swift
-struct EditingModel: EditingModeling {
+struct EditingModel {
     let userData: UserData
 
-    init(userData: UserData) {
-        self.userData = userData
-    }
-
-    func save(username: String) -> AnyPublisher<EditUserProfileViewState, Never> {
-        return Just(
-            EditUserProfileViewState(
-                data: userData,
-                editingState: .saving
-            )
+    @StateSequenceBuilder
+    func save(username: String) -> StateSequence<EditUserProfileViewState> {
+        EditUserProfileViewState(
+            data: userData,
+            editingState: .saving
         )
-        .merge(with: performSave(username: username))
-        .eraseToAnyPublisher()
+        Next { await performSave(username: username) }
     }
 
-    private func performSave(username: String) -> AnyPublisher<EditUserProfileViewState, Never> {
-        UserDataRepository().save(username: username)
-            .map { savedUserData in
-                EditUserProfileViewState(
-                    data: savedUserData,
-                    editingState: .editing(EditingModel(userData: savedUserData))
-                )
-            }
-            .catch { error in
-                handleSavingError(error, username: username)
-            }
-            .eraseToAnyPublisher()
+    @concurrent
+    private func performSave(username: String) async -> EditUserProfileViewState {
+        do {
+            let savedUserData = try await UserDataRepository().save(username: username)
+            return EditUserProfileViewState(
+                data: savedUserData,
+                editingState: .editing(EditingModel(userData: savedUserData))
+            )
+        } catch {
+            return handleSavingError(error, username: username)
+        }
     }
 
-    private func handleSavingError(_ error: Error, username: String) -> Just<EditUserProfileViewState> {
-        NSLog("Error saving username: \(error)")
+    private func handleSavingError(_ error: Error, username: String) -> EditUserProfileViewState {
+        Logger().error("Error saving username: \(error)")
         let errorModel = SavingErrorModel(
             error: error,
             username: username,
             userData: userData
         )
-        return Just(
-            EditUserProfileViewState(
-                data: userData,
-                editingState: .savingError(errorModel)
-            )
+        return EditUserProfileViewState(
+            data: userData,
+            editingState: .savingError(errorModel)
         )
     }
 }
@@ -312,34 +308,33 @@ struct EditingModel: EditingModeling {
 Now, we must build the error model to implement the error message data, retry action, and cancel action, according to the requirements. This model requires some extra data to properly implement the corresponding actions. Using the same techniques discussed above, our error model looks like this:
 
 ```swift
-struct SavingErrorModel: SavingErrorModeling {
+struct SavingErrorModel {
     let message: String
     let username: String
-    let userData: String
+    let userData: UserData
 
     init(error: Error, username: String, userData: UserData) {
         message = "Error saving username: \(error.localizedDescription)"
         self.username = username
         self.userData = userData
     }
-    
-    func retry() -> AnyPublisher<EditUserProfileViewState, Never> {
+
+    func retry() -> StateSequence<EditUserProfileViewState> {
         EditingModel(userData: userData).save(username: username)
     }
-            
-    func cancel() -> AnyPublisher<EditUserProfileViewState, Never> {
-        let editingModel = EditingModel(userData: userData)
-        return Just(
-            EditUserProfileViewState(
-                data: userData,
-                editingState: .editing(editingModel)
-            )
-        ).eraseToAnyPublisher()
+
+    func cancel() -> EditUserProfileViewState {
+        EditUserProfileViewState(
+            data: userData,
+            editingState: .editing(EditingModel(userData: userData))
+        )
     }
 }
 ```
 
 You'll notice several examples of recursive programming where some actions need to go back to previous states and those states have actions that can lead back to the state in question. In each case, we build a new view state and pass in the dependencies and data required for the view state's model.
+
+Notice that `cancel()` returns a single `EditUserProfileViewState` synchronously — no async work is needed, so no `StateSequence` is required. The `retry()` action delegates back to the `EditingModel`'s `save()` function, which handles the full `StateSequence` progression.
 
 This "always forward" progression from state to state can be called the "state journey".
 
@@ -350,8 +345,8 @@ MVVM is currently the most prevalent architecture. Most of Apple's training mate
 - Make your model a class type
 - Use a single model to manage all of your states and actions
 - Declare the model as `ObservableObject` and use `@Published` properties to internally manage the current state, or your internal states and data
-- Manage subscriptions by storing `AnyCancellable`s when calling `sink` on publishers that your feature depends on
-- Loading the data and then calling a separate action from the view to subscribe to future published data updates
+- Manage concurrency by storing and manually cancelling `Task` handles within your model
+- Load the data and then call a separate action from the view to subscribe to future data updates
 
 None of these practices are appropriate for use in a VSM feature. If any of these techniques sneak into your feature, it becomes difficult to follow the pattern and see the benefits of building features that observe and interact with a stream of view states.
 
@@ -359,7 +354,7 @@ It is generally less effective to use class types for models in VSM. Classes int
 
 "Massive View Model" types tend to violate several [SOLID](https://en.wikipedia.org/wiki/SOLID) architecture principles and introduce the potential for bugs from shared mutable data and unprotected functions. This applies as well to models that manage state by using `@Published` properties. They tend to be a hotbed for bugs caused by unintended states, side effects, and regressions.
 
-Manually managing publisher subscriptions within a model is less effective in VSM because it's much easier (and requires much less code) to let the state container manage the subscriptions for you. You can do this within your actions by weaving multiple data publishers into a single view state publisher. Combine functions such as merge, zip, combineLatest, map, flatMap, etc. are powerful tools that allow you to weave streams of data into the shape of your choice. This also eliminates the need to make any round-trips to the view to trigger actions that observe future updates.
+Manually managing `Task` handles or `AsyncStream.Continuation`s within a model is less effective in VSM because it's much easier (and requires much less code) to let the state container manage the lifecycle for you. You can do this within your actions by weaving multiple async operations into a single `StateSequence` or `AsyncStream`. This also eliminates the need to make any round-trips to the view to trigger actions that observe future updates.
 
 ## Up Next
 

@@ -5,5 +5,5 @@ struct BlogEntry: Decodable {
 }
 
 protocol BlogEntryProviding {
-    func loadEntry(entryId: Int) -> AnyPublisher<BlogEntry, Error>
+    func loadEntry(entryId: Int) async throws -> BlogEntry
 }

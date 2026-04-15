@@ -3,7 +3,7 @@ struct ErrorModel: ErrorModeling {
     let entryId: Int
     let message: String
     
-    func retry() -> AnyPublisher<BlogEntryViewState, Never> {
+    func retry() -> StateSequence<BlogEntryViewState> {
         
     }
 }

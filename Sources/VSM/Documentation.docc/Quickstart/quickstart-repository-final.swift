@@ -5,25 +5,20 @@ struct BlogEntry: Decodable {
 }
 
 protocol BlogEntryProviding {
-    func loadEntry(entryId: Int) -> AnyPublisher<BlogEntry, Error>
+    func loadEntry(entryId: Int) async throws -> BlogEntry
 }
 
 class BlogEntryRepository: BlogEntryProviding {
-    func loadEntry(entryId: Int) -> AnyPublisher<BlogEntry, Error> {
+    func loadEntry(entryId: Int) async throws -> BlogEntry {
         let urlString = "https://blog-endpoint/\(entryId)"
         guard let url = URL(string: urlString) else {
-            return Fail(URLError(.badURL))
-                .eraseToAnyPublisher()
+            throw URLError(.badURL)
         }
-        URLSession.shared.dataTaskPublisher(for: url)
-            .tryMap() { element -> Data in
-                guard let httpResponse = element.response as? HTTPURLResponse,
-                    httpResponse.statusCode == 200 else {
-                        throw URLError(.badServerResponse)
-                    }
-                return element.data
-                }
-            .decode(type: BlogEntry.self, decoder: JSONDecoder())
-            .eraseToAnyPublisher()
+        let (data, response) = try await URLSession.shared.data(from: url)
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            throw URLError(.badServerResponse)
+        }
+        return try JSONDecoder().decode(BlogEntry.self, from: data)
     }
 }

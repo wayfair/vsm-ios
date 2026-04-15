@@ -186,11 +186,11 @@ If you have a view and view state like the one in the examples above, you may be
 
 ```swift
 extension EditUserProfileViewState {
-    var saveUsername: (String) -> AnyPublisher<EditUserProfileViewState, Never> {
+    var saveUsername: (String) -> StateSequence<EditUserProfileViewState> {
         if case .editing(let editingModel) = editingState {
             return { username in editingModel.save(username: username) }
         }
-        return { _ in }
+        return { _ in StateSequence { .initialized(.init()) } }
     }
 }
 ```
@@ -223,7 +223,7 @@ struct EditUserProfileView: View {
         TextField("Username", $username)
             .disabled(state.isSaving)
         Button("Save") {
-            if case .editing(let editingModel) = editingState {
+            if case .editing(let editingModel) = state.editingState {
                 $state.observe(editingModel.save(username: username))
             }
         }

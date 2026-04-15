@@ -53,26 +53,19 @@ struct ChangePasswordView: View {
 
 In UIKit, data binding behavior is not as easily accessible as it is in SwiftUI. That being said, the UIKit APIs are a little more flexible in that the above example wouldn't require anything be passed between the views in question because each view can get at the state of the view hierarchy and act directly upon it.
 
-However, there may be instances where `UIViews` and `UIViewControllers` should be able to communicate bidirectionally. This can be done by passing closures between the views, or by creating publishers on the views that emit changes in view state, events, or view-specific information. It is critical to ensure that `self` is captured weakly in any circular reference patterns, such as with closures or publisher `sink` calls.
+However, there may be instances where `UIViews` and `UIViewControllers` should be able to communicate bidirectionally. This can be done by passing closures between the views. It is critical to ensure that `self` is captured weakly in any circular reference patterns involving closures.
 
 One example of this would be if a `UITabBarController` needed to be notified when the first of its children appeared so that it could then trigger a modal to display.
 
 ```swift
 final class TabBarController: UITabBarController {
     ...
-    var subscriptions: Set<AnyCancellable> = []
-
     func viewDidLoad() {
         super.viewDidLoad()
 
-        let tabViewController = TabViewController()
-
-        tabViewController.eventPublisher
-            .filter { event in event == TabViewEvent.tabAppeared }
-            .sink { [weak self] _ in
-                self?.present(SignInViewController(), animated: true, completion: nil)
-            }
-            .store(in: &subscriptions)
+        let tabViewController = TabViewController(onTabAppeared: { [weak self] in
+            self?.present(SignInViewController(), animated: true, completion: nil)
+        })
 
         viewControllers = [
             tabViewController
@@ -82,31 +75,42 @@ final class TabBarController: UITabBarController {
 
 final class TabViewController: UIViewController {
     ...
-    private var eventSubject = PassthroughSubject<TabViewEvent, Never>()
-    var eventPublisher: AnyPublisher<TabViewEvent, Never> { eventSubject.eraseToAnyPublisher() }
+    private let onTabAppeared: () -> Void
 
-    var viewDidAppear(_ animated: Bool) {
+    init(onTabAppeared: @escaping () -> Void) {
+        self.onTabAppeared = onTabAppeared
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        eventSubject.send(TabViewEvent.tabAppeared)
+        onTabAppeared()
     }
 }
 ```
 
-In this example, the `TabViewController` exposes an event publisher which notifies any subscribers when its `viewDidAppear` function is called. The `TabBarController` observes this publisher and is able to react to its `.tabAppeared` event by showing the `SignInViewController`. While this example may be a little contrived, it shows how views can communicate various view concerns with each other in UIKit.
+In this example, the `TabViewController` accepts a closure on initialization which it calls when its `viewDidAppear` function is invoked. The `TabBarController` provides that closure and is able to react to the event by showing the `SignInViewController`. While this example may be a little contrived, it shows how views can communicate various view concerns with each other in UIKit.
 
 ## Feature Communication
 
 Another type of communication between VSM views is when a feature needs to communicate some sort of information, state, or dependencies to another VSM feature directly. This is simply done by passing the static data directly into the view's initializer. The only acceptable kinds of data for this type of communication is static, immutable data. This is most commonly the data required to prime the feature for operation.
 
-For example, if we have a feature that loads the user info that is required by the user profile editor view, we can express that like so:
+When one feature launches a child feature, it is also responsible for forwarding any dependencies that child feature requires. A clean way to handle this is for the parent feature's `Dependencies` type to compose the child's `Dependencies` as a nested property, so that all required dependencies flow from a single root object. The parent then passes the appropriate subset along when transitioning to the loaded state.
+
+For example, if we have a feature that loads the user info required by the user profile editor view, we can express that like so:
 
 ### SwiftUI
 
 ```swift
 struct LoadUserView: View {
     @ViewState var state: LoadUserViewState
-    let dependencies: Dependencies
-    ...
+    let dependencies: LoadUserViewState.Dependencies
+
+    init(dependencies: LoadUserViewState.Dependencies) {
+        self.dependencies = dependencies
+        _state = .init(wrappedValue: .initialized(.init(dependencies: dependencies)))
+    }
+
     var body: some View {
         HStack {
             switch state {
@@ -115,30 +119,49 @@ struct LoadUserView: View {
             case .loadingError(let errorModel):
                 ...
             case .loaded(let userData):
-                EditUserProfileView(dependencies: dependencies, userData: userData)
+                // The parent forwards the child's dependency subset,
+                // which it already owns as part of its own Dependencies type.
+                EditUserProfileView(
+                    userData: userData,
+                    dependencies: dependencies.editUserProfile
+                )
             }
         }
     }
 }
 ```
 
+In this example, `LoadUserViewState.Dependencies` composes `EditUserProfileView`'s dependencies as a nested property (`editUserProfile`). This keeps the dependency graph explicit and traceable from the root of the feature tree.
+
 ### UIKit
+
+**iOS 18+ (using @ViewState):**
 
 ```swift
 final class LoadUserViewController: UIViewController {
-    @RenderedViewState var state: LoadUserViewState
-    let dependencies: Dependencies
-    ...
-    func render() {
+    @ViewState var state: LoadUserViewState
+    let dependencies: LoadUserViewState.Dependencies
+
+    init(dependencies: LoadUserViewState.Dependencies) {
+        self.dependencies = dependencies
+        _state = .init(wrappedValue: .initialized(.init(dependencies: dependencies)))
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    override func updateProperties() {
+        super.updateProperties()
+
         switch state {
         case .initialized, .loading:
             ...
         case .loadingError(let errorModel):
             ...
         case .loaded(let userData):
+            // The parent forwards the child's dependency subset,
+            // which it already owns as part of its own Dependencies type.
             let editProfileViewController = EditProfileViewController(
-                dependencies: dependencies,
-                userData: userData
+                userData: userData,
+                dependencies: dependencies.editUserProfile
             )
             contentView.addSubview(editProfileViewController.view)
             addChild(editProfileViewController)
@@ -147,6 +170,8 @@ final class LoadUserViewController: UIViewController {
     }
 }
 ```
+
+> Note: For iOS 17, use `@RenderedViewState(render: Self.render)` and replace `updateProperties()` with `render()`, removing the `super.updateProperties()` call. See <doc:ViewDefinition-UIKit> for full details.
 
 ## Data Communication
 

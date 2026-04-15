@@ -10,7 +10,7 @@ Unit tests provide additional peace of mind that the engineer implemented the fe
 
 ## Mocking the Data Repositories
 
-Your observable data repositories should be designed in such a way that they can be mocked for testing. Mocking is the act of substituting a fake version of a piece of code that can be injected into a test subject to support testing the test subject.
+Your data repositories should be designed in such a way that they can be mocked for testing. Mocking is the act of substituting a fake version of a piece of code that can be injected into a test subject to support testing the test subject.
 
 Mocks generally allow the code within the unit test to provide a fake implementation that supports the unit test subject and prevents the unit test from accessing any ancillary resources that are not pertinent to the test. There are three common ways to design your data repositories to be mockable: protocols, structs with injectable implementations, or "stubs" that let you override certain aspects of the repository's behavior.
 
@@ -24,18 +24,19 @@ A protocol and its accompanying mock type may look like this:
 
 ```swift
 protocol UserDataProviding {
-    func load() -> AnyPublisher<UserData, Error>
+    func load() async throws -> UserData
 }
 
 struct MockUserDataProviding: UserDataProviding {
-    var loadResult: AnyPublisher<UserData, Error>?
-    func load() -> AnyPublisher<UserData, Error> {
-        return loadResult ?? Empty()
+    var loadImpl: () async throws -> UserData
+    
+    func load() async throws -> UserData {
+        try await loadImpl()
     }
 }
 ```
 
-Notice how the mock provides a mutable property called `loadResult` which lets you set the expected return value of the `load()` function. If no return value is specified by the test, it defaults to do nothing. This is often called "no-op" or "no operation".
+Notice how the mock provides a mutable property called `loadImpl` which lets you set the expected behavior of the `load()` function. This closure can be configured in tests to return specific values or throw errors.
 
 ### Mocking with Structs
 
@@ -45,7 +46,8 @@ An example of a repository using this approach is:
 
 ```swift
 struct UserDataRepository {
-    var load: () -> AnyPublisher<UserData, Error>
+    var load: () async throws -> UserData
+    
     init() {
         load = {
             // real implementation is defined here
@@ -57,7 +59,9 @@ struct UserDataRepository {
 These can be easily mocked in a test using the following code:
 
 ```swift
-let mockRepository = UserDataRepository(load: { Empty() })
+let mockRepository = UserDataRepository(
+    load: { UserData(username: "test") }
+)
 ```
 
 ### Mocking with Stubs
@@ -68,137 +72,257 @@ Stubs are not true mocks. Instead, they are a concrete implementation (usually a
 
 To unit test a VSM feature, you must construct the model that you wish to test, mocking any of its dependencies at the desired level. This model will be the test subject for the unit test. Then, you should call the action in question on the subject and compare its output to the desired result.
 
+VSM 2.0 uses the Swift Testing framework, which provides a modern, concise syntax for writing tests. Here's an example of testing a model that returns a `StateSequence`:
+
 ```swift
-func testUserProfileLoad() throws {
-    let expectedUserData = UserData(username: "test")
-    let mockRepository = MockDataRepository(loadResult: Just(expectedUserData))
-    let subject = LoaderModel(repository: mockRepository)
-    let output = subject.load()
-    let testExpectation = XCTestExpectation(description: "Load Publisher")
-    var results: [LoadUserProfileViewState] = []
-    output.sink { result in
-        testExpectation.fulfill()
-    } receiveValue: { value in
-        results.append(value)
-    }
-    .store(in: &subscriptions)
+import Testing
+@testable import YourApp
 
-    guard results.count > 0 else {
-        XCTFail("Missing first state")
-        return
-    }
-
-    let firstViewState = results[0]
-    switch firstViewState {
-    case .loading:
-        break
-    default:
-        XCTFail("Expected loading state but got \(firstViewState)")
-    }
-
-    guard results.count > 1 else {
-        XCTFail("Missing second state")
-        return
-    }
-
-    let secondViewState = results[1]
-    switch secondViewState {
-    case .loaded(let userData):
-        XCTAssertEqual(userData, expectedUserData)
-    default:
-        XCTFail("Expected loaded state but got \(secondViewState)")
+struct UserProfileTests {
+    
+    @Test("LoaderModel loads user profile successfully")
+    func testUserProfileLoad() async throws {
+        let expectedUserData = UserData(username: "test")
+        let mockRepository = MockUserDataProviding(
+            loadImpl: { expectedUserData }
+        )
+        let subject = LoaderModel(repository: mockRepository)
+        
+        var states: [LoadUserProfileViewState] = []
+        let stateSequence = subject.load()
+        
+        // Collect states from the StateSequence
+        for await state in stateSequence {
+            states.append(state)
+        }
+        
+        #expect(states.count == 2, "Expected 2 states but got \(states.count)")
+        
+        guard case .loading = states.first else {
+            Issue.record("Expected first state of .loading, but got: \(states)")
+            return
+        }
+        
+        guard case .loaded(let userData) = states.last else {
+            Issue.record("Expected last state of .loaded, but got: \(states)")
+            return
+        }
+        
+        #expect(userData.username == expectedUserData.username)
     }
 }
 ```
 
-The above test calls the `LoaderModel`'s load function and asserts that the loading view state and the loaded state are emitted before the publisher finishes.
+The above test calls the `LoaderModel`'s load function and asserts that the loading view state and the loaded state are emitted from the `StateSequence`.
 
 To consider the feature "fully tested", a test should be written for every model and action to validate that every possible view state output (including error states) is correctly emitted when called and that the appropriate data is associated with the view states.
 
-> Tip: Be sure to use the ["Test Repeatedly"](https://www.avanderlee.com/debugging/flaky-tests-test-repetitions/) feature in Xcode to ensure that your Combine unit tests do not have flaky assertions.
+## Testing Different Action Types
 
-## Easier Unit Testing
+VSM 2.0 models can return different types of values depending on the action. Here are patterns for testing each type:
 
-The above example is quite verbose. Fortunately, there are a few techniques that we can take advantage of to greatly reduce the volume of code required per unit test.
+### Testing StateSequence Actions
 
-### Equatable View States
-
-To more easily test a VSM feature, it is recommended that you conform your view state type to the `Equatable` protocol, even if just within your unit test target. This will allow you to compare states by simply using the XCTest APIs, such as `XCTAssertEqual`.
-
-An example view state implementation of `Equatable` will look something like this:
+Most async actions in VSM return a `StateSequence`, which emits multiple states over time. A `StateSequence` may contain both **synchronous** and **asynchronous** states (especially when built with `@StateSequenceBuilder`). Synchronous states are stored in `synchronousStateActions` and are not yielded by the `AsyncIteratorProtocol` — they are applied inline by the container. When unit testing, you should verify both:
 
 ```swift
-extension LoadUserProfileViewState: Equatable {
-    public static func == (lhs: LoadUserProfileViewState, rhs: LoadUserProfileViewState) -> Bool {
-        switch (lhs, rhs) {
-        case (.initialized, .initialized):
-            return true
-        case (.loading, .loading):
-            return true
-        case (.loaded(let lhsData), .loaded(let rhsData)):
-            return lhsData == rhsData
-        case (.loadingError(let lhsModel), .loadingError(let rhsModel)):
-            return lhsModel.message == rhsModel.message
-        default:
-            return false
+@Test("ProductsLoaderModel loads products successfully")
+func testLoadSuccess() async throws {
+    let mockRepository = MockProductRepository(
+        getGridProductsImpl: { return [] }
+    )
+    let subject = ProductsLoaderModel(repository: mockRepository)
+    
+    let stateSequence = subject.loadProducts()
+    
+    // Verify synchronous states (applied inline by the container)
+    let syncStates = stateSequence.synchronousStateActions.map { $0() }
+    #expect(syncStates.count == 1, "Expected 1 synchronous state")
+    guard case .loading = syncStates.first else {
+        Issue.record("Expected synchronous state of .loading")
+        return
+    }
+    
+    // Verify asynchronous states (applied inside a Task by the container)
+    var asyncStates: [ProductsViewState] = []
+    var iterator = stateSequence.makeAsyncIterator()
+    while let state = try await iterator.next() {
+        asyncStates.append(state)
+    }
+    
+    #expect(asyncStates.count == 1, "Expected 1 async state but got \(asyncStates.count)")
+    
+    guard case .loaded = asyncStates[0] else {
+        Issue.record("Expected async state of .loaded, but got: \(asyncStates)")
+        return
+    }
+}
+```
+
+> Note: If the action was built with the variadic initializer or array-literal syntax (where all closures are async), all states will be yielded by the async iterator and `synchronousStateActions` will be empty. The approach above works for both creation styles.
+
+### Testing Error Handling
+
+Test error cases by configuring your mocks to throw errors:
+
+```swift
+@Test("AddToCartModel handles errors correctly")
+func testAddToCartError() async throws {
+    let mockRepository = MockCartRepository(
+        addProductToCartImpl: { _ in
+            throw MockError(message: "Test error")
         }
+    )
+    let subject = AddToCartModel(repository: mockRepository, productId: 0)
+    
+    var states: [ProductDetailViewState] = []
+    var iterator = subject.addToCart().makeAsyncIterator()
+    
+    // Collect the error states
+    if let state1 = await iterator.next() {
+        states.append(state1)
+    }
+    if let state2 = await iterator.next() {
+        states.append(state2)
+    }
+    
+    guard case .addingToCart = states[0] else {
+        Issue.record("Expected first state of .addingToCart")
+        return
+    }
+    
+    guard case .addToCartError(let message, _) = states[1] else {
+        Issue.record("Expected second state of .addToCartError")
+        return
+    }
+    
+    #expect(message.contains("Test error"))
+}
+```
+
+### Testing Synchronous Actions
+
+Some actions return a single state synchronously. These are straightforward to test:
+
+```swift
+@Test("ProductsLoadedModel handles navigation to product detail")
+func testNavigation() throws {
+    let subject = ProductsLoadedModel(products: [], productDetailId: nil)
+    let output = subject.showProductDetail(id: 1)
+    
+    guard case .loaded(let loadedModel) = output else {
+        Issue.record("Expected state of .loaded, but got: \(output)")
+        return
+    }
+    
+    #expect(loadedModel.productDetailId == 1)
+}
+```
+
+### Testing AsyncStream Observations
+
+Some models return `AsyncStream` for observing continuous changes. Test these with timeouts to avoid hanging:
+
+```swift
+@Test("MainViewLoadedModel observes cart count changes")
+func testObserveCardCount() async throws {
+    let mockDependencies = MockAppDependencies.noOp
+    let subject = MainViewLoadedModel(dependencies: mockDependencies, cardCount: 0)
+    
+    let stream = subject.observeCardCount()
+    var stateReceived = false
+    
+    // Use a task with timeout to avoid hanging indefinitely
+    try await withThrowingTaskGroup(of: Void.self) { group in
+        group.addTask {
+            for await state in stream.prefix(1) {
+                if case .loaded(let model) = state {
+                    stateReceived = true
+                    #expect(model.cardCount >= 0)
+                    break
+                }
+            }
+        }
+        
+        group.addTask {
+            try await Task.sleep(for: .seconds(5))
+            throw TimeoutError()
+        }
+        
+        try await group.next()
+        group.cancelAll()
+    }
+    
+    #expect(stateReceived)
+}
+
+private struct TimeoutError: Error {}
+```
+
+## Testing Best Practices
+
+### Using @MainActor When Needed
+
+Some models may require execution on the main actor. Mark your tests with `@MainActor` when testing such models:
+
+```swift
+@Test("DependenciesLoaderModel loads dependencies", .timeLimit(.minutes(1)))
+@MainActor
+func testLoad() async throws {
+    let mockedDependenciesProvider = MockDependenciesProvider(
+        dependencies: MockAppDependencies.noOp
+    )
+    let subject = DependenciesLoaderModel(
+        dependenciesProvider: mockedDependenciesProvider
+    )
+    
+    var states: [MainViewState] = []
+    let stateSequence = subject.loadDependencies()
+    
+    for await state in stateSequence {
+        states.append(state)
+    }
+    
+    #expect(states.count == 2)
+    guard case .loading = states.first else {
+        Issue.record("Expected first state of .loading")
+        return
+    }
+    guard case .loaded = states.last else {
+        Issue.record("Expected last state of .loaded")
+        return
     }
 }
 ```
 
-The `Equatable` conformance makes the unit test much more concise:
+### Using Time Limits
+
+Add time limits to prevent tests from hanging indefinitely:
 
 ```swift
-func testUserProfileLoad() throws {
-    let expectedUserData = UserData(username: "test")
-    let mockRepository = MockDataRepository(loadResult: Just(expectedUserData))
-    let subject = LoaderModel(repository: mockRepository)
-    let output = subject.load()
-    let testExpectation = XCTestExpectation(description: "Load Publisher")
-    testExpectation.expectedFulfillmentCount = 3
-    var results: [LoadUserProfileViewState] = []
-    output.sink { result in
-        testExpectation.fulfill()
-    } receiveValue: { value in
-        results.append(value)
-        testExpectation.fulfill()
+@Test("LoaderModel completes within time limit", .timeLimit(.seconds(30)))
+func testWithTimeLimit() async throws {
+    // Your test code here
+}
+```
+
+### Safe Array Access
+
+When accessing states by index, use a safe subscript helper to avoid crashes:
+
+```swift
+extension Array {
+    subscript(safe index: Index) -> Element? {
+        return indices.contains(index) ? self[index] : nil
     }
-    .store(in: &subscriptions)
+}
 
-    XCTAssertEqual(results, [.loading, .loaded(expectedUserData)])
+// Usage in tests
+guard case .loading = states[safe: 0] else {
+    Issue.record("Expected first state of .loading")
+    return
 }
 ```
-
-## Testing Combine Publishers
-
-Combine publishers are notoriously difficult and verbose to test. This is because they are inherently asynchronous and guarantee no specific behavior by their type signature. A publisher may emit many results or none. A throwing publisher may finish with an error, or never finish at all. Finally, merged publishers may not emit values to subscribers in a predictable order.
-
-As you can see from the unit test examples above, there is quite a bit of boilerplate code required to unit test a single publisher. Considering how many unit tests that will need to be written to validate the output of every action for a VSM feature, this can result in a _ton_ of verbose unit test code.
-
-The good news is that there is a library called [Testable Combine Publishers](https://github.com/albertbori/TestableCombinePublishers) which allows you to write unit tests for Combine publishers with _significantly_ less code. Since many of your VSM actions will return publishers, it may be a good idea to import this library into your test targets.
-
-The above unit test example, if written with Testable Combine Publishers, will end up being as simple as:
-
-```swift
-func testUserProfileLoad() throws {
-    let expectedUserData = UserData(username: "test")
-    let mockRepository = MockDataRepository(loadResult: Just(expectedUserData))
-    let subject = LoaderModel(repository: mockRepository)
-    subject.load()
-        .collect(2)
-        .expect([.loading, .loaded(expectedUserData)])
-        .expectSuccess()
-        .waitForExpectations(timeout: 10)
-}
-...
-extension LoadUserProfileViewState: AutomaticallyEquatable { /* no-op */ }
-```
-
-> Tip: The [`AutomaticallyEquatable`](https://github.com/albertbori/TestableCombinePublishers#automaticallyequatable) protocol extension in the Testable Combine Publishers library automatically conforms any type to `Equatable`. It does this by using reflection to recursively compare all of the values and their members against each other for equality.
->
-> `AutomaticallyEquatable` is a good alternative to writing your own `Equatable` implementation because it will never become stale with future code changes.
->
-> Note, that it has some interesting limitations which you can read in the documentation, but is generally safe for unit testing common cases.
 
 ## Behavior-driven Development
 
@@ -210,7 +334,7 @@ If you decide to use BDD or TDD with VSM, these steps can help you get started:
 
 1. Build the shape of the feature states (see <doc:StateDefinition>)
 1. Build and mock the protocols for the data repositories that the feature requires
-1. Write failing unit tests against the view states and model definitions
+1. Write failing unit tests against the view states and model definitions using the Swift Testing framework
 1. Once you are confident that your tests are correct, implement the view, models, and repositories that will ultimately make these tests pass
 
 Use the above exercise as a way to discover any gaps or discrepancies in the requirements.

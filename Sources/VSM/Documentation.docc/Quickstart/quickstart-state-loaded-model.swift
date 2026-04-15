@@ -5,12 +5,12 @@ enum BlogEntryViewState {
 }
 
 protocol LoaderModeling {
-    func loadEntry() -> AnyPublisher<BlogEntryViewState, Never>
+    func loadEntry() -> StateSequence<BlogEntryViewState>
 }
 
 protocol ErrorModeling {
     var message: String { get }
-    func retry() -> AnyPublisher<BlogEntryViewState, Never>
+    func retry() -> StateSequence<BlogEntryViewState>
 }
 
 protocol LoadedModeling {

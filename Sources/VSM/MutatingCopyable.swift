@@ -1,8 +1,23 @@
 import Foundation
 
-/// Extend a value type with the ability to copy and mutate in a single line of code.
+/// A marker protocol that adds ergonomic "copy, then change, then return" helpers for value types.
 ///
-/// Example Usage
+/// Swift structs and enums are copied by default, but updating several properties usually means spelling
+/// out a local `var`, assigning fields, and returning it. ``MutatingCopyable`` does not require any
+/// implementation from conforming types; the protocol exists only to attach default implementations of
+/// ``copy(mutating:)`` and ``copy(mutatingPath:value:)`` via an extension. Those methods produce a new
+/// instance by applying your mutations to a copy, so callers can keep an immutable style (methods that
+/// return `Self` or a new model) without repetitive boilerplate.
+///
+/// ### When to use it
+///
+/// Use ``MutatingCopyable`` when you want small, readable updates to a value type—especially in feature
+/// models, view state, or other types whose API prefers returning a new value instead of mutating
+/// `self` in place. The closure-based ``copy(mutating:)`` fits multi-field or conditional updates; the
+/// key-path overload is convenient for a single property change.
+///
+/// ### Example usage
+///
 /// ```swift
 /// struct UserState: MutatingCopyable {
 ///     var username: String
@@ -16,7 +31,7 @@ import Foundation
 ///
 ///     func update(username newValue: String) -> Self {
 ///         // Save username
-///         return self.copy(mutating: \.username, value: newValue)
+///         return self.copy(mutatingPath: \.username, value: newValue)
 ///     }
 /// }
 /// ```
@@ -36,7 +51,7 @@ public extension MutatingCopyable {
     
     /// Creates a mutated copy of this type while simultaneously mutating the value at the provided KeyPath.
     ///
-    /// - Parameter keyPath: The KeyPath of the property you want to mutate. Please not that this property MUST be a `var` in order to change its value using this method.
+    /// - Parameter keyPath: The key path of the property you want to mutate. The property must be a `var` so it can be written through this method.
     /// - Parameter value: The new value you want set on the property.
     /// - Returns: A mutated copy of this type.
     func copy<T>(mutatingPath keyPath: WritableKeyPath<Self, T>, value: T) -> Self {

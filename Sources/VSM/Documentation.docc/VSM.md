@@ -16,6 +16,7 @@ This package provides helpful types for implementing VSM, such as the ``ViewStat
 
 - <doc:QuickstartGuide>
 - <doc:ComprehensiveGuide>
+- <doc:MigrationFromLegacyVSM>
 
 ### VSM Reference Articles
 
@@ -24,6 +25,7 @@ This package provides helpful types for implementing VSM, such as the ``ViewStat
 - <doc:ModelStyles>
 - <doc:Navigation>
 - <doc:ViewStateExtensions>
+- <doc:Debugging>
 
 ### VSM Guide Articles
 
@@ -42,10 +44,11 @@ This package provides helpful types for implementing VSM, such as the ``ViewStat
 
 ### Supporting Types
 
-- ``StateContainer``
+- ``AsyncStateContainer``
 - ``StateSequence``
+- ``StateSequenceBuilder``
+- ``First``
+- ``Next``
+- ``SyncStateProviding``
+- ``AsyncStateProviding``
 - ``MutatingCopyable``
-
-### Deprecated Types
-
-- ``ViewStateRendering``
