@@ -105,6 +105,6 @@ extension ProductsView {
 
 struct ProductsView_Previews: PreviewProvider {
     static var previews: some View {
-        ProductsView(dependencies: MockAppDependencies.noOp, state: .loading)
+        ProductsView(dependencies: MockAppDependencies.noOp(), state: .loading)
     }
 }

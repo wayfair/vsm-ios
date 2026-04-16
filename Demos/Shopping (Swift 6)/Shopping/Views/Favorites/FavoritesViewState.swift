@@ -10,7 +10,7 @@ import VSM
 
 // MARK: - State & Model Definitions
 
-enum FavoritesViewState: Equatable, Sendable {
+enum FavoritesViewState: Equatable {
     case initialized(FavoritesLoaderModel)
     case loading
     case loaded(FavoritesViewLoadedModel)
@@ -19,14 +19,14 @@ enum FavoritesViewState: Equatable, Sendable {
     case deletingError(FavoritesViewDeletingErrorModel)
 }
 
-protocol FavoritesViewModelBuilding: Sendable {
+protocol FavoritesViewModelBuilding {
     func buildLoaderModel() -> FavoritesLoaderModel
     func buildFavoritesViewLoadedModel(favorites: [FavoritedProduct]) -> FavoritesViewLoadedModel
 }
 
 // MARK: - Model Implementations
 
-struct FavoritesViewModelBuilder: FavoritesViewModelBuilding, Sendable {
+struct FavoritesViewModelBuilder: FavoritesViewModelBuilding {
     typealias Dependencies = FavoritesLoaderModel.Dependencies & FavoritesViewLoadedModel.Dependencies
     let dependencies: Dependencies
     
@@ -39,7 +39,7 @@ struct FavoritesViewModelBuilder: FavoritesViewModelBuilding, Sendable {
     }
 }
 
-struct FavoritesLoaderModel: Equatable, Sendable {
+struct FavoritesLoaderModel: Equatable {
     typealias Dependencies = FavoritesRepositoryDependency
 
     static func == (lhs: FavoritesLoaderModel, rhs: FavoritesLoaderModel) -> Bool {
@@ -73,7 +73,7 @@ struct FavoritesLoaderModel: Equatable, Sendable {
     }
 }
 
-final class FavoritesViewLoadedModel: @unchecked Sendable, Equatable {
+final class FavoritesViewLoadedModel: Equatable {
     typealias Dependencies = FavoritesRepositoryDependency
 
     static func == (lhs: FavoritesViewLoadedModel, rhs: FavoritesViewLoadedModel) -> Bool {
@@ -91,16 +91,23 @@ final class FavoritesViewLoadedModel: @unchecked Sendable, Equatable {
         self.favorites = favorites
     }
     
-    func startObservingFavoritesListChanges(onUpdate: @Sendable @escaping ([FavoritedProduct]) -> Void) {
+    deinit {
+        favoritesListChangeStreamTask?.cancel()
+    }
+    
+    /// Updates are delivered on the main actor so this callback may capture UI / view types
+    /// without `Sendable` or `sending`; the stream loop stays off the main actor between yields.
+    func startObservingFavoritesListChanges(onUpdate: @escaping @MainActor ([FavoritedProduct]) -> Void) {
         guard favoritesListChangeStreamTask == nil else { return }
-        
-        favoritesListChangeStreamTask = Task { [dependencies] in
-            let stream = await dependencies.favoritesRepository.favoritesListChangeStream()
+
+        let favoritesRepository = dependencies.favoritesRepository
+        favoritesListChangeStreamTask = Task {
+            let stream = await favoritesRepository.favoritesListChangeStream()
             for await _ in stream {
                 guard !Task.isCancelled else { break }
                 do {
-                    let updatedFavorites = try await dependencies.favoritesRepository.getFavoritedProducts()
-                    onUpdate(updatedFavorites)
+                    let updatedFavorites = try await favoritesRepository.getFavoritedProducts()
+                    await onUpdate(updatedFavorites)
                 } catch {
                     // If we fail to reload, just continue
                 }
@@ -142,8 +149,7 @@ final class FavoritesViewLoadedModel: @unchecked Sendable, Equatable {
         }
     }
     
-    @concurrent
-    private func retryDelete(productId: Int) async -> FavoritesViewState {
+    nonisolated(nonsending) private func retryDelete(productId: Int) async -> FavoritesViewState {
         do {
             try await dependencies.favoritesRepository.removeFavorite(productId: productId)
             let updatedFavorites = try await dependencies.favoritesRepository.getFavoritedProducts()
@@ -162,24 +168,24 @@ final class FavoritesViewLoadedModel: @unchecked Sendable, Equatable {
     }
 }
 
-struct FavoritesViewErrorModel: Equatable, Sendable {
+struct FavoritesViewErrorModel: Equatable {
     static func == (lhs: FavoritesViewErrorModel, rhs: FavoritesViewErrorModel) -> Bool {
         lhs.message == rhs.message
     }
     
     let message: String
-    let retry: @Sendable () async -> FavoritesViewState
+    let retry: () async -> FavoritesViewState
 }
 
-struct FavoritesViewDeletingErrorModel: Equatable, Sendable {
+struct FavoritesViewDeletingErrorModel: Equatable {
     static func == (lhs: FavoritesViewDeletingErrorModel, rhs: FavoritesViewDeletingErrorModel) -> Bool {
         lhs.message == rhs.message && lhs.favorites == rhs.favorites
     }
     
     let favorites: [FavoritedProduct]
     let message: String
-    let retry: @Sendable () async -> FavoritesViewState
-    let cancel: @Sendable () -> FavoritesViewState
+    let retry:() async -> FavoritesViewState
+    let cancel: () -> FavoritesViewState
 }
 
 extension FavoritesViewState {

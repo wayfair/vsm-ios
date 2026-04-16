@@ -21,11 +21,11 @@ struct ProductsViewStateTests {
                     throw MockNoProductError()
                 }
             ),
-            mockCartRepository: MockCartRepository.noOp,
-            mockFavoritesRepository: MockFavoritesRepository.noOp,
+            mockCartRepository: MockCartRepository.noOp(),
+            mockFavoritesRepository: MockFavoritesRepository.noOp(),
             mockUserDefaults: StubbedUserDefaults(),
-            mockUIFrameworkProvider: MockUIFrameworkProvider.noOp,
-            mockProfileRepository: MockProfileRepository.noOp
+            mockUIFrameworkProvider: MockUIFrameworkProvider.noOp(),
+            mockProfileRepository: MockProfileRepository.noOp()
         )
         let subject = ProductsLoaderModel(dependencies: mockDependencies)
         
@@ -61,11 +61,11 @@ struct ProductsViewStateTests {
                     throw MockNoProductError()
                 }
             ),
-            mockCartRepository: MockCartRepository.noOp,
-            mockFavoritesRepository: MockFavoritesRepository.noOp,
+            mockCartRepository: MockCartRepository.noOp(),
+            mockFavoritesRepository: MockFavoritesRepository.noOp(),
             mockUserDefaults: StubbedUserDefaults(),
-            mockUIFrameworkProvider: MockUIFrameworkProvider.noOp,
-            mockProfileRepository: MockProfileRepository.noOp
+            mockUIFrameworkProvider: MockUIFrameworkProvider.noOp(),
+            mockProfileRepository: MockProfileRepository.noOp()
         )
         let subject = ProductsLoaderModel(dependencies: mockDependencies)
         

@@ -60,9 +60,7 @@ struct FavoritesView: View {
             if case .loaded(let loadedModel) = newState {
                 loadedModel.startObservingFavoritesListChanges { [loadedModel] updatedFavorites in
                     loadedModel.updateFavorites(updatedFavorites)
-                    Task { @MainActor in
-                        $state.observe(.loaded(loadedModel))
-                    }
+                    $state.observe(.loaded(loadedModel))
                 }
             }
         }
@@ -141,7 +139,7 @@ struct FavoritesView: View {
 // MARK: - Test Support
 
 extension FavoritesView {
-    init(state: FavoritesViewState, dependencies: Dependencies = MockAppDependencies.noOp) {
+    init(state: FavoritesViewState, dependencies: Dependencies = MockAppDependencies.noOp()) {
         self.dependencies = dependencies
         _state = .init(wrappedValue: state)
     }
@@ -165,8 +163,8 @@ struct FavoritesView_Previews: PreviewProvider {
         
         NavigationView {
             FavoritesView(state: .loaded(
-                FavoritesViewLoadedModel(dependencies: MockAppDependencies.noOp,
-                                         modelBuilder: FavoritesViewModelBuilder(dependencies: MockAppDependencies.noOp), favorites: [])
+                FavoritesViewLoadedModel(dependencies: MockAppDependencies.noOp(),
+                                         modelBuilder: FavoritesViewModelBuilder(dependencies: MockAppDependencies.noOp()), favorites: [])
             ))
         }
         .previewDisplayName("loaded Empty State")
@@ -174,8 +172,8 @@ struct FavoritesView_Previews: PreviewProvider {
         NavigationView {
             FavoritesView(state: .loaded(
                 FavoritesViewLoadedModel(
-                    dependencies: MockAppDependencies.noOp,
-                    modelBuilder: FavoritesViewModelBuilder(dependencies: MockAppDependencies.noOp),
+                    dependencies: MockAppDependencies.noOp(),
+                    modelBuilder: FavoritesViewModelBuilder(dependencies: MockAppDependencies.noOp()),
                     favorites: favorites)
             ))
         }

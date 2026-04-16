@@ -170,9 +170,9 @@ extension CartViewState {
 
 extension CartView {
     init(state: CartViewState) {
-        dependencies = MockAppDependencies.noOp
+        dependencies = MockAppDependencies.noOp()
         _state = .init(wrappedValue: state)
-        _cartCountStore = .init(wrappedValue: CartCountStore(dependencies: MockAppDependencies.noOp))
+        _cartCountStore = .init(wrappedValue: CartCountStore(dependencies: MockAppDependencies.noOp()))
     }
 }
 
@@ -187,37 +187,37 @@ struct CartView_Previews: PreviewProvider {
     }
     
     static var previews: some View {
-        CartView(state: .initialized(CartLoaderModel(dependencies: MockAppDependencies.noOp)))
+        CartView(state: .initialized(CartLoaderModel(dependencies: MockAppDependencies.noOp())))
             .previewDisplayName("initialized State")
         
         CartView(state: .loading)
             .previewDisplayName("loading State")
         
-        CartView(state: .loadedEmpty(CartLoadedEmptyModel(dependencies: MockAppDependencies.noOp)))
+        CartView(state: .loadedEmpty(CartLoadedEmptyModel(dependencies: MockAppDependencies.noOp())))
             .previewDisplayName("loadedEmpty State")
         
         CartView(state: .loaded(
-            CartLoadedModel(dependencies: MockAppDependencies.noOp, cart: previewCart)
+            CartLoadedModel(dependencies: MockAppDependencies.noOp(), cart: previewCart)
         ))
         .previewDisplayName("loaded State")
         
-        CartView(state: .loadingError(CartLoadingErrorModel(message: "Load Error!", retry: { .loadingError(.init(message: "Mock Error Message", retry: { .loadedEmpty(CartLoadedEmptyModel(dependencies: MockAppDependencies.noOp)) })) })))
+        CartView(state: .loadingError(CartLoadingErrorModel(message: "Load Error!", retry: { .loadingError(.init(message: "Mock Error Message", retry: { .loadedEmpty(CartLoadedEmptyModel(dependencies: MockAppDependencies.noOp())) })) })))
             .previewDisplayName("loadingError State")
         
         CartView(state: .removingProduct(
-            CartRemovingProductModel(dependencies: MockAppDependencies.noOp, cart: previewCart)
+            CartRemovingProductModel(dependencies: MockAppDependencies.noOp(), cart: previewCart)
         ))
         .previewDisplayName("removingProduct State")
         
         CartView(state: .removingProductError(message: "Remove Error!",
-                                              CartLoadedModel(dependencies: MockAppDependencies.noOp, cart: previewCart)))
+                                              CartLoadedModel(dependencies: MockAppDependencies.noOp(), cart: previewCart)))
             .previewDisplayName("removingProductError State")
         
         CartView(state: .checkingOut(CartCheckoutOutModel(cart: previewCart)))
         .previewDisplayName("checkingOut State")
         
         CartView(state: .checkoutError(message: "Checkout Error!",
-                                       CartLoadedModel(dependencies: MockAppDependencies.noOp, cart: previewCart)))
+                                       CartLoadedModel(dependencies: MockAppDependencies.noOp(), cart: previewCart)))
             .previewDisplayName("checkoutError State")
         
         CartView(state: .orderComplete(CartOrderCompleteModel(cart: previewCart)))

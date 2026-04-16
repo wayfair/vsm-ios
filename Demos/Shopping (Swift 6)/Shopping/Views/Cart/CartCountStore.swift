@@ -1,5 +1,5 @@
 //
-//  CartCountStore.swift.swift
+//  CartCountStore.swift
 //  Shopping
 //
 //  Created by Bill Dunay on 2/4/26.
@@ -10,7 +10,7 @@ import SwiftUI
 // Create an @Observable wrapper for SwiftUI
 @Observable
 @MainActor
-class CartCountStore {
+final class CartCountStore {
     typealias Dependencies = CartRepositoryDependency
     
     @ObservationIgnored
@@ -26,7 +26,6 @@ class CartCountStore {
         startObserving()
     }
     
-    @MainActor
     deinit {
         observationTask?.cancel()
     }

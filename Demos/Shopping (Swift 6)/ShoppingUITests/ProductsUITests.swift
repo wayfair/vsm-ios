@@ -8,7 +8,7 @@
 import XCTest
 
 @MainActor
-class ProductsUITests: XCTestCase {
+final class ProductsUITests: XCTestCase {
     var app: XCUIApplication!
     var mainPage: MainPage { MainPage(app: app) }
 

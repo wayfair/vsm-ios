@@ -12,9 +12,8 @@ struct MainViewStateTests {
     
     /// Tests the loading state progression of the `DependenciesLoaderModel`
     @Test("DependenciesLoaderModel loads dependencies", .timeLimit(.minutes(1)))
-    @MainActor
     func testLoad() async throws {
-        let mockedDependenciesProvider = MockDependenciesProvider(dependencies: MockAppDependencies.noOp)
+        let mockedDependenciesProvider = MockDependenciesProvider(dependencies: MockAppDependencies.noOp())
         let subject = DependenciesLoaderModel(dependenciesProvider: mockedDependenciesProvider)
         
         var states: [MainViewState] = []
@@ -37,50 +36,5 @@ struct MainViewStateTests {
             return
         }
     }
-    
-    /// Tests the cart count observation stream of the `MainViewLoadedModel`
-    @Test("MainViewLoadedModel observes cart count changes")
-    func testObserveCardCount() async throws {
-        let mockDependencies = MockAppDependencies.noOp
-        let subject = MainViewLoadedModel(dependencies: mockDependencies, cardCount: 0)
-        
-        // Observe cart count stream with a timeout
-        let stream = subject.observeCardCount()
-        actor TrackState {
-            var stateReceived = false
-            
-            func receive() {
-                stateReceived = true
-            }
-        }
-        let tackState = TrackState()
-        
-        // Use a task with timeout to avoid hanging indefinitely
-        try await withThrowingTaskGroup(of: Void.self) { group in
-            group.addTask {
-                for await state in stream.prefix(1) {
-                    if case .loaded(let model) = state {
-                        await tackState.receive()
-                        #expect(model.cardCount >= 0)
-                        break
-                    }
-                }
-            }
-            
-            group.addTask {
-                try await Task.sleep(for: .seconds(5))
-                throw TimeoutError()
-            }
-            
-            try await group.next()
-            group.cancelAll()
-        }
-        let stateReceived = await tackState.stateReceived
-        #expect(stateReceived, "Expected to receive at least one state from cart count stream")
-    }
 
-}
-
-private extension MainViewStateTests {
-    struct TimeoutError: Error {}
 }

@@ -8,7 +8,7 @@
 import AsyncAlgorithms
 import Foundation
 
-protocol CartRepository: Sendable {
+protocol CartRepository: Actor {
     func getCartProducts() async throws -> Cart
     func addProductToCart(productId: Int) async throws
     func removeProductFromCart(cartId: UUID) async throws -> Cart
@@ -18,16 +18,16 @@ protocol CartRepository: Sendable {
     func removeContinuation(for id: UUID) async
 }
 
-protocol CartRepositoryDependency: Sendable {
+protocol CartRepositoryDependency {
     var cartRepository: CartRepository { get }
 }
 
-struct Cart: Sendable {
+struct Cart {
     var total: Decimal { products.map(\.price).reduce(0,+) }
     let products: [CartProduct]
 }
 
-struct CartProduct: Decodable, Sendable {
+struct CartProduct: Decodable {
     let cartId: UUID
     let productId: Int
     let name: String
@@ -55,7 +55,7 @@ actor CartDatabase: CartRepository {
         self.dependencies = dependencies
     }
     
-    func cartCountStream() -> (UUID, AsyncStream<Int>) {
+    func cartCountStream() async -> (UUID, AsyncStream<Int>) {
         let currentCartCount = cart.products.count
         let continuationId = UUID()
         
@@ -72,7 +72,7 @@ actor CartDatabase: CartRepository {
         return (continuationId, cartCountStream)
     }
     
-    func removeContinuation(for id: UUID) {
+    func removeContinuation(for id: UUID) async {
         cartCountContinuations[id] = nil
     }
     
@@ -126,33 +126,8 @@ struct CartDatabaseDependencies: CartDatabase.Dependencies {
 
 //MARK: Test Support
 
+/// Test and preview stand-in; stub closures run on this actor’s executor.
 actor MockCartRepository: CartRepository {
-    static var noOp: Self {
-        Self.init(
-            getCartProductsImpl: { Cart(products: []) },
-            addProductToCartImpl: { _ in },
-            removeProductFromCartImpl: { _ in Cart(products: [])},
-            checkoutImpl: { },
-            cartCountStreamImpl: {
-                let streamUUID = UUID()
-                let stream = AsyncStream<Int> { continuation in
-                    continuation.yield(0)
-                    continuation.finish()
-                }
-                
-                return (streamUUID, stream)
-            },
-            removeContinuationImpl: { _ in }
-        )
-    }
-    
-    var getCartProductsImpl: () async throws -> Cart
-    var addProductToCartImpl: (Int) async throws -> Void
-    var removeProductFromCartImpl: (UUID) async throws -> Cart
-    var checkoutImpl: () async throws -> Void
-    var cartCountStreamImpl: () async -> (UUID, AsyncStream<Int>)
-    var removeContinuationImpl: (UUID) async -> Void
-    
     init(
         getCartProductsImpl: @escaping () async throws -> Cart,
         addProductToCartImpl: @escaping (Int) async throws -> Void,
@@ -168,6 +143,32 @@ actor MockCartRepository: CartRepository {
         self.cartCountStreamImpl = cartCountStreamImpl
         self.removeContinuationImpl = removeContinuationImpl
     }
+    
+    nonisolated static func noOp() -> MockCartRepository {
+        MockCartRepository(
+            getCartProductsImpl: { Cart(products: []) },
+            addProductToCartImpl: { _ in },
+            removeProductFromCartImpl: { _ in Cart(products: []) },
+            checkoutImpl: { },
+            cartCountStreamImpl: {
+                let streamUUID = UUID()
+                let stream = AsyncStream<Int> { continuation in
+                    continuation.yield(0)
+                    continuation.finish()
+                }
+                
+                return (streamUUID, stream)
+            },
+            removeContinuationImpl: { _ in }
+        )
+    }
+    
+    let getCartProductsImpl: () async throws -> Cart
+    let addProductToCartImpl: (Int) async throws -> Void
+    let removeProductFromCartImpl: (UUID) async throws -> Cart
+    let checkoutImpl: () async throws -> Void
+    let cartCountStreamImpl: () async -> (UUID, AsyncStream<Int>)
+    let removeContinuationImpl: (UUID) async -> Void
     
     func getCartProducts() async throws -> Cart {
         try await getCartProductsImpl()

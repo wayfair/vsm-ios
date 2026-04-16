@@ -126,12 +126,13 @@ VSM 2.0 models can return different types of values depending on the action. Her
 Most async actions in VSM return a `StateSequence`, which emits multiple states over time. A `StateSequence` may contain both **synchronous** and **asynchronous** states (especially when built with `@StateSequenceBuilder`). Synchronous states are stored in `synchronousStateActions` and are not yielded by the `AsyncIteratorProtocol` — they are applied inline by the container. When unit testing, you should verify both:
 
 ```swift
+import Testing
+@testable import Shopping
+
 @Test("ProductsLoaderModel loads products successfully")
 func testLoadSuccess() async throws {
-    let mockRepository = MockProductRepository(
-        getGridProductsImpl: { return [] }
-    )
-    let subject = ProductsLoaderModel(repository: mockRepository)
+    let mockRepository = await MockProductRepository.noOp()
+    let subject = ProductsLoaderModel(dependencies: mockRepository)
     
     let stateSequence = subject.loadProducts()
     
@@ -158,6 +159,8 @@ func testLoadSuccess() async throws {
     }
 }
 ```
+
+> Note: This snippet is written against the **Shopping (Swift 6)** demo module (`@testable import Shopping`) so it stays copy-paste accurate for that target. In your own app, substitute your module name, types, and mocks.
 
 > Note: If the action was built with the variadic initializer or array-literal syntax (where all closures are async), all states will be yielded by the async iterator and `synchronousStateActions` will be empty. The approach above works for both creation styles.
 
@@ -200,11 +203,16 @@ func testAddToCartError() async throws {
 }
 ```
 
+> Note: The `AddToCartModel` example above is **illustrative** (it uses a `repository:` parameter and a struct-shaped mock). The Shopping (Swift 6) demo uses `AddToCartModel(dependencies:)` with an **actor** `MockCartRepository` and a **three-step** `StateSequence` (`addingToCart` → add → resume). Adjust the mock, initializer, and how many `iterator.next()` calls you expect when copying from production code.
+
 ### Testing Synchronous Actions
 
 Some actions return a single state synchronously. These are straightforward to test:
 
 ```swift
+import Testing
+@testable import Shopping
+
 @Test("ProductsLoadedModel handles navigation to product detail")
 func testNavigation() throws {
     let subject = ProductsLoadedModel(products: [], productDetailId: nil)
@@ -221,39 +229,41 @@ func testNavigation() throws {
 
 ### Testing AsyncStream Observations
 
-Some models return `AsyncStream` for observing continuous changes. Test these with timeouts to avoid hanging:
+Some features use `AsyncStream` (or another `AsyncSequence`) for **ongoing** values—live counts, push-style invalidations—then map results into view state with `$state.observe(...)` (or a thin `@MainActor` bridge). Test `for await` consumption with a **timeout** so a broken mock cannot hang CI.
+
+The example below is intentionally **self-contained**. In the **Shopping (Swift 6)** demo, live cart count is vended from the cart repository (`cartCountStream()` yields `AsyncStream<Int>`); there is no `MainViewLoadedModel.observeCardCount()`—apply the same timeout pattern when testing your stream or mapping layer.
 
 ```swift
-@Test("MainViewLoadedModel observes cart count changes")
-func testObserveCardCount() async throws {
-    let mockDependencies = MockAppDependencies.noOp
-    let subject = MainViewLoadedModel(dependencies: mockDependencies, cardCount: 0)
-    
-    let stream = subject.observeCardCount()
-    var stateReceived = false
-    
-    // Use a task with timeout to avoid hanging indefinitely
+import Testing
+
+@Test("AsyncStream observation completes under a timeout")
+func testObservingFiniteStream() async throws {
+    let stream = AsyncStream<Int> { continuation in
+        continuation.yield(3)
+        continuation.finish()
+    }
+
+    var received = false
+
     try await withThrowingTaskGroup(of: Void.self) { group in
         group.addTask {
-            for await state in stream.prefix(1) {
-                if case .loaded(let model) = state {
-                    stateReceived = true
-                    #expect(model.cardCount >= 0)
-                    break
-                }
+            for await value in stream.prefix(1) {
+                received = true
+                #expect(value == 3)
+                break
             }
         }
-        
+
         group.addTask {
             try await Task.sleep(for: .seconds(5))
             throw TimeoutError()
         }
-        
+
         try await group.next()
         group.cancelAll()
     }
-    
-    #expect(stateReceived)
+
+    #expect(received)
 }
 
 private struct TimeoutError: Error {}
@@ -266,11 +276,14 @@ private struct TimeoutError: Error {}
 Some models may require execution on the main actor. Mark your tests with `@MainActor` when testing such models:
 
 ```swift
+import Testing
+@testable import Shopping
+
 @Test("DependenciesLoaderModel loads dependencies", .timeLimit(.minutes(1)))
 @MainActor
 func testLoad() async throws {
     let mockedDependenciesProvider = MockDependenciesProvider(
-        dependencies: MockAppDependencies.noOp
+        dependencies: MockAppDependencies.noOp()
     )
     let subject = DependenciesLoaderModel(
         dependenciesProvider: mockedDependenciesProvider

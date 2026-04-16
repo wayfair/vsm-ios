@@ -53,9 +53,7 @@ struct FavoriteButtonView: View {
             if case .loaded(let loadedModel) = newState {
                 loadedModel.startObservingFavoriteStatusChanges { [loadedModel] isFavorited in
                     loadedModel.updateFavoriteStatus(isFavorited: isFavorited)
-                    Task { @MainActor in
-                        $state.observe(.loaded(loadedModel))
-                    }
+                    $state.observe(.loaded(loadedModel))
                 }
             }
         }
@@ -87,7 +85,7 @@ struct FavoriteButtonView: View {
 // MARK: - Test Support
 
 extension FavoriteButtonView {
-    init(state: FavoriteButtonViewState, dependencies: Dependencies = MockAppDependencies.noOp) {
+    init(state: FavoriteButtonViewState, dependencies: Dependencies = MockAppDependencies.noOp()) {
         self.dependencies = dependencies
         self.product = .init(
             id: 1,
@@ -112,7 +110,7 @@ struct FavoriteButtonView_Previews: PreviewProvider {
         
         FavoriteButtonView(state: .loaded(
             FavoriteButtonLoadedModel(
-                dependencies: MockAppDependencies.noOp,
+                dependencies: MockAppDependencies.noOp(),
                 product: .init(
                     id: 1,
                     name: "Ottoman",
@@ -126,7 +124,7 @@ struct FavoriteButtonView_Previews: PreviewProvider {
         
         FavoriteButtonView(state: .loaded(
             FavoriteButtonLoadedModel(
-                dependencies: MockAppDependencies.noOp,
+                dependencies: MockAppDependencies.noOp(),
                 product: .init(
                     id: 1,
                     name: "Ottoman",

@@ -74,7 +74,9 @@ struct SettingsViewState: SettingsViewStating, MutatingCopyable {
     }
     
     private func change(key: String, to enabled: Bool) {
+        #if DEBUG
         print("\(key) set to \(enabled)")
+        #endif
         dependencies.userDefaults.set(enabled, forKey: key)
     }
 }
