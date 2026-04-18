@@ -160,9 +160,7 @@ func testLoadSuccess() async throws {
 }
 ```
 
-> Note: This snippet is written against the **Shopping (Swift 6)** demo module (`@testable import Shopping`) so it stays copy-paste accurate for that target. In your own app, substitute your module name, types, and mocks.
-
-> Note: If the action was built with the variadic initializer or array-literal syntax (where all closures are async), all states will be yielded by the async iterator and `synchronousStateActions` will be empty. The approach above works for both creation styles.
+> If the action was built with the variadic initializer or array-literal syntax (where all closures are async), all states will be yielded by the async iterator and `synchronousStateActions` will be empty. The approach above works for both creation styles.
 
 ### Testing Error Handling
 
