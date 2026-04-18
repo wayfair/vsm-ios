@@ -72,7 +72,7 @@ struct ProductView: View {
 // MARK: - Test Support
 
 extension ProductView {
-    init(state: ProductViewState, productId: Int = 0, dependencies: Dependencies = MockAppDependencies.noOp) {
+    init(state: ProductViewState, productId: Int = 0, dependencies: Dependencies = MockAppDependencies.noOp()) {
         self.dependencies = dependencies
         self.productId = productId
         _state = .init(wrappedValue: state)
@@ -86,7 +86,7 @@ struct ProductView_Previews: PreviewProvider {
     
     static var previews: some View {
         NavigationView {
-            ProductView(state: .initialized(ProductDetailLoaderModel(dependencies: MockAppDependencies.noOp, productId: 0)))
+            ProductView(state: .initialized(ProductDetailLoaderModel(dependencies: MockAppDependencies.noOp(), productId: 0)))
         }
         .previewDisplayName("initialized State")
         

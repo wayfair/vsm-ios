@@ -48,7 +48,7 @@ struct AccountView: View {
 struct AccountView_Previews: PreviewProvider {
     static var previews: some View {
         NavigationView {
-            AccountView(dependencies: MockAppDependencies.noOp)
+            AccountView(dependencies: MockAppDependencies.noOp())
         }
         .previewDisplayName("Default State")
     }

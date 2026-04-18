@@ -55,7 +55,7 @@ struct MainView_Previews: PreviewProvider {
         MainView(state: .loading)
             .previewDisplayName("loading State")
         
-        MainView(state: .loaded(MainViewLoadedModel(dependencies: MockAppDependencies.noOp)))
+        MainView(state: .loaded(MainViewLoadedModel(dependencies: MockAppDependencies.noOp())))
             .previewDisplayName("loaded State")
     }
 }

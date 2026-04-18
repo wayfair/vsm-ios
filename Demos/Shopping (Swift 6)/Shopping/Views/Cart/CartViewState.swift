@@ -10,7 +10,7 @@ import VSM
 
 // MARK: - State & Model Definitions
 
-enum CartViewState: Sendable {
+enum CartViewState {
     case initialized(CartLoaderModel)
     case loading
     case loaded(CartLoadedModel)
@@ -28,7 +28,7 @@ enum CartViewState: Sendable {
 // Protocol that allows both CartLoadedModel and CartLoadedEmptyModel to share
 // the same reloadCart() implementation. This avoids code duplication since both
 // states need to reload the cart when external changes occur (e.g., cart count changes).
-protocol CartReloadable: Sendable {
+protocol CartReloadable {
     var dependencies: CartLoadedModel.Dependencies { get }
 }
 
@@ -38,7 +38,7 @@ extension CartReloadable {
         CartViewState.loading
         Next { await getCartProducts() }
     }
-    
+ 
     @concurrent
     private func getCartProducts() async -> CartViewState {
         do {
@@ -59,7 +59,7 @@ extension CartReloadable {
 
 // MARK: - Model Implementations
 
-struct CartLoaderModel: Sendable {
+struct CartLoaderModel {
     typealias Dependencies = CartRepositoryDependency & CartLoadedModel.Dependencies
     let dependencies: Dependencies
     
@@ -68,6 +68,7 @@ struct CartLoaderModel: Sendable {
         CartViewState.loading
         Next { await getCartProducts() }
     }
+    
     
     func refreshCart() async -> CartViewState {
         await getCartProducts()
@@ -91,19 +92,31 @@ struct CartLoaderModel: Sendable {
     }
 }
 
+// MARK: - Checkout sequence (shared between `Next` steps)
+
+private actor CheckoutNetworkOutcome {
+    private(set) var succeeded = false
+    func setSucceeded(_ value: Bool) { succeeded = value }
+    func didSucceed() -> Bool { succeeded }
+}
+
+@StateSequenceBuilder
+private func makeCartCheckoutSequence(model: CartLoadedModel) -> StateSequence<CartViewState> {
+    let outcome = CheckoutNetworkOutcome()
+    CartViewState.checkingOut(CartCheckoutOutModel(cart: model.cart))
+    Next { await model.runCheckoutNetwork(outcome: outcome) }
+    Next { await model.runCheckoutEpilogue(outcome: outcome) }
+}
+
 // Represents the cart in a loaded state with products. Conforms to CartReloadable
 // to share reload logic with CartLoadedEmptyModel.
-struct CartLoadedModel: CartReloadable, Sendable {
+struct CartLoadedModel: CartReloadable {
     typealias Dependencies = CartRepositoryDependency & CartRemovingProductModel.Dependencies
     let dependencies: Dependencies
     let cart: Cart
     
-    func refreshCart() async -> CartViewState {
-        await getCartProducts()
-    }
-    
     @concurrent
-    private func getCartProducts() async -> CartViewState {
+    func refreshCart() async -> CartViewState {
         do {
             let cart = try await dependencies.cartRepository.getCartProducts()
             if cart.products.isEmpty {
@@ -114,7 +127,7 @@ struct CartLoadedModel: CartReloadable, Sendable {
         } catch {
             return .loadingError(CartLoadingErrorModel(
                 message: "Failed to load cart: \(error)",
-                retry: { await getCartProducts() }
+                retry: { await refreshCart() }
             ))
         }
     }
@@ -131,41 +144,44 @@ struct CartLoadedModel: CartReloadable, Sendable {
             return .removingProductError(message: "Failed to remove cart item: \(error)", self)
         }
     }
+
     
-    func checkout() -> AsyncStream<CartViewState> {
-        AsyncStream { continuation in
-            Task {
-                continuation.yield(.checkingOut(CartCheckoutOutModel(cart: cart)))
-                await performingCheckout(continuation)
-                continuation.finish()
-            }
+    /// VSM `StateSequence` — observe with `$state.observe(loadedModel.checkout())` like other flows.
+    func checkout() -> StateSequence<CartViewState> {
+        makeCartCheckoutSequence(model: self)
+    }
+    
+    @concurrent
+    fileprivate func runCheckoutNetwork(outcome: CheckoutNetworkOutcome) async -> CartViewState {
+        do {
+            try await dependencies.cartRepository.checkout()
+            await outcome.setSucceeded(true)
+            return .orderComplete(CartOrderCompleteModel(cart: cart))
+        } catch {
+            await outcome.setSucceeded(false)
+            return .checkoutError(message: "Insufficient funds!", self)
         }
     }
     
     @concurrent
-    private func performingCheckout(_ continuation: AsyncStream<CartViewState>.Continuation) async {
-        do {
-            try await dependencies.cartRepository.checkout()
-            continuation.yield(.orderComplete(CartOrderCompleteModel(cart: cart)))
-            
+    fileprivate func runCheckoutEpilogue(outcome: CheckoutNetworkOutcome) async -> CartViewState {
+        if await outcome.didSucceed() {
             try? await Task.sleep(for: .seconds(2))
-            continuation.yield(.loadedEmpty(.init(dependencies: dependencies)))
-            
-        } catch {
-            continuation.yield(.checkoutError(message: "Insufficient funds!", self))
+            return .loadedEmpty(.init(dependencies: dependencies))
         }
+        return .checkoutError(message: "Insufficient funds!", self)
     }
 }
 
-struct CartLoadingErrorModel: Sendable {
+struct CartLoadingErrorModel {
     let message: String
-    let retry: @Sendable () async -> CartViewState
+    let retry: () async -> CartViewState
 }
 
 // Represents the cart in an empty state (no products). Conforms to CartReloadable
 // to share reload logic with CartLoadedModel, allowing both states to respond to
 // external cart changes (e.g., when items are added from other screens).
-struct CartLoadedEmptyModel: CartReloadable, Sendable {
+struct CartLoadedEmptyModel: CartReloadable {
     typealias Dependencies = CartRepositoryDependency & CartLoadedModel.Dependencies
     let dependencies: Dependencies
     
@@ -185,17 +201,17 @@ struct CartLoadedEmptyModel: CartReloadable, Sendable {
     }
 }
 
-struct CartRemovingProductModel: Sendable {
+struct CartRemovingProductModel {
     typealias Dependencies = CartRepositoryDependency
     let dependencies: Dependencies
     let cart: Cart
 }
 
-struct CartCheckoutOutModel: Sendable {
+struct CartCheckoutOutModel {
     var cart: Cart
 }
 
-struct CartOrderCompleteModel: Sendable {
+struct CartOrderCompleteModel {
     var cart: Cart
 }
 

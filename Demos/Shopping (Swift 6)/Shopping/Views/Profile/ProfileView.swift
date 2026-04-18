@@ -105,12 +105,12 @@ extension ProfileView {
 struct ProfileView_Previews: PreviewProvider {
     static var previews: some View {
         NavigationView {
-            ProfileView(state: .initialized(ProfileLoaderModel(dependencies: MockAppDependencies.noOp, error: nil)))
+            ProfileView(state: .initialized(ProfileLoaderModel(dependencies: MockAppDependencies.noOp(), error: nil)))
         }
         .previewDisplayName("initialized State - no error")
         
         NavigationView {
-            ProfileView(state: .initialized(ProfileLoaderModel(dependencies: MockAppDependencies.noOp, error: "Lorem ipsum")))
+            ProfileView(state: .initialized(ProfileLoaderModel(dependencies: MockAppDependencies.noOp(), error: "Lorem ipsum")))
         }
         .previewDisplayName("initialized State - error")
         
@@ -120,17 +120,17 @@ struct ProfileView_Previews: PreviewProvider {
         .previewDisplayName("loading State")
         
         NavigationView {
-            ProfileView(state: .editing(ProfileEditingModel(dependencies: MockAppDependencies.noOp, username: "Foo", editingState: .editing)))
+            ProfileView(state: .editing(ProfileEditingModel(dependencies: MockAppDependencies.noOp(), username: "Foo", editingState: .editing)))
         }
         .previewDisplayName("editing State - editing")
         
         NavigationView {
-            ProfileView(state: .editing(ProfileEditingModel(dependencies: MockAppDependencies.noOp, username: "Foo", editingState: .saving)))
+            ProfileView(state: .editing(ProfileEditingModel(dependencies: MockAppDependencies.noOp(), username: "Foo", editingState: .saving)))
         }
         .previewDisplayName("editing State - saving")
         
         NavigationView {
-            ProfileView(state: .editing(ProfileEditingModel(dependencies: MockAppDependencies.noOp, username: "Foo", editingState: .error(NSError(domain: "", code: 1)))))
+            ProfileView(state: .editing(ProfileEditingModel(dependencies: MockAppDependencies.noOp(), username: "Foo", editingState: .error(NSError(domain: "", code: 1)))))
         }
         .previewDisplayName("editing State - error")
     }

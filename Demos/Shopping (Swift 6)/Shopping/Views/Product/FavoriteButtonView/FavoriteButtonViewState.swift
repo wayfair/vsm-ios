@@ -60,7 +60,7 @@ struct FavoriteInfoLoaderModel {
 }
 
 @dynamicMemberLookup
-final class FavoriteButtonLoadedModel: @unchecked Sendable {
+final class FavoriteButtonLoadedModel {
     typealias Dependencies = FavoritesRepositoryDependency
     
     let dependencies: Dependencies
@@ -74,6 +74,10 @@ final class FavoriteButtonLoadedModel: @unchecked Sendable {
         self.isFavorite = isFavorite
     }
     
+    deinit {
+        favoriteStatusStreamTask?.cancel()
+    }
+    
     subscript<T>(dynamicMember keyPath: KeyPath<FavoriteButtonLoadedModel, T>) -> T {
         self[keyPath: keyPath]
     }
@@ -84,14 +88,18 @@ final class FavoriteButtonLoadedModel: @unchecked Sendable {
         Next { await self.setFavoriteState() }
     }
     
-    func startObservingFavoriteStatusChanges(onUpdate: @Sendable @escaping (Bool) -> Void) {
+    /// Updates are delivered on the main actor so this callback may capture UI / view-model types
+    /// without `Sendable` or `sending`; the stream loop stays off the main actor between yields.
+    func startObservingFavoriteStatusChanges(onUpdate: @escaping @MainActor (Bool) -> Void) {
         guard favoriteStatusStreamTask == nil else { return }
-        
-        favoriteStatusStreamTask = Task { [dependencies, product] in
-            let stream = await dependencies.favoritesRepository.favoriteStatusStream(for: product.id)
+
+        let productId = product.id
+        let favoritesRepository = dependencies.favoritesRepository
+        favoriteStatusStreamTask = Task {
+            let stream = await favoritesRepository.favoriteStatusStream(for: productId)
             for await isFavorited in stream {
                 guard !Task.isCancelled else { break }
-                onUpdate(isFavorited)
+                await onUpdate(isFavorited)
             }
         }
     }

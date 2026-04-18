@@ -7,11 +7,11 @@
 
 import Foundation
 
-protocol UIFrameworkDependency: Sendable {
+protocol UIFrameworkDependency {
     var frameworkProvider: UIFrameworkProviding { get }
 }
 
-protocol UIFrameworkProviding: Sendable {
+protocol UIFrameworkProviding {
     var framework: UIFramework { get }
 }
 
@@ -32,7 +32,7 @@ struct UIFrameworkProviderDependencies: UIFrameworkProvider.Dependencies {
 }
 
 struct MockUIFrameworkProvider: UIFrameworkProviding {
-    static var noOp: MockUIFrameworkProvider {
+    static func noOp() -> MockUIFrameworkProvider {
         MockUIFrameworkProvider(framework: .swiftUI)
     }
     

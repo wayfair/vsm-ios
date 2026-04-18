@@ -7,12 +7,12 @@
 
 import Foundation
 
-protocol ProfileRepository: Sendable {
+protocol ProfileRepository: Actor {
     func loadUsername() async throws -> String
     func save(username: String) async throws -> Void
 }
 
-protocol ProfileRepositoryDependency: Sendable {
+protocol ProfileRepositoryDependency {
     var profileRepository: ProfileRepository { get }
 }
 
@@ -34,19 +34,22 @@ actor ProfileDatabase: ProfileRepository {
 
 //MARK: Test Support
 
+/// Test and preview stand-in; stub closures run on this actor’s executor.
 actor MockProfileRepository: ProfileRepository {
-    static var noOp: Self { .init(loadUserNameImpl: { "" }, saveUsernameImpl: { _ in }) }
-    
-    var loadUserNameImpl: @Sendable () async throws -> String
-    var saveUsernameImpl: @Sendable (String) async throws -> Void
-    
     init(
-        loadUserNameImpl: @escaping @Sendable () async throws -> String,
-        saveUsernameImpl: @escaping @Sendable (String) async throws -> Void
+        loadUserNameImpl: @escaping () async throws -> String,
+        saveUsernameImpl: @escaping (String) async throws -> Void
     ) {
         self.loadUserNameImpl = loadUserNameImpl
         self.saveUsernameImpl = saveUsernameImpl
     }
+    
+    nonisolated static func noOp() -> MockProfileRepository {
+        MockProfileRepository(loadUserNameImpl: { "" }, saveUsernameImpl: { _ in })
+    }
+    
+    let loadUserNameImpl: () async throws -> String
+    let saveUsernameImpl: (String) async throws -> Void
     
     func loadUsername() async throws -> String {
         try await loadUserNameImpl()

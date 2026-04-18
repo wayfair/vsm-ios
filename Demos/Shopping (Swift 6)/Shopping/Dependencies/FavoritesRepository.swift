@@ -7,7 +7,7 @@
 
 import Foundation
 
-protocol FavoritesRepository: Sendable {
+protocol FavoritesRepository: Actor {
     func getFavoritedProducts() async throws -> [FavoritedProduct]
     func addFavorite(productId: Int, name: String) async throws
     func removeFavorite(productId: Int) async throws
@@ -18,11 +18,11 @@ protocol FavoritesRepository: Sendable {
     func removeFavoritesListChangeStream() async
 }
 
-protocol FavoritesRepositoryDependency: Sendable {
+protocol FavoritesRepositoryDependency {
     var favoritesRepository: FavoritesRepository { get }
 }
 
-struct FavoritedProduct: Equatable, Sendable {
+struct FavoritedProduct: Equatable {
     let id: Int
     let name: String
 }
@@ -62,7 +62,7 @@ final actor FavoritesDatabase: FavoritesRepository {
             // Immediately yield the current status
             continuation.yield(currentStatus)
             
-            continuation.onTermination = { @Sendable [weak self] _ in
+            continuation.onTermination = { [weak self] _ in
                 Task { await self?.removeFavoriteStatusStream(for: productId, streamId: streamId) }
             }
         }
@@ -88,7 +88,7 @@ final actor FavoritesDatabase: FavoritesRepository {
         let streamId = UUID()
         let stream = AsyncStream<Void> { continuation in
             favoritesListChangeContinuations[streamId] = continuation
-            continuation.onTermination = { @Sendable [weak self] _ in
+            continuation.onTermination = { [weak self] _ in
                 Task { await self?.removeFavoritesListChangeStream(streamId: streamId) }
             }
         }
@@ -145,9 +145,31 @@ struct FavoritesDatabaseDependencies: FavoritesDatabase.Dependencies {
 
 //MARK: Test Support
 
-struct MockFavoritesRepository: FavoritesRepository, Sendable {
-    static var noOp: Self {
-        Self.init(
+/// Test and preview stand-in; stub closures run on this actor’s executor.
+actor MockFavoritesRepository: FavoritesRepository {
+    
+    init(
+        getFavoritedProductsImpl: @escaping () async throws -> [FavoritedProduct],
+        addFavoriteImpl: @escaping (Int, String) async throws -> Void,
+        removeFavoriteImpl: @escaping (Int) async throws -> Void,
+        isFavoritedImpl: @escaping (Int) async throws -> Bool,
+        favoriteStatusStreamImpl: @escaping (Int) async -> AsyncStream<Bool>,
+        removeFavoriteStatusStreamImpl: @escaping (Int) async -> Void,
+        favoritesListChangeStreamImpl: @escaping () async -> AsyncStream<Void>,
+        removeFavoritesListChangeStreamImpl: @escaping () async -> Void
+    ) {
+        self.getFavoritedProductsImpl = getFavoritedProductsImpl
+        self.addFavoriteImpl = addFavoriteImpl
+        self.removeFavoriteImpl = removeFavoriteImpl
+        self.isFavoritedImpl = isFavoritedImpl
+        self.favoriteStatusStreamImpl = favoriteStatusStreamImpl
+        self.removeFavoriteStatusStreamImpl = removeFavoriteStatusStreamImpl
+        self.favoritesListChangeStreamImpl = favoritesListChangeStreamImpl
+        self.removeFavoritesListChangeStreamImpl = removeFavoritesListChangeStreamImpl
+    }
+    
+    nonisolated static func noOp() -> MockFavoritesRepository {
+        MockFavoritesRepository(
             getFavoritedProductsImpl: { [] },
             addFavoriteImpl: { _, _ in },
             removeFavoriteImpl: { _ in },
@@ -159,42 +181,42 @@ struct MockFavoritesRepository: FavoritesRepository, Sendable {
         )
     }
     
-    let getFavoritedProductsImpl: @Sendable () async throws -> [FavoritedProduct]
+    let getFavoritedProductsImpl: () async throws -> [FavoritedProduct]
     func getFavoritedProducts() async throws -> [FavoritedProduct] {
         try await getFavoritedProductsImpl()
     }
     
-    let addFavoriteImpl: @Sendable (Int, String) async throws -> Void
+    let addFavoriteImpl: (Int, String) async throws -> Void
     func addFavorite(productId: Int, name: String) async throws {
         try await addFavoriteImpl(productId, name)
     }
     
-    let removeFavoriteImpl: @Sendable (Int) async throws -> Void
+    let removeFavoriteImpl: (Int) async throws -> Void
     func removeFavorite(productId: Int) async throws {
         try await removeFavoriteImpl(productId)
     }
     
-    let isFavoritedImpl: @Sendable (Int) async throws -> Bool
+    let isFavoritedImpl: (Int) async throws -> Bool
     func isFavorited(productId: Int) async throws -> Bool {
         try await isFavoritedImpl(productId)
     }
     
-    let favoriteStatusStreamImpl: @Sendable (Int) async -> AsyncStream<Bool>
+    let favoriteStatusStreamImpl: (Int) async -> AsyncStream<Bool>
     func favoriteStatusStream(for productId: Int) async -> AsyncStream<Bool> {
         await favoriteStatusStreamImpl(productId)
     }
     
-    let removeFavoriteStatusStreamImpl: @Sendable (Int) async -> Void
+    let removeFavoriteStatusStreamImpl: (Int) async -> Void
     func removeFavoriteStatusStream(for productId: Int) async {
         await removeFavoriteStatusStreamImpl(productId)
     }
     
-    let favoritesListChangeStreamImpl: @Sendable () async -> AsyncStream<Void>
+    let favoritesListChangeStreamImpl: () async -> AsyncStream<Void>
     func favoritesListChangeStream() async -> AsyncStream<Void> {
         await favoritesListChangeStreamImpl()
     }
     
-    let removeFavoritesListChangeStreamImpl: @Sendable () async -> Void
+    let removeFavoritesListChangeStreamImpl: () async -> Void
     func removeFavoritesListChangeStream() async {
         await removeFavoritesListChangeStreamImpl()
     }

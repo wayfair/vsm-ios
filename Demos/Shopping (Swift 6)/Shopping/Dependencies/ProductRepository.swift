@@ -7,12 +7,12 @@
 
 import Foundation
 
-protocol ProductRepository: Sendable {
+protocol ProductRepository: Actor {
     func getGridProducts() async throws -> [GridProduct]
     func getProductDetail(id: Int) async throws -> ProductDetail
 }
 
-protocol ProductRepositoryDependency: Sendable {
+protocol ProductRepositoryDependency {
     var productRepository: ProductRepository { get }
 }
 
@@ -22,7 +22,7 @@ struct GridProduct: Decodable {
     let imageURL: URL
 }
 
-struct ProductDetail: Decodable, Sendable {
+struct ProductDetail: Decodable {
     let id: Int
     let name: String
     let price: Decimal
@@ -70,9 +70,18 @@ actor ProductDatabase: ProductRepository {
 
 //MARK: Test Support
 
+/// Test and preview stand-in; stub closures run on this actor’s executor.
 actor MockProductRepository: ProductRepository {
-    static var noOp: Self {
-        Self.init(
+    init(
+        getGridProductsImpl: @escaping () async throws -> [GridProduct],
+        getProductsDetailImpl: @escaping (Int) async throws -> ProductDetail
+    ) {
+        self.getGridProductsImpl = getGridProductsImpl
+        self.getProductsDetailImpl = getProductsDetailImpl
+    }
+    
+    nonisolated static func noOp() -> MockProductRepository {
+        MockProductRepository(
             getGridProductsImpl: { [] },
             getProductsDetailImpl: { _ in
                 struct MockNoProductError: Error { }
@@ -81,16 +90,8 @@ actor MockProductRepository: ProductRepository {
         )
     }
     
-    var getGridProductsImpl: @Sendable () async throws -> [GridProduct]
-    var getProductsDetailImpl: @Sendable (Int) async throws -> ProductDetail
-    
-    init(
-        getGridProductsImpl: @escaping @Sendable () async throws -> [GridProduct],
-        getProductsDetailImpl: @escaping @Sendable (Int) async throws -> ProductDetail
-    ) {
-        self.getGridProductsImpl = getGridProductsImpl
-        self.getProductsDetailImpl = getProductsDetailImpl
-    }
+    let getGridProductsImpl: () async throws -> [GridProduct]
+    let getProductsDetailImpl: (Int) async throws -> ProductDetail
     
     func getGridProducts() async throws -> [GridProduct] {
         try await getGridProductsImpl()

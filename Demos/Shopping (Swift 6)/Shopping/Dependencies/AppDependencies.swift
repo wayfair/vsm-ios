@@ -42,15 +42,13 @@ final class AppDependencies: MainView.Dependencies {
 
 // MARK: - Dependencies Providing Protocol
 
-protocol DependenciesProviding: Sendable {
-    @MainActor
+protocol DependenciesProviding {
     func buildDependencies() async -> MainView.Dependencies
 }
 
 // MARK: - Concrete Provider Implementation
 
 struct DependenciesProvider: DependenciesProviding {
-    @MainActor
     func buildDependencies() async -> MainView.Dependencies {
         try? await Task.sleep(for: AppConstants.simulatedAsyncNetworkDelay)
         
@@ -59,7 +57,8 @@ struct DependenciesProvider: DependenciesProviding {
         let favoritesRepository = FavoritesDatabase(dependencies: FavoritesDatabaseDependencies(productRepository: productRepository))
         
         // Stub user defaults with an ephemeral implementation if this is a UI test
-        let userDefaults: UserDefaultsProtocol = ShoppingApp.isUITesting ? StubbedUserDefaults() : UserDefaultsWrapper()
+        let isUITesting = await ShoppingApp.isUITesting
+        let userDefaults: UserDefaultsProtocol = isUITesting ? StubbedUserDefaults() : UserDefaultsWrapper()
         
         return AppDependencies(
             productRepository: productRepository,
@@ -75,7 +74,6 @@ struct DependenciesProvider: DependenciesProviding {
 // MARK: - Legacy Static Method (Deprecated)
 
 extension AppDependencies {
-    @MainActor
     static func buildProvider() async -> MainView.Dependencies {
         await DependenciesProvider().buildDependencies()
     }
@@ -86,34 +84,33 @@ extension AppDependencies {
 struct MockDependenciesProvider: DependenciesProviding {
     let dependencies: MainView.Dependencies
     
-    init(dependencies: MainView.Dependencies = MockAppDependencies.noOp) {
+    init(dependencies: MainView.Dependencies = MockAppDependencies.noOp()) {
         self.dependencies = dependencies
     }
     
-    @MainActor
     func buildDependencies() async -> MainView.Dependencies {
         dependencies
     }
 }
 
 struct MockAppDependencies: MainView.Dependencies {
-    static var noOp: MockAppDependencies {
+    static func noOp() -> MockAppDependencies {
         MockAppDependencies(
-            mockProductRepository: MockProductRepository.noOp,
-            mockCartRepository: MockCartRepository.noOp,
-            mockFavoritesRepository: MockFavoritesRepository.noOp,
+            mockProductRepository: MockProductRepository.noOp(),
+            mockCartRepository: MockCartRepository.noOp(),
+            mockFavoritesRepository: MockFavoritesRepository.noOp(),
             mockUserDefaults: StubbedUserDefaults(),
-            mockUIFrameworkProvider: MockUIFrameworkProvider.noOp,
-            mockProfileRepository: MockProfileRepository.noOp
+            mockUIFrameworkProvider: MockUIFrameworkProvider.noOp(),
+            mockProfileRepository: MockProfileRepository.noOp()
         )
     }
     
-    var mockProductRepository: MockProductRepository
-    var mockCartRepository: MockCartRepository
-    var mockFavoritesRepository: MockFavoritesRepository
-    var mockUserDefaults: UserDefaultsProtocol
-    var mockUIFrameworkProvider: MockUIFrameworkProvider
-    var mockProfileRepository: MockProfileRepository
+    let mockProductRepository: MockProductRepository
+    let mockCartRepository: MockCartRepository
+    let mockFavoritesRepository: MockFavoritesRepository
+    let mockUserDefaults: UserDefaultsProtocol
+    let mockUIFrameworkProvider: MockUIFrameworkProvider
+    let mockProfileRepository: MockProfileRepository
     
     var productRepository: ProductRepository {
         mockProductRepository

@@ -17,7 +17,6 @@ enum MainViewState {
 }
 
 // MARK: - Model Implementations
-
 struct DependenciesLoaderModel {
     let dependenciesProvider: DependenciesProviding
     
@@ -27,7 +26,6 @@ struct DependenciesLoaderModel {
         Next { await constructDependencies() }
     }
     
-    @MainActor
     func constructDependencies() async -> MainViewState {
         return .loaded(MainViewLoadedModel(dependencies: await dependenciesProvider.buildDependencies()))
     }
@@ -35,21 +33,8 @@ struct DependenciesLoaderModel {
 
 struct MainViewLoadedModel {
     let dependencies: MainView.Dependencies
-    let cardCount: Int
     
-    init(dependencies: MainView.Dependencies, cardCount: Int = 0) {
+    init(dependencies: MainView.Dependencies) {
         self.dependencies = dependencies
-        self.cardCount = cardCount
-    }
-    
-    func observeCardCount() -> AsyncStream<MainViewState> {
-        AsyncStream { continuation in
-            Task {
-                let cardCountStream = await dependencies.cartRepository.cartCountStream().1
-                for await cardCount in cardCountStream {
-                    continuation.yield(.loaded(.init(dependencies: dependencies, cardCount: cardCount)))
-                }
-            }
-        }
     }
 }

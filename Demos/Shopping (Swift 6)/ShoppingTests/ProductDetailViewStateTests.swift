@@ -32,8 +32,14 @@ struct ProductDetailViewStateTests {
             removeContinuationImpl: { _ in }
         )
         
-        var mockDependencies = MockAppDependencies.noOp
-        mockDependencies.mockCartRepository = mockCartRepository
+        let mockDependencies = MockAppDependencies(
+            mockProductRepository: MockProductRepository.noOp(),
+            mockCartRepository: mockCartRepository,
+            mockFavoritesRepository: MockFavoritesRepository.noOp(),
+            mockUserDefaults: StubbedUserDefaults(),
+            mockUIFrameworkProvider: MockUIFrameworkProvider.noOp(),
+            mockProfileRepository: MockProfileRepository.noOp()
+        )
         let subject = AddToCartModel(dependencies: mockDependencies, productId: 0)
         
         var states: [ProductDetailViewState] = []
@@ -83,8 +89,14 @@ struct ProductDetailViewStateTests {
             removeContinuationImpl: { _ in }
         )
         
-        var mockDependencies = MockAppDependencies.noOp
-        mockDependencies.mockCartRepository = mockCartRepository
+        let mockDependencies = MockAppDependencies(
+            mockProductRepository: MockProductRepository.noOp(),
+            mockCartRepository: mockCartRepository,
+            mockFavoritesRepository: MockFavoritesRepository.noOp(),
+            mockUserDefaults: StubbedUserDefaults(),
+            mockUIFrameworkProvider: MockUIFrameworkProvider.noOp(),
+            mockProfileRepository: MockProfileRepository.noOp()
+        )
         let subject = AddToCartModel(dependencies: mockDependencies, productId: 0)
         
         var states: [ProductDetailViewState] = []

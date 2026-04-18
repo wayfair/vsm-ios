@@ -105,7 +105,7 @@ struct ProductDetailView: View {
 //MARK: - Test Support
 
 extension ProductDetailView {
-    init(productDetail: ProductDetail, state: ProductDetailViewState, dependencies: Dependencies = MockAppDependencies.noOp) {
+    init(productDetail: ProductDetail, state: ProductDetailViewState, dependencies: Dependencies = MockAppDependencies.noOp()) {
         self.dependencies = dependencies
         self.productDetail = productDetail
         _state = .init(wrappedValue: state)
@@ -119,17 +119,17 @@ struct ProductDetailView_Previews: PreviewProvider {
     
     static var previews: some View {
         
-        ProductDetailView(productDetail: someProduct, state: .viewing(AddToCartModel(dependencies: MockAppDependencies.noOp, productId: 1)))
+        ProductDetailView(productDetail: someProduct, state: .viewing(AddToCartModel(dependencies: MockAppDependencies.noOp(), productId: 1)))
             .previewDisplayName("viewing State")
         
         ProductDetailView(productDetail: someProduct, state: .addingToCart)
             .previewDisplayName("addingToCart State")
         
-        ProductDetailView(productDetail: someProduct, state: .addedToCart(AddToCartModel(dependencies: MockAppDependencies.noOp, productId: 1)))
+        ProductDetailView(productDetail: someProduct, state: .addedToCart(AddToCartModel(dependencies: MockAppDependencies.noOp(), productId: 1)))
             .previewDisplayName("addedToCart State")
         
         ProductDetailView(productDetail: someProduct, state: .addToCartError(message: "Add to Cart Error!",
-                                                                             AddToCartModel(dependencies: MockAppDependencies.noOp, productId: 1)))
+                                                                             AddToCartModel(dependencies: MockAppDependencies.noOp(), productId: 1)))
             .previewDisplayName("addedToCart State")
     }
 }
