@@ -19,7 +19,7 @@ jobs:
           xcode-version: '26.3'
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # xcbeautify off temporarily for raw xcodebuild logs (restore after debugging).
       # - name: Install xcbeautify
