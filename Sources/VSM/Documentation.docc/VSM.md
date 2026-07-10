@@ -26,6 +26,7 @@ This package provides helpful types for implementing VSM, such as the ``ViewStat
 - <doc:Navigation>
 - <doc:ViewStateExtensions>
 - <doc:Debugging>
+- <doc:Profiling>
 
 ### VSM Guide Articles
 

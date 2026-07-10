@@ -91,9 +91,39 @@ The type name becomes the `category` of the underlying `OSLog`. Xcode's Console 
 
 ## Instruments: Visualizing State Changes with OS Signposts
 
-In addition to Console logging, `AsyncStateContainer` emits **OS signposts** for every state transition. Signposts are always active, regardless of the `loggingEnabled` flag, and they let you visualize state machine activity on a precise timeline in Instruments alongside other instruments such as the SwiftUI instrument.
+In addition to Console logging, `AsyncStateContainer` can emit **OS signposts** for every state transition, letting you visualize state machine activity on a precise timeline in Instruments alongside other instruments such as the SwiftUI instrument.
 
 This makes it easy to answer questions like: "Did a state change cause a surge of SwiftUI body re-evaluations?" or "How long did the app spend in the loading state?"
+
+### Enabling Signposts Per View
+
+Signposts are **opt in on a per-view basis** and disabled by default. When disabled, `AsyncStateContainer` makes no signpost calls and performs no state-name reflection at all — there is zero cost whether or not Instruments is attached. Turn them on only for the specific view you are profiling by passing `signpostsEnabled: true`:
+
+```swift
+struct ProductDetailView: View {
+    @ViewState(
+        subsystem: "com.myapp.vsm",
+        observedViewType: ProductDetailView.self,
+        signpostsEnabled: true
+    )
+    var state: ProductDetailViewState = .initialized(.init())
+}
+```
+
+For a UIKit view controller using `@RenderedViewState`:
+
+```swift
+class ProductDetailViewController: UIViewController {
+    @RenderedViewState(render: ProductDetailViewController.render, signpostsEnabled: true)
+    var state: ProductDetailViewState = .initialized(.init())
+
+    func render() {
+        // ...
+    }
+}
+```
+
+`signpostsEnabled` and `loggingEnabled` are independent — enable either without the other.
 
 ### Adding the os_signpost Instrument
 
@@ -103,29 +133,36 @@ The os_signpost instrument is not included in any of Instruments' built-in templ
 2. Choose any template to start — **Blank** is the cleanest option if you plan to build your own instrument set.
 3. Click the **+** button in the instrument library (top-right area of the Instruments toolbar) to open the instrument picker.
 4. Search for **"os_signpost"** and double-click it to add it to your trace document.
-5. Profile your app. VSM signpost intervals will appear in the os_signpost track as labelled intervals.
+5. Profile your app. Provided the view you are exercising was configured with `signpostsEnabled: true`, its VSM signpost intervals will appear in the os_signpost track as labelled intervals.
 
 ### Reading the Signpost Lanes
 
 Each call to `observe()` on a state container produces a signpost interval. The interval begins when the observation starts and ends when the resulting state change is applied. For `StateSequence` observations, a single interval spans the entire sequence, with individual state changes marked as events within it.
+
+To keep signpost output cheap and readable, each interval and event is labelled with the **name of the destination state only** — for an enum state, its case name — rather than a full description of the state value. Producing a full description would recursively reflect the entire state (associated values, nested collections, and so on), which is exactly the kind of work you do not want to introduce into a profiling session. When you need the full value while debugging, use Console logging (`loggingEnabled`), which is where the complete description belongs.
+
+The state name is derived automatically via `Mirror`. If you want an allocation-free, O(1) name — or a custom label per case — conform your state to ``CustomStateNameConvertible``:
+
+```swift
+extension ProductDetailViewState: CustomStateNameConvertible {
+    var stateName: String {
+        switch self {
+        case .initialized: "initialized"
+        case .loading:     "loading"
+        case .loaded:      "loaded"
+        case .error:       "error"
+        }
+    }
+}
+```
 
 The signpost lane name is derived from the same `subsystem` and `observedViewType` values passed to the property wrapper:
 
 - If you use the defaults, all state changes across every view land in a single lane named `"com.wayfair.vsm"` under the `"VSM View"` category. This can become crowded quickly in an app with many VSM views.
 - If you provide a `subsystem` and `observedViewType`, each view gets its own clearly labelled lane, making it straightforward to correlate a specific view's state changes with other timeline data.
 
-For best results in Instruments, configure each view that you are profiling with both parameters:
-
-```swift
-struct ProductDetailView: View {
-    @ViewState(
-        subsystem: "com.myapp.vsm",
-        observedViewType: ProductDetailView.self
-    )
-    var state: ProductDetailViewState = .initialized(.init())
-}
-```
-
 ![An example of VSM signpost intervals in Instruments, showing per-view state change lanes on the os_signpost timeline](ExampleInstruments)
 
-> Tip: You do not need to enable `loggingEnabled` to get signpost data in Instruments. Signpost calls are always made by `AsyncStateContainer`, but the OS discards them at negligible cost unless Instruments is actively recording a trace. There is no special build configuration required — you can profile a Debug build directly from Xcode using **Product > Profile** (`⌘I`).
+> Tip: `signpostsEnabled` and `loggingEnabled` are separate. You do not need Console logging to get signpost data, and enabling signposts does not add Console output. There is no special build configuration required — you can profile a Debug build directly from Xcode using **Product > Profile** (`⌘I`).
+
+> Important: Be deliberate about which instruments you record alongside signposts. The **SwiftUI** instrument adds a profiler-only overhead to every observable state change that can distort a trace. See <doc:Profiling> for how to choose an instrument configuration that reflects production.
