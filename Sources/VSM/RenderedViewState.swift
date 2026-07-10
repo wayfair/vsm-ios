@@ -144,12 +144,14 @@ public struct RenderedViewState<State> {
     ///   - wrappedValue: The view state to be managed by the state container.
     ///   - render: The function to call when the view state _did change_.
     ///   - subsystem: The subsystem identifier for logging (defaults to "com.wayfair.vsm").
-    ///   - loggingEnabled: When `true`, enables debug logging of state changes to the Console. Defaults to `false`.
+    ///   - loggingEnabled: When `true`, enables debug logging of state changes (full description) to the Console. Defaults to `false`.
+    ///   - signpostsEnabled: When `true`, emits Instruments signposts (state name only) for this view's transitions. Opt in per view while profiling; defaults to `false` so no signpost work or state-name reflection occurs otherwise.
     public init<Parent>(
         wrappedValue: State,
         render: @escaping (Parent) -> () -> (),
         subsystem: String = "com.wayfair.vsm",
-        loggingEnabled: Bool = false
+        loggingEnabled: Bool = false,
+        signpostsEnabled: Bool = false
     )
     where Parent: AnyObject {
         let observedViewType = String(describing: Parent.self)
@@ -162,7 +164,8 @@ public struct RenderedViewState<State> {
             container: AsyncStateContainer(
                 state: wrappedValue,
                 logger: OSLog(subsystem: subsystem, category: observedViewType),
-                loggingEnabled: loggingEnabled
+                loggingEnabled: loggingEnabled,
+                signpostsEnabled: signpostsEnabled
             ),
             render: anyRender
         )
@@ -172,7 +175,8 @@ public struct RenderedViewState<State> {
         wrappedValue: State,
         render: @escaping (Parent) -> (State) -> (),
         subsystem: String = "com.wayfair.vsm",
-        loggingEnabled: Bool = false
+        loggingEnabled: Bool = false,
+        signpostsEnabled: Bool = false
     )
     where Parent: AnyObject {
         let observedViewType = String(describing: Parent.self)
@@ -185,7 +189,8 @@ public struct RenderedViewState<State> {
             container: AsyncStateContainer(
                 state: wrappedValue,
                 logger: OSLog(subsystem: subsystem, category: observedViewType),
-                loggingEnabled: loggingEnabled
+                loggingEnabled: loggingEnabled,
+                signpostsEnabled: signpostsEnabled
             ),
             render: anyRender
         )

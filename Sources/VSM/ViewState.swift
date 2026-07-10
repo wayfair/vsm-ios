@@ -160,14 +160,15 @@ public struct ViewState<State>: DynamicProperty {
     ///   - initialState: The view state to be managed by the state container.
     ///   - subsystem: The subsystem identifier for logging (defaults to "com.wayfair.vsm").
     ///   - observedViewType: The type of the view being observed, used for logging categorization.
-    ///   - loggingEnabled: When `true`, enables debug logging of state changes to the Console. Defaults to `false`.
-    public init(wrappedValue initialState: State, subsystem: String = "com.wayfair.vsm", observedViewType: Any.Type? = nil, loggingEnabled: Bool = false) {
+    ///   - loggingEnabled: When `true`, enables debug logging of state changes (full description) to the Console. Defaults to `false`.
+    ///   - signpostsEnabled: When `true`, emits Instruments signposts (state name only) for this view's transitions. Opt in per view while profiling; defaults to `false` so no signpost work or state-name reflection occurs otherwise.
+    public init(wrappedValue initialState: State, subsystem: String = "com.wayfair.vsm", observedViewType: Any.Type? = nil, loggingEnabled: Bool = false, signpostsEnabled: Bool = false) {
         var category = "VSM View"
         if let observedViewType {
             category = String(describing: observedViewType)
         }
         
-        self.__container = SwiftUI.State(wrappedValue: AsyncStateContainer(state: initialState, logger: OSLog(subsystem: subsystem, category: category), loggingEnabled: loggingEnabled))
+        self.__container = SwiftUI.State(wrappedValue: AsyncStateContainer(state: initialState, logger: OSLog(subsystem: subsystem, category: category), loggingEnabled: loggingEnabled, signpostsEnabled: signpostsEnabled))
     }
 }
 #endif

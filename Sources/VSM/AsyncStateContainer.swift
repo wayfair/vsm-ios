@@ -215,11 +215,18 @@ public final class AsyncStateContainer<State> {
     @ObservationIgnored
     private let loggingEnabled: Bool
     
-    init(state: State, logger: OSLog, loggingEnabled: Bool = false) {
+    /// When `false` (the default), no signpost intervals or events are emitted and no state-name
+    /// reflection is performed, regardless of whether an Instruments signpost recorder is attached.
+    /// Opt in **per view** (via `@ViewState`/`@RenderedViewState`) only while profiling that view.
+    @ObservationIgnored
+    private let signpostsEnabled: Bool
+    
+    init(state: State, logger: OSLog, loggingEnabled: Bool = false, signpostsEnabled: Bool = false) {
         self.state = state
         self.logger = logger
         self.signposter = OSSignposter(logHandle: logger)
         self.loggingEnabled = loggingEnabled
+        self.signpostsEnabled = signpostsEnabled
     }
     
     deinit {
@@ -231,6 +238,35 @@ public final class AsyncStateContainer<State> {
 
 @available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, visionOS 2.0, macCatalyst 17.0, *)
 extension AsyncStateContainer: Sendable where State: Sendable {}
+
+// MARK: - Custom State Name
+
+/// Provides a cheap, human-readable name for a view state, used in signpost output.
+///
+/// `AsyncStateContainer` labels signposts with the destination state's name. By default it derives
+/// that name via `Mirror` (the enum case label, without reflecting the associated value). Conform
+/// your state to `CustomStateNameConvertible` when you want an O(1), allocation-free name — for
+/// example returning a string literal per case — instead of relying on `Mirror`.
+///
+/// This affects signpost output only; it has no effect when `signpostsEnabled` is `false`, and it
+/// does not change the full-description logging controlled by `loggingEnabled`.
+///
+/// ```swift
+/// extension ExampleViewState: CustomStateNameConvertible {
+///     var stateName: String {
+///         switch self {
+///         case .initialized: "initialized"
+///         case .loading:     "loading"
+///         case .loaded:      "loaded"
+///         case .error:       "error"
+///         }
+///     }
+/// }
+/// ```
+public protocol CustomStateNameConvertible {
+    /// A short, cheap-to-produce name identifying this state (typically the case name).
+    var stateName: String { get }
+}
 
 // MARK: - Core API (always available, no Sendable constraint)
 
@@ -284,11 +320,11 @@ public extension AsyncStateContainer {
         
         let signpostId = signposter.makeSignpostID()
         let postName: StaticString = "State"
-        let state = signposter.beginInterval(postName, id: signpostId)
+        let signpostState = beginInterval(postName, id: signpostId, stateName(nextState))
         
         performStateChange(nextState)
         
-        signposter.endInterval(postName, state)
+        endInterval(postName, signpostState)
     }
     
     // MARK: - Core Async Observe (private — sending)
@@ -305,8 +341,7 @@ public extension AsyncStateContainer {
             
             let signpostId = signposter.makeSignpostID()
             let postName: StaticString = "State"
-            let state = signposter.beginInterval(postName, id: signpostId)
-            defer { signposter.endInterval(postName, state) }
+            let signpostState = beginInterval(postName, id: signpostId)
             
             let nextStateValue = await nextStateClosure()
             
@@ -314,10 +349,12 @@ public extension AsyncStateContainer {
                 if self.loggingEnabled {
                     os_log(.debug, log: self.logger, "observe(async closure) cancelled before state change")
                 }
+                self.endInterval(postName, signpostState)
                 return
             }
             
             self.performStateChange(nextStateValue)
+            self.endInterval(postName, signpostState, self.stateName(nextStateValue))
         }
     }
 
@@ -340,17 +377,18 @@ public extension AsyncStateContainer {
             
             let signpostId = signposter.makeSignpostID()
             let postName: StaticString = "Refresh"
-            let signpostState = signposter.beginInterval(postName, id: signpostId)
-            defer { signposter.endInterval(postName, signpostState) }
+            let signpostState = beginInterval(postName, id: signpostId)
             
             let nextStateValue = await nextStateClosure()
             guard !Task.isCancelled else {
                 if self.loggingEnabled {
                     os_log(.debug, log: self.logger, "refresh(state:) cancelled before state change")
                 }
+                self.endInterval(postName, signpostState)
                 return
             }
             self.performStateChange(nextStateValue)
+            self.endInterval(postName, signpostState, self.stateName(nextStateValue))
         }
         stateTask = task
         
@@ -413,13 +451,13 @@ public extension AsyncStateContainer {
 
         let sequenceID = signposter.makeSignpostID()
         let postName: StaticString = "Sequence"
-        let sequenceState = signposter.beginInterval(postName, id: sequenceID, "State Sequence")
+        let sequenceState = beginInterval(postName, id: sequenceID, "State Sequence")
 
         for syncAction in stateSequence.synchronousStateActions {
             let syncState = syncAction()
             performStateChange(syncState)
             let eventName: StaticString = "StateSequence Changed State"
-            signposter.emitEvent(eventName, id: sequenceID, "State changed to \(String(describing: syncState))")
+            emitEvent(eventName, id: sequenceID, stateName(syncState))
         }
 
         guard !stateSequence.states.isEmpty else {
@@ -428,18 +466,19 @@ public extension AsyncStateContainer {
                 os_log(.debug, log: logger, "StateSequence completed after %d state changes", syncCount)
             }
             let endEventName: StaticString = "State Sequence Ended"
-            signposter.emitEvent(endEventName, id: sequenceID, "Ended after \(syncCount) iterations")
-            signposter.endInterval(postName, sequenceState)
+            emitEvent(endEventName, id: sequenceID, "Ended after \(syncCount) iterations")
+            endInterval(postName, sequenceState)
             return
         }
 
         let asyncStates = stateSequence.states
         stateTask = Task { [weak self, signposter] in
             guard let self else {
-                signposter.endInterval(postName, sequenceState)
+                // Interval token is non-nil only when signposts are enabled; end it without `self`.
+                if let sequenceState { signposter.endInterval(postName, sequenceState) }
                 return
             }
-            defer { signposter.endInterval(postName, sequenceState) }
+            defer { self.endInterval(postName, sequenceState) }
 
             var iterationCount = stateSequence.synchronousStateActions.count + 1
             var remainingIterator = asyncStates.makeIterator()
@@ -450,8 +489,8 @@ public extension AsyncStateContainer {
                         os_log(.debug, log: self.logger, "StateSequence completed after %d state changes", iterationCount - 1)
                     }
                     let eventName: StaticString = "State Sequence Ended"
-                    signposter.emitEvent(eventName, id: sequenceID,
-                                         "Ended after \(iterationCount - 1) iterations")
+                    self.emitEvent(eventName, id: sequenceID,
+                                   "Ended after \(iterationCount - 1) iterations")
                     break
                 }
 
@@ -462,15 +501,14 @@ public extension AsyncStateContainer {
                         os_log(.debug, log: self.logger, "StateSequence cancelled during iteration %d", iterationCount)
                     }
                     let eventName: StaticString = "State Sequence Cancelled"
-                    signposter.emitEvent(eventName, id: sequenceID,
-                                         "Cancelled during iteration \(iterationCount)")
+                    self.emitEvent(eventName, id: sequenceID,
+                                   "Cancelled during iteration \(iterationCount)")
                     break
                 }
-                let nextStateDescription = String(describing: nextState)
                 self.performStateChange(nextState)
 
                 let eventName: StaticString = "StateSequence Changed State"
-                signposter.emitEvent(eventName, id: sequenceID, "State changed to \(nextStateDescription)")
+                self.emitEvent(eventName, id: sequenceID, self.stateName(nextState))
                 iterationCount += 1
             }
         }
@@ -502,8 +540,8 @@ public extension AsyncStateContainer {
             
             let sequenceID = signposter.makeSignpostID()
             let postName: StaticString = "Sequence"
-            let sequenceState = signposter.beginInterval(postName, id: sequenceID, "\(String(describing: sequence.self)) Sequence")
-            defer { signposter.endInterval(postName, sequenceState) }
+            let sequenceState = self.beginInterval(postName, id: sequenceID, "\(type(of: sequence)) Sequence")
+            defer { self.endInterval(postName, sequenceState) }
             
             var iterator = sequence.makeAsyncIterator()
             var iterationCount = 1
@@ -516,8 +554,8 @@ public extension AsyncStateContainer {
                         os_log(.debug, log: self.logger, "AsyncSequence completed after %d state changes", iterationCount - 1)
                     }
                     let eventName: StaticString = "Some AsyncSequence Sequence Ended"
-                    signposter.emitEvent(eventName, id: sequenceID,
-                                         "Ended after \(iterationCount - 1) iterations")
+                    self.emitEvent(eventName, id: sequenceID,
+                                   "Ended after \(iterationCount - 1) iterations")
                     break
                 }
                 
@@ -526,14 +564,14 @@ public extension AsyncStateContainer {
                         os_log(.debug, log: self.logger, "AsyncSequence cancelled during iteration %d", iterationCount)
                     }
                     let eventName: StaticString = "Some AsyncSequence Sequence Cancelled"
-                    signposter.emitEvent(eventName, id: sequenceID,
-                                         "Cancelled during iteration \(iterationCount)")
+                    self.emitEvent(eventName, id: sequenceID,
+                                   "Cancelled during iteration \(iterationCount)")
                     break
                 }
                 self.performStateChange(state)
                 
                 let eventName: StaticString = "Some AsyncSequence Changed State"
-                signposter.emitEvent(eventName, id: sequenceID, "State changed to \(String(describing: state))")
+                self.emitEvent(eventName, id: sequenceID, self.stateName(state))
                 iterationCount += 1
             }
         }
@@ -599,6 +637,61 @@ private extension AsyncStateContainer {
 
 
     
+    // MARK: - Signpost helpers (gated by signpostsEnabled)
+    //
+    // Every signpost emission and every state-name computation is routed through these helpers so
+    // that with `signpostsEnabled == false` (the default) nothing is emitted and, crucially, no
+    // message strings are ever built. `beginInterval` returns `nil` when disabled; `endInterval`
+    // no-ops on a `nil` token, so interval bracketing stays balanced without per-call-site guards.
+
+    private func beginInterval(_ name: StaticString, id: OSSignpostID) -> OSSignpostIntervalState? {
+        guard signpostsEnabled else { return nil }
+        return signposter.beginInterval(name, id: id)
+    }
+
+    private func beginInterval(_ name: StaticString, id: OSSignpostID, _ message: @autoclosure () -> String) -> OSSignpostIntervalState? {
+        guard signpostsEnabled else { return nil }
+        let text = message()
+        return signposter.beginInterval(name, id: id, "\(text)")
+    }
+
+    private func endInterval(_ name: StaticString, _ state: OSSignpostIntervalState?) {
+        guard let state else { return }
+        signposter.endInterval(name, state)
+    }
+
+    private func endInterval(_ name: StaticString, _ state: OSSignpostIntervalState?, _ message: @autoclosure () -> String) {
+        guard let state else { return }
+        let text = message()
+        signposter.endInterval(name, state, "\(text)")
+    }
+
+    private func emitEvent(_ name: StaticString, id: OSSignpostID, _ message: @autoclosure () -> String) {
+        guard signpostsEnabled else { return }
+        let text = message()
+        signposter.emitEvent(name, id: id, "\(text)")
+    }
+
+    /// A cheap, signpost-friendly name for a state value.
+    ///
+    /// Deliberately avoids `String(describing:)`, which recursively reflects a value's entire
+    /// payload (arrays, nested optionals, etc.) — the dominant reflection cost this type used to
+    /// pay on every transition. Resolution order:
+    /// 1. ``CustomStateNameConvertible`` if the state conforms — O(1), author-provided.
+    /// 2. The enum case label via `Mirror`, which does **not** materialize the associated value.
+    /// 3. `String(describing:)` fallback — cheap for no-payload enums; other shapes are uncommon.
+    ///
+    /// Only called from within `signpostsEnabled` guards, so it costs nothing when signposts are off.
+    private func stateName(_ state: State) -> String {
+        if let named = state as? CustomStateNameConvertible {
+            return named.stateName
+        }
+        if let caseLabel = Mirror(reflecting: state).children.first?.label {
+            return caseLabel
+        }
+        return String(describing: state)
+    }
+
     private func performStateChange(_ newState: State) {
         if loggingEnabled {
             os_log(.info, log: logger, "State changed to: %{public}@", String(describing: newState))
