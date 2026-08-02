@@ -161,8 +161,8 @@ The signpost lane name is derived from the same `subsystem` and `observedViewTyp
 - If you use the defaults, all state changes across every view land in a single lane named `"com.wayfair.vsm"` under the `"VSM View"` category. This can become crowded quickly in an app with many VSM views.
 - If you provide a `subsystem` and `observedViewType`, each view gets its own clearly labelled lane, making it straightforward to correlate a specific view's state changes with other timeline data.
 
-![An example of VSM signpost intervals in Instruments, showing per-view state change lanes on the os_signpost timeline](ExampleInstruments)
-
 > Tip: `signpostsEnabled` and `loggingEnabled` are separate. You do not need Console logging to get signpost data, and enabling signposts does not add Console output. There is no special build configuration required — you can profile a Debug build directly from Xcode using **Product > Profile** (`⌘I`).
+
+![An example of VSM signpost intervals in Instruments, showing per-view state change lanes on the os_signpost timeline](ExampleInstruments)
 
 > Important: Be deliberate about which instruments you record alongside signposts. The **SwiftUI** instrument adds a profiler-only overhead to every observable state change that can distort a trace. See <doc:Profiling> for how to choose an instrument configuration that reflects production.

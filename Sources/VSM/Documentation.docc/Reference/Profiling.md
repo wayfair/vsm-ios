@@ -14,7 +14,7 @@ When the SwiftUI instrument records, AttributeGraph runs in trace-recording mode
 
 In a trace, the cost appears as time attributed to a stack similar to:
 
-```
+```text
 AsyncStateContainer.state.setter
  → ObservationRegistrar … withMutation
    → AGGraphAddTraceEvent
