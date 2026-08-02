@@ -617,7 +617,15 @@ private extension AsyncStateContainer {
     // sites need no per-call guards. When disabled, `beginInterval` returns `.inactive` and every
     // method on both types is a no-op — no message strings are built and no state-name reflection
     // is ever triggered.
+    //
+    // Both types are `@MainActor` because nested types do not inherit the enclosing class's global
+    // actor isolation. Without it, the `@autoclosure` message arguments (which capture `self` and
+    // the non-Sendable next state) would be transferred out of the main actor into a `nonisolated`
+    // callee, which region-based isolation rejects with "sending 'self'/'nextState' risks causing
+    // data races". Isolating the tracer to the main actor keeps those closures in the caller's
+    // isolation region while preserving their laziness.
 
+    @MainActor
     enum SignpostTracer: Sendable {
         case disabled
         case enabled(OSSignposter)
@@ -649,6 +657,7 @@ private extension AsyncStateContainer {
         }
     }
 
+    @MainActor
     enum SignpostInterval: Sendable {
         case inactive
         case active(signposter: OSSignposter, name: StaticString, state: OSSignpostIntervalState)
