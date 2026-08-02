@@ -210,23 +210,16 @@ public final class AsyncStateContainer<State> {
     private let logger: OSLog
     
     @ObservationIgnored
-    private let signposter: OSSignposter
-    
-    @ObservationIgnored
     private let loggingEnabled: Bool
-    
-    /// When `false` (the default), no signpost intervals or events are emitted and no state-name
-    /// reflection is performed, regardless of whether an Instruments signpost recorder is attached.
-    /// Opt in **per view** (via `@ViewState`/`@RenderedViewState`) only while profiling that view.
+
     @ObservationIgnored
-    private let signpostsEnabled: Bool
-    
+    private let tracer: SignpostTracer
+
     init(state: State, logger: OSLog, loggingEnabled: Bool = false, signpostsEnabled: Bool = false) {
         self.state = state
         self.logger = logger
-        self.signposter = OSSignposter(logHandle: logger)
         self.loggingEnabled = loggingEnabled
-        self.signpostsEnabled = signpostsEnabled
+        self.tracer = SignpostTracer(signposter: OSSignposter(logHandle: logger), enabled: signpostsEnabled)
     }
     
     deinit {
@@ -317,14 +310,12 @@ public extension AsyncStateContainer {
         }
         
         cancelRunningObservations()
-        
-        let signpostId = signposter.makeSignpostID()
-        let postName: StaticString = "State"
-        let signpostState = beginInterval(postName, id: signpostId, stateName(nextState))
-        
+
+        let interval = tracer.beginInterval("State", id: tracer.makeSignpostID(), stateName(nextState))
+
         performStateChange(nextState)
-        
-        endInterval(postName, signpostState)
+
+        interval.end()
     }
     
     // MARK: - Core Async Observe (private — sending)
@@ -338,23 +329,21 @@ public extension AsyncStateContainer {
         
         stateTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            
-            let signpostId = signposter.makeSignpostID()
-            let postName: StaticString = "State"
-            let signpostState = beginInterval(postName, id: signpostId)
-            
+
+            let interval = self.tracer.beginInterval("State", id: self.tracer.makeSignpostID())
+
             let nextStateValue = await nextStateClosure()
-            
+
             guard !Task.isCancelled else {
                 if self.loggingEnabled {
                     os_log(.debug, log: self.logger, "observe(async closure) cancelled before state change")
                 }
-                self.endInterval(postName, signpostState)
+                interval.end()
                 return
             }
-            
+
             self.performStateChange(nextStateValue)
-            self.endInterval(postName, signpostState, self.stateName(nextStateValue))
+            interval.end(self.stateName(nextStateValue))
         }
     }
 
@@ -374,21 +363,19 @@ public extension AsyncStateContainer {
         
         let task = Task { @MainActor [weak self] in
             guard let self else { return }
-            
-            let signpostId = signposter.makeSignpostID()
-            let postName: StaticString = "Refresh"
-            let signpostState = beginInterval(postName, id: signpostId)
-            
+
+            let interval = self.tracer.beginInterval("Refresh", id: self.tracer.makeSignpostID())
+
             let nextStateValue = await nextStateClosure()
             guard !Task.isCancelled else {
                 if self.loggingEnabled {
                     os_log(.debug, log: self.logger, "refresh(state:) cancelled before state change")
                 }
-                self.endInterval(postName, signpostState)
+                interval.end()
                 return
             }
             self.performStateChange(nextStateValue)
-            self.endInterval(postName, signpostState, self.stateName(nextStateValue))
+            interval.end(self.stateName(nextStateValue))
         }
         stateTask = task
         
@@ -449,15 +436,13 @@ public extension AsyncStateContainer {
         
         cancelRunningObservations()
 
-        let sequenceID = signposter.makeSignpostID()
-        let postName: StaticString = "Sequence"
-        let sequenceState = beginInterval(postName, id: sequenceID, "State Sequence")
+        let sequenceID = tracer.makeSignpostID()
+        let sequenceInterval = tracer.beginInterval("Sequence", id: sequenceID, "State Sequence")
 
         for syncAction in stateSequence.synchronousStateActions {
             let syncState = syncAction()
             performStateChange(syncState)
-            let eventName: StaticString = "StateSequence Changed State"
-            emitEvent(eventName, id: sequenceID, stateName(syncState))
+            tracer.emitEvent("StateSequence Changed State", id: sequenceID, stateName(syncState))
         }
 
         guard !stateSequence.states.isEmpty else {
@@ -465,20 +450,18 @@ public extension AsyncStateContainer {
             if loggingEnabled {
                 os_log(.debug, log: logger, "StateSequence completed after %d state changes", syncCount)
             }
-            let endEventName: StaticString = "State Sequence Ended"
-            emitEvent(endEventName, id: sequenceID, "Ended after \(syncCount) iterations")
-            endInterval(postName, sequenceState)
+            tracer.emitEvent("State Sequence Ended", id: sequenceID, "Ended after \(syncCount) iterations")
+            sequenceInterval.end()
             return
         }
 
         let asyncStates = stateSequence.states
-        stateTask = Task { [weak self, signposter] in
+        stateTask = Task { [weak self] in
             guard let self else {
-                // Interval token is non-nil only when signposts are enabled; end it without `self`.
-                if let sequenceState { signposter.endInterval(postName, sequenceState) }
+                sequenceInterval.end()
                 return
             }
-            defer { self.endInterval(postName, sequenceState) }
+            defer { sequenceInterval.end() }
 
             var iterationCount = stateSequence.synchronousStateActions.count + 1
             var remainingIterator = asyncStates.makeIterator()
@@ -488,9 +471,8 @@ public extension AsyncStateContainer {
                     if self.loggingEnabled {
                         os_log(.debug, log: self.logger, "StateSequence completed after %d state changes", iterationCount - 1)
                     }
-                    let eventName: StaticString = "State Sequence Ended"
-                    self.emitEvent(eventName, id: sequenceID,
-                                   "Ended after \(iterationCount - 1) iterations")
+                    self.tracer.emitEvent("State Sequence Ended", id: sequenceID,
+                                          "Ended after \(iterationCount - 1) iterations")
                     break
                 }
 
@@ -500,15 +482,13 @@ public extension AsyncStateContainer {
                     if self.loggingEnabled {
                         os_log(.debug, log: self.logger, "StateSequence cancelled during iteration %d", iterationCount)
                     }
-                    let eventName: StaticString = "State Sequence Cancelled"
-                    self.emitEvent(eventName, id: sequenceID,
-                                   "Cancelled during iteration \(iterationCount)")
+                    self.tracer.emitEvent("State Sequence Cancelled", id: sequenceID,
+                                          "Cancelled during iteration \(iterationCount)")
                     break
                 }
                 self.performStateChange(nextState)
 
-                let eventName: StaticString = "StateSequence Changed State"
-                self.emitEvent(eventName, id: sequenceID, self.stateName(nextState))
+                self.tracer.emitEvent("StateSequence Changed State", id: sequenceID, self.stateName(nextState))
                 iterationCount += 1
             }
         }
@@ -537,41 +517,37 @@ public extension AsyncStateContainer {
         
         stateTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            
-            let sequenceID = signposter.makeSignpostID()
-            let postName: StaticString = "Sequence"
-            let sequenceState = self.beginInterval(postName, id: sequenceID, "\(type(of: sequence)) Sequence")
-            defer { self.endInterval(postName, sequenceState) }
-            
+
+            let sequenceID = self.tracer.makeSignpostID()
+            let sequenceInterval = self.tracer.beginInterval("Sequence", id: sequenceID, "\(type(of: sequence)) Sequence")
+            defer { sequenceInterval.end() }
+
             var iterator = sequence.makeAsyncIterator()
             var iterationCount = 1
-            
+
             while !Task.isCancelled {
                 let nextState = await iterator.next(isolation: #isolation)
-                
+
                 guard let state = nextState else {
                     if self.loggingEnabled {
                         os_log(.debug, log: self.logger, "AsyncSequence completed after %d state changes", iterationCount - 1)
                     }
-                    let eventName: StaticString = "Some AsyncSequence Sequence Ended"
-                    self.emitEvent(eventName, id: sequenceID,
-                                   "Ended after \(iterationCount - 1) iterations")
+                    self.tracer.emitEvent("Some AsyncSequence Sequence Ended", id: sequenceID,
+                                          "Ended after \(iterationCount - 1) iterations")
                     break
                 }
-                
+
                 guard !Task.isCancelled else {
                     if self.loggingEnabled {
                         os_log(.debug, log: self.logger, "AsyncSequence cancelled during iteration %d", iterationCount)
                     }
-                    let eventName: StaticString = "Some AsyncSequence Sequence Cancelled"
-                    self.emitEvent(eventName, id: sequenceID,
-                                   "Cancelled during iteration \(iterationCount)")
+                    self.tracer.emitEvent("Some AsyncSequence Sequence Cancelled", id: sequenceID,
+                                          "Cancelled during iteration \(iterationCount)")
                     break
                 }
                 self.performStateChange(state)
-                
-                let eventName: StaticString = "Some AsyncSequence Changed State"
-                self.emitEvent(eventName, id: sequenceID, self.stateName(state))
+
+                self.tracer.emitEvent("Some AsyncSequence Changed State", id: sequenceID, self.stateName(state))
                 iterationCount += 1
             }
         }
@@ -635,41 +611,58 @@ private extension AsyncStateContainer {
         stateTask = nil
     }
 
-
-    
-    // MARK: - Signpost helpers (gated by signpostsEnabled)
+    // MARK: - Signpost tracing types
     //
-    // Every signpost emission and every state-name computation is routed through these helpers so
-    // that with `signpostsEnabled == false` (the default) nothing is emitted and, crucially, no
-    // message strings are ever built. `beginInterval` returns `nil` when disabled; `endInterval`
-    // no-ops on a `nil` token, so interval bracketing stays balanced without per-call-site guards.
+    // `SignpostTracer` and `SignpostInterval` encapsulate the enabled/disabled distinction so call
+    // sites need no per-call guards. When disabled, `beginInterval` returns `.inactive` and every
+    // method on both types is a no-op — no message strings are built and no state-name reflection
+    // is ever triggered.
 
-    private func beginInterval(_ name: StaticString, id: OSSignpostID) -> OSSignpostIntervalState? {
-        guard signpostsEnabled else { return nil }
-        return signposter.beginInterval(name, id: id)
+    enum SignpostTracer: Sendable {
+        case disabled
+        case enabled(OSSignposter)
+
+        init(signposter: OSSignposter, enabled: Bool) {
+            self = enabled ? .enabled(signposter) : .disabled
+        }
+
+        func makeSignpostID() -> OSSignpostID {
+            guard case .enabled(let sp) = self else { return .invalid }
+            return sp.makeSignpostID()
+        }
+
+        func beginInterval(_ name: StaticString, id: OSSignpostID) -> SignpostInterval {
+            guard case .enabled(let sp) = self else { return .inactive }
+            return .active(signposter: sp, name: name, state: sp.beginInterval(name, id: id))
+        }
+
+        func beginInterval(_ name: StaticString, id: OSSignpostID, _ message: @autoclosure () -> String) -> SignpostInterval {
+            guard case .enabled(let sp) = self else { return .inactive }
+            let text = message()
+            return .active(signposter: sp, name: name, state: sp.beginInterval(name, id: id, "\(text)"))
+        }
+
+        func emitEvent(_ name: StaticString, id: OSSignpostID, _ message: @autoclosure () -> String) {
+            guard case .enabled(let sp) = self else { return }
+            let text = message()
+            sp.emitEvent(name, id: id, "\(text)")
+        }
     }
 
-    private func beginInterval(_ name: StaticString, id: OSSignpostID, _ message: @autoclosure () -> String) -> OSSignpostIntervalState? {
-        guard signpostsEnabled else { return nil }
-        let text = message()
-        return signposter.beginInterval(name, id: id, "\(text)")
-    }
+    enum SignpostInterval: Sendable {
+        case inactive
+        case active(signposter: OSSignposter, name: StaticString, state: OSSignpostIntervalState)
 
-    private func endInterval(_ name: StaticString, _ state: OSSignpostIntervalState?) {
-        guard let state else { return }
-        signposter.endInterval(name, state)
-    }
+        func end() {
+            guard case .active(let sp, let name, let state) = self else { return }
+            sp.endInterval(name, state)
+        }
 
-    private func endInterval(_ name: StaticString, _ state: OSSignpostIntervalState?, _ message: @autoclosure () -> String) {
-        guard let state else { return }
-        let text = message()
-        signposter.endInterval(name, state, "\(text)")
-    }
-
-    private func emitEvent(_ name: StaticString, id: OSSignpostID, _ message: @autoclosure () -> String) {
-        guard signpostsEnabled else { return }
-        let text = message()
-        signposter.emitEvent(name, id: id, "\(text)")
+        func end(_ message: @autoclosure () -> String) {
+            guard case .active(let sp, let name, let state) = self else { return }
+            let text = message()
+            sp.endInterval(name, state, "\(text)")
+        }
     }
 
     /// A cheap, signpost-friendly name for a state value.
@@ -681,7 +674,8 @@ private extension AsyncStateContainer {
     /// 2. The enum case label via `Mirror`, which does **not** materialize the associated value.
     /// 3. `String(describing:)` fallback — cheap for no-payload enums; other shapes are uncommon.
     ///
-    /// Only called from within `signpostsEnabled` guards, so it costs nothing when signposts are off.
+    /// Only called from within `@autoclosure` arguments passed to `SignpostTracer`/`SignpostInterval`,
+    /// which evaluate them only when tracing is `.enabled`/`.active` — costs nothing when tracing is off.
     private func stateName(_ state: State) -> String {
         if let named = state as? CustomStateNameConvertible {
             return named.stateName
