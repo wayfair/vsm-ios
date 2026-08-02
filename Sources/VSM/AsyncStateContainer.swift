@@ -311,7 +311,7 @@ public extension AsyncStateContainer {
         
         cancelRunningObservations()
 
-        let interval = tracer.beginInterval("State", id: tracer.makeSignpostID(), stateName(nextState))
+        let interval = tracer.beginInterval("State", id: tracer.makeSignpostID(), message: tracedStateName(nextState))
 
         performStateChange(nextState)
 
@@ -343,7 +343,7 @@ public extension AsyncStateContainer {
             }
 
             self.performStateChange(nextStateValue)
-            interval.end(self.stateName(nextStateValue))
+            interval.end(message: self.tracedStateName(nextStateValue))
         }
     }
 
@@ -375,7 +375,7 @@ public extension AsyncStateContainer {
                 return
             }
             self.performStateChange(nextStateValue)
-            interval.end(self.stateName(nextStateValue))
+            interval.end(message: self.tracedStateName(nextStateValue))
         }
         stateTask = task
         
@@ -442,7 +442,7 @@ public extension AsyncStateContainer {
         for syncAction in stateSequence.synchronousStateActions {
             let syncState = syncAction()
             performStateChange(syncState)
-            tracer.emitEvent("StateSequence Changed State", id: sequenceID, stateName(syncState))
+            tracer.emitEvent("StateSequence Changed State", id: sequenceID, message: tracedStateName(syncState))
         }
 
         guard !stateSequence.states.isEmpty else {
@@ -488,7 +488,7 @@ public extension AsyncStateContainer {
                 }
                 self.performStateChange(nextState)
 
-                self.tracer.emitEvent("StateSequence Changed State", id: sequenceID, self.stateName(nextState))
+                self.tracer.emitEvent("StateSequence Changed State", id: sequenceID, message: self.tracedStateName(nextState))
                 iterationCount += 1
             }
         }
@@ -519,7 +519,11 @@ public extension AsyncStateContainer {
             guard let self else { return }
 
             let sequenceID = self.tracer.makeSignpostID()
-            let sequenceInterval = self.tracer.beginInterval("Sequence", id: sequenceID, "\(type(of: sequence)) Sequence")
+            // Resolved eagerly rather than via an `@autoclosure`: the message reads the non-Sendable
+            // `sequence`, and capturing it in a closure handed to the `nonisolated` tracer is the
+            // pattern Swift 6 region isolation rejects. The `isEnabled` check keeps it lazy.
+            let sequenceLabel = self.tracer.isEnabled ? "\(type(of: sequence)) Sequence" : nil
+            let sequenceInterval = self.tracer.beginInterval("Sequence", id: sequenceID, message: sequenceLabel)
             defer { sequenceInterval.end() }
 
             var iterator = sequence.makeAsyncIterator()
@@ -547,7 +551,7 @@ public extension AsyncStateContainer {
                 }
                 self.performStateChange(state)
 
-                self.tracer.emitEvent("Some AsyncSequence Changed State", id: sequenceID, self.stateName(state))
+                self.tracer.emitEvent("Some AsyncSequence Changed State", id: sequenceID, message: self.tracedStateName(state))
                 iterationCount += 1
             }
         }
@@ -618,20 +622,30 @@ private extension AsyncStateContainer {
     // method on both types is a no-op — no message strings are built and no state-name reflection
     // is ever triggered.
     //
-    // Both types are `@MainActor` because nested types do not inherit the enclosing class's global
-    // actor isolation. Without it, the `@autoclosure` message arguments (which capture `self` and
-    // the non-Sendable next state) would be transferred out of the main actor into a `nonisolated`
-    // callee, which region-based isolation rejects with "sending 'self'/'nextState' risks causing
-    // data races". Isolating the tracer to the main actor keeps those closures in the caller's
-    // isolation region while preserving their laziness.
+    // Two message flavors exist deliberately:
+    //
+    // * `@autoclosure () -> String` for messages built from local, `Sendable` values (counts, type
+    //   names, literals). These stay lazy and cost nothing when tracing is off.
+    // * An eager `message: String?` for messages derived from the container's state. Resolving a
+    //   state name requires the main-actor-isolated `self` and a non-Sendable `State`; capturing
+    //   those in an autoclosure makes Swift 6 region isolation treat the closure as leaving the
+    //   main actor ("error: sending 'self' risks causing data races" on Swift 6.2 / Xcode 26.3,
+    //   which is what CI builds with — Swift 6.4 no longer diagnoses it). Passing an already
+    //   resolved `String?` sends nothing but a `Sendable` value. ``tracedStateName(_:)`` keeps
+    //   that path lazy by resolving the name only while tracing is enabled.
 
-    @MainActor
     enum SignpostTracer: Sendable {
         case disabled
         case enabled(OSSignposter)
 
         init(signposter: OSSignposter, enabled: Bool) {
             self = enabled ? .enabled(signposter) : .disabled
+        }
+
+        /// Whether signposts are being emitted. Used to skip resolving eager messages.
+        var isEnabled: Bool {
+            if case .enabled = self { return true }
+            return false
         }
 
         func makeSignpostID() -> OSSignpostID {
@@ -650,14 +664,27 @@ private extension AsyncStateContainer {
             return .active(signposter: sp, name: name, state: sp.beginInterval(name, id: id, "\(text)"))
         }
 
+        /// Begins an interval with an already-resolved message. `nil` begins it without one.
+        func beginInterval(_ name: StaticString, id: OSSignpostID, message: String?) -> SignpostInterval {
+            guard case .enabled(let sp) = self else { return .inactive }
+            guard let message else { return .active(signposter: sp, name: name, state: sp.beginInterval(name, id: id)) }
+            return .active(signposter: sp, name: name, state: sp.beginInterval(name, id: id, "\(message)"))
+        }
+
         func emitEvent(_ name: StaticString, id: OSSignpostID, _ message: @autoclosure () -> String) {
             guard case .enabled(let sp) = self else { return }
             let text = message()
             sp.emitEvent(name, id: id, "\(text)")
         }
+
+        /// Emits an event with an already-resolved message. `nil` emits it without one.
+        func emitEvent(_ name: StaticString, id: OSSignpostID, message: String?) {
+            guard case .enabled(let sp) = self else { return }
+            guard let message else { return sp.emitEvent(name, id: id) }
+            sp.emitEvent(name, id: id, "\(message)")
+        }
     }
 
-    @MainActor
     enum SignpostInterval: Sendable {
         case inactive
         case active(signposter: OSSignposter, name: StaticString, state: OSSignpostIntervalState)
@@ -672,6 +699,13 @@ private extension AsyncStateContainer {
             let text = message()
             sp.endInterval(name, state, "\(text)")
         }
+
+        /// Ends the interval with an already-resolved message. `nil` ends it without one.
+        func end(message: String?) {
+            guard case .active(let sp, let name, let state) = self else { return }
+            guard let message else { return sp.endInterval(name, state) }
+            sp.endInterval(name, state, "\(message)")
+        }
     }
 
     /// A cheap, signpost-friendly name for a state value.
@@ -683,8 +717,8 @@ private extension AsyncStateContainer {
     /// 2. The enum case label via `Mirror`, which does **not** materialize the associated value.
     /// 3. `String(describing:)` fallback — cheap for no-payload enums; other shapes are uncommon.
     ///
-    /// Only called from within `@autoclosure` arguments passed to `SignpostTracer`/`SignpostInterval`,
-    /// which evaluate them only when tracing is `.enabled`/`.active` — costs nothing when tracing is off.
+    /// Only reached through ``tracedStateName(_:)``, which calls it only while tracing is enabled —
+    /// so this costs nothing when tracing is off.
     private func stateName(_ state: State) -> String {
         if let named = state as? CustomStateNameConvertible {
             return named.stateName
@@ -693,6 +727,18 @@ private extension AsyncStateContainer {
             return caseLabel
         }
         return String(describing: state)
+    }
+
+    /// The signpost message for a state change, or `nil` when tracing is disabled.
+    ///
+    /// This is the only way state names reach a signpost. Resolving eagerly (rather than through an
+    /// `@autoclosure`) is deliberate: an autoclosure here would capture the main-actor-isolated
+    /// `self` and a non-Sendable `State`, which Swift 6 region isolation rejects when the closure is
+    /// handed to the `nonisolated` tracer. The `isEnabled` check preserves the laziness that
+    /// mattered — ``stateName(_:)``'s reflection never runs with signposts off.
+    private func tracedStateName(_ state: State) -> String? {
+        guard tracer.isEnabled else { return nil }
+        return stateName(state)
     }
 
     private func performStateChange(_ newState: State) {

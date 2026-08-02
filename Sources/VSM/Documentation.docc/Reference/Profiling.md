@@ -25,6 +25,17 @@ This is not specific to VSM — any `@Observable` type mutated frequently under 
 
 > Important: This cost is present **only while the SwiftUI instrument is recording**. It is zero in a normal Debug or Release build. Do not try to "optimize" it away by reverting to `ObservableObject` — that trades a profiler-only artifact for real, per-mutation overhead in your shipping app.
 
+## When State Changes Themselves Look Expensive
+
+The SwiftUI instrument is not the only reason state changes can look costly. Before concluding that VSM's state handling is slow, rule out VSM's own debugging switches — both are per-view opt ins that are easy to enable during an investigation and forget:
+
+- **`loggingEnabled: true`** logs a full description of every new state, recursively reflecting the entire value. Roughly 680 µs per state change for a state carrying a 200-element array, and it grows with the payload. This is the single most likely cause of a state-change hotspot that reproduces outside the profiler.
+- **`signpostsEnabled: true`** resolves a state name and emits signposts on every transition — roughly 2.7 µs per state change, or ~1.3 µs if the state conforms to ``CustomStateNameConvertible``.
+
+Unlike the SwiftUI instrument's overhead, neither of these is a profiler artifact. **Both cost the same in a normal Debug or Release build as they do under Instruments**, because signposts go to the unified logging system and are not gated on a trace being recorded. If either switch reaches production, so does its cost. Enable them only while you are actively debugging or recording the view in question.
+
+See <doc:Debugging#What-Logging-and-Signposts-Cost> for the full breakdown. If you need signposts during the trace you are recording, conforming your state to ``CustomStateNameConvertible`` roughly halves what they cost.
+
 ## Recommended Instrument Configurations
 
 Pick the instrument set based on the question you are answering:
