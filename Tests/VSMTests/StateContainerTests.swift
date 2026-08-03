@@ -599,6 +599,58 @@ struct StateContainerTests {
         let changes = await container.waitUntilRecordedStateChanges(atLeast: 1, timeout: .seconds(5))
         #expect(changes == [.loaded(.init(count: 1))])
     }
+
+    // MARK: - Signpost Opt-In Tests
+    //
+    // Signposts are off by default; these turn them on to exercise the emission + state-name
+    // code paths and confirm transitions still deliver correctly with signposts enabled. Signpost
+    // output itself is not observable from unit tests, so these assert behavioral equivalence.
+
+    @Test("Signposts enabled: StateSequence transitions still deliver correctly (Mirror-derived name)")
+    @available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, visionOS 2.0, macCatalyst 17.0, *)
+    @MainActor
+    func signpostsEnabledStateSequenceDelivers() async throws {
+        let expectedResult: [MockState] = [
+            .loading,
+            .loaded(.init(count: 2))
+        ]
+        // MockState does not conform to CustomStateNameConvertible, so this exercises the
+        // Mirror-based case-name fallback with signposts on.
+        let container = AsyncStateContainer(state: MockState.initialize(), logger: .disabled, signpostsEnabled: true)
+        container.turnOnRecordingStateHistory()
+
+        guard case let .initialize(initStateModel) = container.state else {
+            throw StateContainerTestError.missingStartState
+        }
+        container.observe(initStateModel.loadSequence())
+
+        let stateChanges = await container.waitUntilRecordedStateChanges(atLeast: 2, timeout: .seconds(5))
+
+        #expect(stateChanges == expectedResult)
+    }
+
+    @Test("Signposts enabled: CustomStateNameConvertible state delivers correctly")
+    @available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, visionOS 2.0, macCatalyst 17.0, *)
+    @MainActor
+    func signpostsEnabledCustomStateNameDelivers() async throws {
+        enum NamedState: Equatable, CustomStateNameConvertible {
+            case first
+            case second(Int)
+            var stateName: String {
+                switch self {
+                case .first: "first"
+                case .second: "second"
+                }
+            }
+        }
+
+        // signpostsEnabled == true means stateName(_:) is invoked, exercising the
+        // `state as? CustomStateNameConvertible` branch.
+        let container = AsyncStateContainer(state: NamedState.first, logger: .disabled, signpostsEnabled: true)
+        container.observe(.second(5))
+
+        #expect(container.state == .second(5))
+    }
 }
 
 // MARK: - Mock Types for Testing State transitions

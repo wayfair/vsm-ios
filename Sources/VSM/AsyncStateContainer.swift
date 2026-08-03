@@ -210,16 +210,16 @@ public final class AsyncStateContainer<State> {
     private let logger: OSLog
     
     @ObservationIgnored
-    private let signposter: OSSignposter
-    
-    @ObservationIgnored
     private let loggingEnabled: Bool
-    
-    init(state: State, logger: OSLog, loggingEnabled: Bool = false) {
+
+    @ObservationIgnored
+    private let tracer: SignpostTracer
+
+    init(state: State, logger: OSLog, loggingEnabled: Bool = false, signpostsEnabled: Bool = false) {
         self.state = state
         self.logger = logger
-        self.signposter = OSSignposter(logHandle: logger)
         self.loggingEnabled = loggingEnabled
+        self.tracer = SignpostTracer(signposter: OSSignposter(logHandle: logger), enabled: signpostsEnabled)
     }
     
     deinit {
@@ -231,6 +231,35 @@ public final class AsyncStateContainer<State> {
 
 @available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, visionOS 2.0, macCatalyst 17.0, *)
 extension AsyncStateContainer: Sendable where State: Sendable {}
+
+// MARK: - Custom State Name
+
+/// Provides a cheap, human-readable name for a view state, used in signpost output.
+///
+/// `AsyncStateContainer` labels signposts with the destination state's name. By default it derives
+/// that name via `Mirror` (the enum case label, without reflecting the associated value). Conform
+/// your state to `CustomStateNameConvertible` when you want an O(1), allocation-free name — for
+/// example returning a string literal per case — instead of relying on `Mirror`.
+///
+/// This affects signpost output only; it has no effect when `signpostsEnabled` is `false`, and it
+/// does not change the full-description logging controlled by `loggingEnabled`.
+///
+/// ```swift
+/// extension ExampleViewState: CustomStateNameConvertible {
+///     var stateName: String {
+///         switch self {
+///         case .initialized: "initialized"
+///         case .loading:     "loading"
+///         case .loaded:      "loaded"
+///         case .error:       "error"
+///         }
+///     }
+/// }
+/// ```
+public protocol CustomStateNameConvertible {
+    /// A short, cheap-to-produce name identifying this state (typically the case name).
+    var stateName: String { get }
+}
 
 // MARK: - Core API (always available, no Sendable constraint)
 
@@ -281,14 +310,12 @@ public extension AsyncStateContainer {
         }
         
         cancelRunningObservations()
-        
-        let signpostId = signposter.makeSignpostID()
-        let postName: StaticString = "State"
-        let state = signposter.beginInterval(postName, id: signpostId)
-        
+
+        let interval = tracer.beginInterval("State", id: tracer.makeSignpostID(), message: tracedStateName(nextState))
+
         performStateChange(nextState)
-        
-        signposter.endInterval(postName, state)
+
+        interval.end()
     }
     
     // MARK: - Core Async Observe (private — sending)
@@ -302,22 +329,21 @@ public extension AsyncStateContainer {
         
         stateTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            
-            let signpostId = signposter.makeSignpostID()
-            let postName: StaticString = "State"
-            let state = signposter.beginInterval(postName, id: signpostId)
-            defer { signposter.endInterval(postName, state) }
-            
+
+            let interval = self.tracer.beginInterval("State", id: self.tracer.makeSignpostID())
+
             let nextStateValue = await nextStateClosure()
-            
+
             guard !Task.isCancelled else {
                 if self.loggingEnabled {
                     os_log(.debug, log: self.logger, "observe(async closure) cancelled before state change")
                 }
+                interval.end()
                 return
             }
-            
+
             self.performStateChange(nextStateValue)
+            interval.end(message: self.tracedStateName(nextStateValue))
         }
     }
 
@@ -337,20 +363,19 @@ public extension AsyncStateContainer {
         
         let task = Task { @MainActor [weak self] in
             guard let self else { return }
-            
-            let signpostId = signposter.makeSignpostID()
-            let postName: StaticString = "Refresh"
-            let signpostState = signposter.beginInterval(postName, id: signpostId)
-            defer { signposter.endInterval(postName, signpostState) }
-            
+
+            let interval = self.tracer.beginInterval("Refresh", id: self.tracer.makeSignpostID())
+
             let nextStateValue = await nextStateClosure()
             guard !Task.isCancelled else {
                 if self.loggingEnabled {
                     os_log(.debug, log: self.logger, "refresh(state:) cancelled before state change")
                 }
+                interval.end()
                 return
             }
             self.performStateChange(nextStateValue)
+            interval.end(message: self.tracedStateName(nextStateValue))
         }
         stateTask = task
         
@@ -411,15 +436,13 @@ public extension AsyncStateContainer {
         
         cancelRunningObservations()
 
-        let sequenceID = signposter.makeSignpostID()
-        let postName: StaticString = "Sequence"
-        let sequenceState = signposter.beginInterval(postName, id: sequenceID, "State Sequence")
+        let sequenceID = tracer.makeSignpostID()
+        let sequenceInterval = tracer.beginInterval("Sequence", id: sequenceID, "State Sequence")
 
         for syncAction in stateSequence.synchronousStateActions {
             let syncState = syncAction()
             performStateChange(syncState)
-            let eventName: StaticString = "StateSequence Changed State"
-            signposter.emitEvent(eventName, id: sequenceID, "State changed to \(String(describing: syncState))")
+            tracer.emitEvent("StateSequence Changed State", id: sequenceID, message: tracedStateName(syncState))
         }
 
         guard !stateSequence.states.isEmpty else {
@@ -427,19 +450,18 @@ public extension AsyncStateContainer {
             if loggingEnabled {
                 os_log(.debug, log: logger, "StateSequence completed after %d state changes", syncCount)
             }
-            let endEventName: StaticString = "State Sequence Ended"
-            signposter.emitEvent(endEventName, id: sequenceID, "Ended after \(syncCount) iterations")
-            signposter.endInterval(postName, sequenceState)
+            tracer.emitEvent("State Sequence Ended", id: sequenceID, "Ended after \(syncCount) iterations")
+            sequenceInterval.end()
             return
         }
 
         let asyncStates = stateSequence.states
-        stateTask = Task { [weak self, signposter] in
+        stateTask = Task { [weak self] in
             guard let self else {
-                signposter.endInterval(postName, sequenceState)
+                sequenceInterval.end()
                 return
             }
-            defer { signposter.endInterval(postName, sequenceState) }
+            defer { sequenceInterval.end() }
 
             var iterationCount = stateSequence.synchronousStateActions.count + 1
             var remainingIterator = asyncStates.makeIterator()
@@ -449,9 +471,8 @@ public extension AsyncStateContainer {
                     if self.loggingEnabled {
                         os_log(.debug, log: self.logger, "StateSequence completed after %d state changes", iterationCount - 1)
                     }
-                    let eventName: StaticString = "State Sequence Ended"
-                    signposter.emitEvent(eventName, id: sequenceID,
-                                         "Ended after \(iterationCount - 1) iterations")
+                    self.tracer.emitEvent("State Sequence Ended", id: sequenceID,
+                                          "Ended after \(iterationCount - 1) iterations")
                     break
                 }
 
@@ -461,16 +482,13 @@ public extension AsyncStateContainer {
                     if self.loggingEnabled {
                         os_log(.debug, log: self.logger, "StateSequence cancelled during iteration %d", iterationCount)
                     }
-                    let eventName: StaticString = "State Sequence Cancelled"
-                    signposter.emitEvent(eventName, id: sequenceID,
-                                         "Cancelled during iteration \(iterationCount)")
+                    self.tracer.emitEvent("State Sequence Cancelled", id: sequenceID,
+                                          "Cancelled during iteration \(iterationCount)")
                     break
                 }
-                let nextStateDescription = String(describing: nextState)
                 self.performStateChange(nextState)
 
-                let eventName: StaticString = "StateSequence Changed State"
-                signposter.emitEvent(eventName, id: sequenceID, "State changed to \(nextStateDescription)")
+                self.tracer.emitEvent("StateSequence Changed State", id: sequenceID, message: self.tracedStateName(nextState))
                 iterationCount += 1
             }
         }
@@ -499,41 +517,41 @@ public extension AsyncStateContainer {
         
         stateTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            
-            let sequenceID = signposter.makeSignpostID()
-            let postName: StaticString = "Sequence"
-            let sequenceState = signposter.beginInterval(postName, id: sequenceID, "\(String(describing: sequence.self)) Sequence")
-            defer { signposter.endInterval(postName, sequenceState) }
-            
+
+            let sequenceID = self.tracer.makeSignpostID()
+            // Resolved eagerly rather than via an `@autoclosure`: the message reads the non-Sendable
+            // `sequence`, and capturing it in a closure handed to the `nonisolated` tracer is the
+            // pattern Swift 6 region isolation rejects. The `isEnabled` check keeps it lazy.
+            let sequenceLabel = self.tracer.isEnabled ? "\(type(of: sequence)) Sequence" : nil
+            let sequenceInterval = self.tracer.beginInterval("Sequence", id: sequenceID, message: sequenceLabel)
+            defer { sequenceInterval.end() }
+
             var iterator = sequence.makeAsyncIterator()
             var iterationCount = 1
-            
+
             while !Task.isCancelled {
                 let nextState = await iterator.next(isolation: #isolation)
-                
+
                 guard let state = nextState else {
                     if self.loggingEnabled {
                         os_log(.debug, log: self.logger, "AsyncSequence completed after %d state changes", iterationCount - 1)
                     }
-                    let eventName: StaticString = "Some AsyncSequence Sequence Ended"
-                    signposter.emitEvent(eventName, id: sequenceID,
-                                         "Ended after \(iterationCount - 1) iterations")
+                    self.tracer.emitEvent("Some AsyncSequence Sequence Ended", id: sequenceID,
+                                          "Ended after \(iterationCount - 1) iterations")
                     break
                 }
-                
+
                 guard !Task.isCancelled else {
                     if self.loggingEnabled {
                         os_log(.debug, log: self.logger, "AsyncSequence cancelled during iteration %d", iterationCount)
                     }
-                    let eventName: StaticString = "Some AsyncSequence Sequence Cancelled"
-                    signposter.emitEvent(eventName, id: sequenceID,
-                                         "Cancelled during iteration \(iterationCount)")
+                    self.tracer.emitEvent("Some AsyncSequence Sequence Cancelled", id: sequenceID,
+                                          "Cancelled during iteration \(iterationCount)")
                     break
                 }
                 self.performStateChange(state)
-                
-                let eventName: StaticString = "Some AsyncSequence Changed State"
-                signposter.emitEvent(eventName, id: sequenceID, "State changed to \(String(describing: state))")
+
+                self.tracer.emitEvent("Some AsyncSequence Changed State", id: sequenceID, message: self.tracedStateName(state))
                 iterationCount += 1
             }
         }
@@ -597,8 +615,132 @@ private extension AsyncStateContainer {
         stateTask = nil
     }
 
+    // MARK: - Signpost tracing types
+    //
+    // `SignpostTracer` and `SignpostInterval` encapsulate the enabled/disabled distinction so call
+    // sites need no per-call guards. When disabled, `beginInterval` returns `.inactive` and every
+    // method on both types is a no-op — no message strings are built and no state-name reflection
+    // is ever triggered.
+    //
+    // Two message flavors exist deliberately:
+    //
+    // * `@autoclosure () -> String` for messages built from local, `Sendable` values (counts, type
+    //   names, literals). These stay lazy and cost nothing when tracing is off.
+    // * An eager `message: String?` for messages derived from the container's state. Resolving a
+    //   state name requires the main-actor-isolated `self` and a non-Sendable `State`; capturing
+    //   those in an autoclosure makes Swift 6 region isolation treat the closure as leaving the
+    //   main actor ("error: sending 'self' risks causing data races" on Swift 6.2 / Xcode 26.3,
+    //   which is what CI builds with — Swift 6.4 no longer diagnoses it). Passing an already
+    //   resolved `String?` sends nothing but a `Sendable` value. ``tracedStateName(_:)`` keeps
+    //   that path lazy by resolving the name only while tracing is enabled.
 
-    
+    enum SignpostTracer: Sendable {
+        case disabled
+        case enabled(OSSignposter)
+
+        init(signposter: OSSignposter, enabled: Bool) {
+            self = enabled ? .enabled(signposter) : .disabled
+        }
+
+        /// Whether signposts are being emitted. Used to skip resolving eager messages.
+        var isEnabled: Bool {
+            if case .enabled = self { return true }
+            return false
+        }
+
+        func makeSignpostID() -> OSSignpostID {
+            guard case .enabled(let sp) = self else { return .invalid }
+            return sp.makeSignpostID()
+        }
+
+        func beginInterval(_ name: StaticString, id: OSSignpostID) -> SignpostInterval {
+            guard case .enabled(let sp) = self else { return .inactive }
+            return .active(signposter: sp, name: name, state: sp.beginInterval(name, id: id))
+        }
+
+        func beginInterval(_ name: StaticString, id: OSSignpostID, _ message: @autoclosure () -> String) -> SignpostInterval {
+            guard case .enabled(let sp) = self else { return .inactive }
+            let text = message()
+            return .active(signposter: sp, name: name, state: sp.beginInterval(name, id: id, "\(text)"))
+        }
+
+        /// Begins an interval with an already-resolved message. `nil` begins it without one.
+        func beginInterval(_ name: StaticString, id: OSSignpostID, message: String?) -> SignpostInterval {
+            guard case .enabled(let sp) = self else { return .inactive }
+            guard let message else { return .active(signposter: sp, name: name, state: sp.beginInterval(name, id: id)) }
+            return .active(signposter: sp, name: name, state: sp.beginInterval(name, id: id, "\(message)"))
+        }
+
+        func emitEvent(_ name: StaticString, id: OSSignpostID, _ message: @autoclosure () -> String) {
+            guard case .enabled(let sp) = self else { return }
+            let text = message()
+            sp.emitEvent(name, id: id, "\(text)")
+        }
+
+        /// Emits an event with an already-resolved message. `nil` emits it without one.
+        func emitEvent(_ name: StaticString, id: OSSignpostID, message: String?) {
+            guard case .enabled(let sp) = self else { return }
+            guard let message else { return sp.emitEvent(name, id: id) }
+            sp.emitEvent(name, id: id, "\(message)")
+        }
+    }
+
+    enum SignpostInterval: Sendable {
+        case inactive
+        case active(signposter: OSSignposter, name: StaticString, state: OSSignpostIntervalState)
+
+        func end() {
+            guard case .active(let sp, let name, let state) = self else { return }
+            sp.endInterval(name, state)
+        }
+
+        func end(_ message: @autoclosure () -> String) {
+            guard case .active(let sp, let name, let state) = self else { return }
+            let text = message()
+            sp.endInterval(name, state, "\(text)")
+        }
+
+        /// Ends the interval with an already-resolved message. `nil` ends it without one.
+        func end(message: String?) {
+            guard case .active(let sp, let name, let state) = self else { return }
+            guard let message else { return sp.endInterval(name, state) }
+            sp.endInterval(name, state, "\(message)")
+        }
+    }
+
+    /// A cheap, signpost-friendly name for a state value.
+    ///
+    /// Deliberately avoids `String(describing:)`, which recursively reflects a value's entire
+    /// payload (arrays, nested optionals, etc.) — the dominant reflection cost this type used to
+    /// pay on every transition. Resolution order:
+    /// 1. ``CustomStateNameConvertible`` if the state conforms — O(1), author-provided.
+    /// 2. The enum case label via `Mirror`, which does **not** materialize the associated value.
+    /// 3. `String(describing:)` fallback — cheap for no-payload enums; other shapes are uncommon.
+    ///
+    /// Only reached through ``tracedStateName(_:)``, which calls it only while tracing is enabled —
+    /// so this costs nothing when tracing is off.
+    private func stateName(_ state: State) -> String {
+        if let named = state as? CustomStateNameConvertible {
+            return named.stateName
+        }
+        if let caseLabel = Mirror(reflecting: state).children.first?.label {
+            return caseLabel
+        }
+        return String(describing: state)
+    }
+
+    /// The signpost message for a state change, or `nil` when tracing is disabled.
+    ///
+    /// This is the only way state names reach a signpost. Resolving eagerly (rather than through an
+    /// `@autoclosure`) is deliberate: an autoclosure here would capture the main-actor-isolated
+    /// `self` and a non-Sendable `State`, which Swift 6 region isolation rejects when the closure is
+    /// handed to the `nonisolated` tracer. The `isEnabled` check preserves the laziness that
+    /// mattered — ``stateName(_:)``'s reflection never runs with signposts off.
+    private func tracedStateName(_ state: State) -> String? {
+        guard tracer.isEnabled else { return nil }
+        return stateName(state)
+    }
+
     private func performStateChange(_ newState: State) {
         if loggingEnabled {
             os_log(.info, log: logger, "State changed to: %{public}@", String(describing: newState))

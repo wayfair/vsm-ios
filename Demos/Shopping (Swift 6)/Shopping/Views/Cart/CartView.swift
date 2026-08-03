@@ -23,7 +23,8 @@ struct CartView: View {
         _state = .init(
             wrappedValue: .initialized(CartLoaderModel(dependencies: dependencies)),
             observedViewType: Self.self,
-            loggingEnabled: true
+            loggingEnabled: true,
+            signpostsEnabled: true
         )
         _cartCountStore = .init(wrappedValue: CartCountStore(dependencies: dependencies))
     }
