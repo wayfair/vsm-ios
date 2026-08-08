@@ -14,12 +14,26 @@ let package = Package(
         .visionOS(.v2)
     ],
     products: [
+        // Statically Linkable
         .library(
             name: "LegacyVSM",
+            type: .static,
             targets: ["LegacyVSM"]
         ),
         .library(
             name: "VSM",
+            type: .static,
+            targets: ["VSM"]
+        ),
+        // Dynamically Linkable - use these when you need to access VSM from multiple modules in your repo
+        .library(
+            name: "LegacyVSM-Dynamic",
+            type: .dynamic,
+            targets: ["LegacyVSM"]
+        ),
+        .library(
+            name: "VSM-Dynamic",
+            type: .dynamic,
             targets: ["VSM"]
         ),
     ],
