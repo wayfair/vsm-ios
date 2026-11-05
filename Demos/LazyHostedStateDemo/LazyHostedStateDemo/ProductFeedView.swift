@@ -16,6 +16,7 @@ struct ProductFeedView: View {
     /// makes SwiftUI rebuild the row and discard its `@State`, the way iOS 27 is expected to for
     /// rows that scroll out of a lazy container.
     @State private var generation = 0
+    @State private var frameMonitor = FrameMonitor()
 
     let settings: DemoSettings
 
@@ -81,8 +82,10 @@ struct ProductFeedView: View {
             }
             .task(id: settings.autoscroll) {
                 guard settings.autoscroll else { return }
+                frameMonitor.start()
                 await runScrollScript(proxy: proxy, ids: model.productIDs)
-                await reportSettledState(totalProducts: model.products.count)
+                let frames = frameMonitor.finish()
+                await reportSettledState(totalProducts: model.products.count, frames: frames)
             }
         }
     }
@@ -137,14 +140,15 @@ struct ProductFeedView: View {
     }
 
     /// Writes counters once the script ends, then again after the app has been idle for a few seconds.
-    private func reportSettledState(totalProducts: Int) async {
+    private func reportSettledState(totalProducts: Int, frames: FrameMonitor.Result) async {
         func report() -> RunReport.Report {
             RunReport.Report(
                 mode: settings.mode.rawValue,
                 purge: settings.purge,
                 storeCount: rowStates.count,
                 totalProducts: totalProducts,
-                metrics: DemoMetrics.shared.snapshot
+                metrics: DemoMetrics.shared.snapshot,
+                frames: frames
             )
         }
         RunReport.write(named: "autoscroll-done.json", report())

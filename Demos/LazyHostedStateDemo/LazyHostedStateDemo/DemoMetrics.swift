@@ -36,6 +36,7 @@ enum RunReport {
         var storeCount: Int
         var totalProducts: Int
         var metrics: DemoMetrics.Snapshot
+        var frames: FrameMonitor.Result?
     }
 
     static func write(named name: String, _ report: Report) {
