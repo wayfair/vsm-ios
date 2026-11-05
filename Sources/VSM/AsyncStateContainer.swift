@@ -327,16 +327,17 @@ public extension AsyncStateContainer {
         
         cancelRunningObservations()
         
-        stateTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-
-            let interval = self.tracer.beginInterval("State", id: self.tracer.makeSignpostID())
+        // `self` is captured weakly and only re-acquired after the await. Holding a strong
+        // reference across the await would keep the container alive until the closure returns,
+        // so a released container could never reach `deinit` to cancel this task.
+        stateTask = Task { @MainActor [weak self, tracer, logger, loggingEnabled] in
+            let interval = tracer.beginInterval("State", id: tracer.makeSignpostID())
 
             let nextStateValue = await nextStateClosure()
 
-            guard !Task.isCancelled else {
-                if self.loggingEnabled {
-                    os_log(.debug, log: self.logger, "observe(async closure) cancelled before state change")
+            guard let self, !Task.isCancelled else {
+                if loggingEnabled {
+                    os_log(.debug, log: logger, "observe(async closure) cancelled before state change")
                 }
                 interval.end()
                 return
@@ -361,15 +362,14 @@ public extension AsyncStateContainer {
         
         cancelRunningObservations()
         
-        let task = Task { @MainActor [weak self] in
-            guard let self else { return }
-
-            let interval = self.tracer.beginInterval("Refresh", id: self.tracer.makeSignpostID())
+        // See `_observe`: re-acquire `self` only after the await so a released container can deinit.
+        let task = Task { @MainActor [weak self, tracer, logger, loggingEnabled] in
+            let interval = tracer.beginInterval("Refresh", id: tracer.makeSignpostID())
 
             let nextStateValue = await nextStateClosure()
-            guard !Task.isCancelled else {
-                if self.loggingEnabled {
-                    os_log(.debug, log: self.logger, "refresh(state:) cancelled before state change")
+            guard let self, !Task.isCancelled else {
+                if loggingEnabled {
+                    os_log(.debug, log: logger, "refresh(state:) cancelled before state change")
                 }
                 interval.end()
                 return
@@ -456,11 +456,9 @@ public extension AsyncStateContainer {
         }
 
         let asyncStates = stateSequence.states
-        stateTask = Task { [weak self] in
-            guard let self else {
-                sequenceInterval.end()
-                return
-            }
+        // `self` is re-acquired once per iteration, after each await, so no strong reference is
+        // held while a step is suspended. Releasing the container lets `deinit` cancel this task.
+        stateTask = Task { [weak self, tracer, logger, loggingEnabled] in
             defer { sequenceInterval.end() }
 
             var iterationCount = stateSequence.synchronousStateActions.count + 1
@@ -468,27 +466,27 @@ public extension AsyncStateContainer {
 
             while !Task.isCancelled {
                 guard let nextClosure = remainingIterator.next() else {
-                    if self.loggingEnabled {
-                        os_log(.debug, log: self.logger, "StateSequence completed after %d state changes", iterationCount - 1)
+                    if loggingEnabled {
+                        os_log(.debug, log: logger, "StateSequence completed after %d state changes", iterationCount - 1)
                     }
-                    self.tracer.emitEvent("State Sequence Ended", id: sequenceID,
-                                          "Ended after \(iterationCount - 1) iterations")
+                    tracer.emitEvent("State Sequence Ended", id: sequenceID,
+                                     "Ended after \(iterationCount - 1) iterations")
                     break
                 }
 
                 let nextState = await nextClosure()
 
-                guard !Task.isCancelled else {
-                    if self.loggingEnabled {
-                        os_log(.debug, log: self.logger, "StateSequence cancelled during iteration %d", iterationCount)
+                guard let self, !Task.isCancelled else {
+                    if loggingEnabled {
+                        os_log(.debug, log: logger, "StateSequence cancelled during iteration %d", iterationCount)
                     }
-                    self.tracer.emitEvent("State Sequence Cancelled", id: sequenceID,
-                                          "Cancelled during iteration \(iterationCount)")
+                    tracer.emitEvent("State Sequence Cancelled", id: sequenceID,
+                                     "Cancelled during iteration \(iterationCount)")
                     break
                 }
                 self.performStateChange(nextState)
 
-                self.tracer.emitEvent("StateSequence Changed State", id: sequenceID, message: self.tracedStateName(nextState))
+                tracer.emitEvent("StateSequence Changed State", id: sequenceID, message: self.tracedStateName(nextState))
                 iterationCount += 1
             }
         }
@@ -515,15 +513,15 @@ public extension AsyncStateContainer {
         
         cancelRunningObservations()
         
-        stateTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-
-            let sequenceID = self.tracer.makeSignpostID()
+        // Without a strong `self` across `iterator.next`, an infinite sequence (an AsyncStream fed by
+        // a long-lived source, for example) no longer keeps a released container alive forever.
+        stateTask = Task { @MainActor [weak self, tracer, logger, loggingEnabled] in
+            let sequenceID = tracer.makeSignpostID()
             // Resolved eagerly rather than via an `@autoclosure`: the message reads the non-Sendable
             // `sequence`, and capturing it in a closure handed to the `nonisolated` tracer is the
             // pattern Swift 6 region isolation rejects. The `isEnabled` check keeps it lazy.
-            let sequenceLabel = self.tracer.isEnabled ? "\(type(of: sequence)) Sequence" : nil
-            let sequenceInterval = self.tracer.beginInterval("Sequence", id: sequenceID, message: sequenceLabel)
+            let sequenceLabel = tracer.isEnabled ? "\(type(of: sequence)) Sequence" : nil
+            let sequenceInterval = tracer.beginInterval("Sequence", id: sequenceID, message: sequenceLabel)
             defer { sequenceInterval.end() }
 
             var iterator = sequence.makeAsyncIterator()
@@ -533,25 +531,25 @@ public extension AsyncStateContainer {
                 let nextState = await iterator.next(isolation: #isolation)
 
                 guard let state = nextState else {
-                    if self.loggingEnabled {
-                        os_log(.debug, log: self.logger, "AsyncSequence completed after %d state changes", iterationCount - 1)
+                    if loggingEnabled {
+                        os_log(.debug, log: logger, "AsyncSequence completed after %d state changes", iterationCount - 1)
                     }
-                    self.tracer.emitEvent("Some AsyncSequence Sequence Ended", id: sequenceID,
-                                          "Ended after \(iterationCount - 1) iterations")
+                    tracer.emitEvent("Some AsyncSequence Sequence Ended", id: sequenceID,
+                                     "Ended after \(iterationCount - 1) iterations")
                     break
                 }
 
-                guard !Task.isCancelled else {
-                    if self.loggingEnabled {
-                        os_log(.debug, log: self.logger, "AsyncSequence cancelled during iteration %d", iterationCount)
+                guard let self, !Task.isCancelled else {
+                    if loggingEnabled {
+                        os_log(.debug, log: logger, "AsyncSequence cancelled during iteration %d", iterationCount)
                     }
-                    self.tracer.emitEvent("Some AsyncSequence Sequence Cancelled", id: sequenceID,
-                                          "Cancelled during iteration \(iterationCount)")
+                    tracer.emitEvent("Some AsyncSequence Sequence Cancelled", id: sequenceID,
+                                     "Cancelled during iteration \(iterationCount)")
                     break
                 }
                 self.performStateChange(state)
 
-                self.tracer.emitEvent("Some AsyncSequence Changed State", id: sequenceID, message: self.tracedStateName(state))
+                tracer.emitEvent("Some AsyncSequence Changed State", id: sequenceID, message: self.tracedStateName(state))
                 iterationCount += 1
             }
         }
