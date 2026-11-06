@@ -31,6 +31,7 @@ final class DemoMetrics: Sendable {
 /// tell when the scroll script finished and read the counters without screen scraping.
 enum RunReport {
     struct Report: Codable {
+        var runID = LaunchConfig.current.runID
         var mode: String
         var purge: Bool
         var storeCount: Int

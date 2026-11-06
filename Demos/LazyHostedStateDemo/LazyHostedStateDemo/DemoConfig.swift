@@ -10,6 +10,7 @@
 //    -purgeInterval <seconds>  how often the simulated purge happens (default: 3)
 //    -autoscroll 0|1           run the built-in scroll script on launch (default: 0)
 //    -cycles <n>               number of down/up passes for -autoscroll (default: 3)
+//    -runID <string>           echoed into the run report so scripts can match a report to a launch
 //    -UITesting                disable animations that would slow UI tests
 //
 
@@ -33,6 +34,7 @@ struct LaunchConfig: Sendable {
     var autoscroll = false
     var cycles = 3
     var isUITesting = false
+    var runID = ""
 
     static let current: LaunchConfig = {
         let defaults = UserDefaults.standard
@@ -48,6 +50,7 @@ struct LaunchConfig: Sendable {
         if defaults.object(forKey: "cycles") != nil {
             config.cycles = max(1, defaults.integer(forKey: "cycles"))
         }
+        config.runID = defaults.string(forKey: "runID") ?? ""
         config.isUITesting = CommandLine.arguments.contains("-UITesting")
         return config
     }()

@@ -11,6 +11,7 @@ set -euo pipefail
 
 UDID=$1; APP=$2; LABEL=$3; MODE=$4; PURGE=$5; TEMPLATE=$6; SNAP=${7:-}
 BUNDLE=com.demo.ios.LazyHostedStateDemo
+RUNID="$LABEL-$(date +%s)"  # the app echoes this into its report; stale reports are ignored
 CYCLES=${CYCLES:-3}
 HERE=$(cd "$(dirname "$0")/.." && pwd)
 OUT="$HERE/Profiling"; mkdir -p "$OUT"
@@ -24,7 +25,7 @@ xcrun simctl install "$UDID" "$APP"
 DATA=$(xcrun simctl get_app_container "$UDID" "$BUNDLE" data)
 rm -f "$DATA"/Documents/*.json
 
-ARGS=(-mode "$MODE" -purge "$PURGE" -purgeInterval 3 -autoscroll 1 -cycles "$CYCLES")
+ARGS=(-mode "$MODE" -purge "$PURGE" -purgeInterval 3 -autoscroll 1 -cycles "$CYCLES" -runID "$RUNID")
 if [ "$TEMPLATE" = "none" ]; then
   # No Instruments attached: used for frame-pacing numbers without recording overhead.
   xcrun simctl launch "$UDID" "$BUNDLE" "${ARGS[@]}" > "$OUT/${LABEL}_${SAFE_TEMPLATE}.record.log" 2>&1
@@ -38,12 +39,12 @@ fi
 
 # Wait for the app's "settled" report (scroll script done + 6s idle).
 for _ in $(seq 1 220); do
-  [ -f "$DATA/Documents/metrics-settled.json" ] && break
+  grep -qs "\"runID\":\"$RUNID\"" "$DATA/Documents/metrics-settled.json" && break
   # Fail fast if xctrace exited early (for example, a template the simulator does not support).
   if [ -n "$XPID" ] && ! kill -0 $XPID 2>/dev/null; then echo "xctrace exited early: see $OUT/${LABEL}_${SAFE_TEMPLATE}.record.log" >&2; exit 1; fi
   sleep 1
 done
-[ -f "$DATA/Documents/metrics-settled.json" ] || { echo "timed out waiting for settled report" >&2; [ -n "$XPID" ] && kill -INT $XPID; exit 1; }
+grep -qs "\"runID\":\"$RUNID\"" "$DATA/Documents/metrics-settled.json" || { echo "timed out waiting for settled report" >&2; [ -n "$XPID" ] && kill -INT $XPID; exit 1; }
 
 if [ "$SNAP" = "snapshots" ]; then
   PID=$(pgrep -f "LazyHostedStateDemo.app/LazyHostedStateDemo" | head -1)
